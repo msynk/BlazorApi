@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Integrates generated clients with dotnet-query (Msynk.DotNetQuery): retry rules that understand API errors and
+       the defaults generated query and mutation definitions use. The query cache itself stays in dotnet-query. -->
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <PackageId>Msynk.BlazorApi.DotNetQuery</PackageId>
+    <Description>dotnet-query integration for BlazorApi-generated clients: generated query keys, query definitions, mutations with invalidation and infinite queries.</Description>
+    <RootNamespace>BlazorApi.DotNetQuery</RootNamespace>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Msynk.DotNetQuery" Version="0.8.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BlazorApi.Runtime\BlazorApi.Runtime.csproj" />
+  </ItemGroup>
+
+</Project>

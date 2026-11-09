@@ -1,0 +1,87 @@
+{
+  "openapi": "3.1.0",
+  "info": { "title": "Features 3.1", "version": "2.0.0" },
+  "paths": {
+    "/shapes": {
+      "get": {
+        "operationId": "listShapes",
+        "responses": {
+          "200": {
+            "description": "Shapes",
+            "content": {
+              "application/json": {
+                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Shape" } }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/documents/{id}": {
+      "get": {
+        "operationId": "getDocument",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Document",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Document" } } }
+          }
+        }
+      }
+    }
+  },
+  "webhooks": {
+    "shapeCreated": {
+      "post": {
+        "requestBody": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Shape" } } } },
+        "responses": { "200": { "description": "ok" } }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Shape": {
+        "oneOf": [
+          { "$ref": "#/components/schemas/Circle" },
+          { "$ref": "#/components/schemas/Square" }
+        ],
+        "discriminator": { "propertyName": "shapeType" }
+      },
+      "Circle": {
+        "type": "object",
+        "required": ["shapeType", "radius"],
+        "properties": {
+          "shapeType": { "const": "Circle" },
+          "radius": { "type": "number" }
+        }
+      },
+      "Square": {
+        "type": "object",
+        "required": ["shapeType", "side"],
+        "properties": {
+          "shapeType": { "const": "Square" },
+          "side": { "type": "number", "exclusiveMinimum": 0 }
+        }
+      },
+      "Document": {
+        "type": "object",
+        "required": ["id", "title", "summary"],
+        "properties": {
+          "id": { "type": "string" },
+          "title": { "type": "string", "examples": ["Quarterly report"] },
+          "summary": { "type": ["string", "null"] },
+          "parent": {
+            "anyOf": [{ "$ref": "#/components/schemas/Document" }, { "type": "null" }]
+          },
+          "content": { "type": "string", "contentEncoding": "base64" },
+          "labels": { "$ref": "#/components/schemas/Document/$defs/Labels", "description": "Document labels." }
+        },
+        "$defs": {
+          "Labels": { "type": "array", "items": { "type": "string" }, "uniqueItems": true }
+        }
+      }
+    }
+  }
+}

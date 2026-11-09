@@ -1,0 +1,69 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+
+jobs:
+  build-test-pack:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      # BlazorApi.DotNetQuery depends on Msynk.DotNetQuery, which is not published on nuget.org yet. Add its feed
+      # here (dotnet nuget add source ...) until it is.
+      - name: Restore
+        run: dotnet restore BlazorApi.slnx
+
+      - name: Vulnerability scan
+        shell: bash
+        run: |
+          dotnet list BlazorApi.slnx package --vulnerable --include-transitive | tee vulnerable.txt
+          if grep -q "has the following vulnerable packages" vulnerable.txt; then exit 1; fi
+
+      - name: Build
+        run: dotnet build BlazorApi.slnx -c Release --no-restore
+
+      # Unit, golden-file, compilation, integration, source generator, CLI and Blazor tests, plus the sample tests.
+      - name: Test
+        run: dotnet test BlazorApi.slnx -c Release --no-build --verbosity normal
+
+      # The generated code under tests/Golden must match the generator (the golden tests fail otherwise); this also
+      # demonstrates the CI usage of api-gen --check.
+      - name: Generated code is up to date
+        shell: bash
+        run: |
+          dotnet src/BlazorApi.Cli/bin/Release/net10.0/api-gen.dll validate tests/Contracts/petstore.yaml --strict
+          dotnet src/BlazorApi.Cli/bin/Release/net10.0/api-gen.dll diff samples/Contracts/baseline/petstore.yaml samples/Contracts/petstore.yaml --format markdown
+
+      - name: Pack
+        if: matrix.os == 'windows-latest'
+        run: dotnet pack BlazorApi.slnx -c Release --no-build -o artifacts/packages
+
+      - name: Upload packages
+        if: matrix.os == 'windows-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: packages
+          path: artifacts/packages

@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <Import Project="..\..\src\BlazorApi.SourceGenerator\build\Msynk.BlazorApi.SourceGenerator.props" />
+
+  <!-- Testing without a server: generated mocks and fixtures (GenerateMocks=true), the MockApiHandler for full HTTP
+       stack tests, and a contract compatibility check against the last published contract. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <NoWarn>$(NoWarn);CA1707</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\BlazorApi.SourceGenerator\BlazorApi.SourceGenerator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\..\src\BlazorApi.Runtime\BlazorApi.Runtime.csproj" />
+    <ProjectReference Include="..\..\src\BlazorApi.Testing\BlazorApi.Testing.csproj" />
+    <ProjectReference Include="..\..\src\BlazorApi.OpenApi\BlazorApi.OpenApi.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <OpenApiContract Include="..\Contracts\petstore.yaml" Namespace="Petstore.Tests.Api" Options="GenerateMocks=true" />
+    <None Include="..\Contracts\**\*.yaml" LinkBase="Contracts" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <Import Project="..\..\src\BlazorApi.SourceGenerator\build\Msynk.BlazorApi.SourceGenerator.targets" />
+
+</Project>

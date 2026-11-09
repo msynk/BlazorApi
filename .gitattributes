@@ -1,0 +1,5 @@
+# Generated golden files are compared byte-for-byte (LF line endings).
+tests/Golden/** text eol=lf
+*.cs text
+*.yaml text eol=lf
+*.json text eol=lf

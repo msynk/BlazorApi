@@ -1,0 +1,23 @@
+## .NET build output
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+artifacts/
+*.user
+
+## IDE
+.vs/
+.vscode/
+.idea/
+
+## Test / coverage
+[Tt]est[Rr]esult*/
+coverage*.json
+*.coverage
+
+## Golden-file test failures write the actual output next to the expected file
+*.received.*
+
+## BenchmarkDotNet output
+BenchmarkDotNet.Artifacts/

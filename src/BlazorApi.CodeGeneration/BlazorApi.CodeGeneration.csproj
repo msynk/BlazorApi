@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- C# code generation from the normalized API model: configuration, naming, type mapping and the emitters for
+       models, clients, dependency injection, queries and mocks. netstandard2.0 and dependency-free so the Roslyn
+       source generator compiles it in; the command-line tool references it directly. -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <PackageId>Msynk.BlazorApi.CodeGeneration</PackageId>
+    <Description>Generates strongly typed C# API clients and models from OpenAPI 3.0/3.1 documents.</Description>
+    <RootNamespace>BlazorApi.CodeGeneration</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BlazorApi.OpenApi\BlazorApi.OpenApi.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="BlazorApi.CodeGeneration.Tests" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The api-gen command-line tool: generate, validate, diff and inspect OpenAPI contracts (local development and CI). -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <PackageId>Msynk.BlazorApi.Cli</PackageId>
+    <Description>api-gen: generates typed C# clients from OpenAPI contracts, validates contracts and detects breaking changes.</Description>
+    <RootNamespace>BlazorApi.Cli</RootNamespace>
+    <AssemblyName>api-gen</AssemblyName>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>api-gen</ToolCommandName>
+    <RollForward>Major</RollForward>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BlazorApi.OpenApi\BlazorApi.OpenApi.csproj" />
+    <ProjectReference Include="..\BlazorApi.CodeGeneration\BlazorApi.CodeGeneration.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="BlazorApi.Cli.Tests" />
+  </ItemGroup>
+
+</Project>

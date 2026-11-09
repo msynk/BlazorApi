@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Test-time support for generated clients: the base of generated client mocks, an HTTP-level mock handler with
+       request recording and verification. Reference it from test projects only; it is framework-agnostic (failures
+       throw ApiMockVerificationException, which every test framework reports). -->
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <PackageId>Msynk.BlazorApi.Testing</PackageId>
+    <Description>Mocks, a mock HTTP handler, request recording and verification for BlazorApi-generated clients.</Description>
+    <RootNamespace>BlazorApi.Testing</RootNamespace>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BlazorApi.Runtime\BlazorApi.Runtime.csproj" />
+  </ItemGroup>
+
+</Project>

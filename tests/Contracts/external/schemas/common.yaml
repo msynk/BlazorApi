@@ -1,0 +1,16 @@
+parameters:
+  PageSize:
+    name: pageSize
+    in: query
+    schema:
+      type: integer
+      format: int32
+schemas:
+  Error:
+    type: object
+    required: [message]
+    properties:
+      message:
+        type: string
+      inner:
+        $ref: '#/schemas/Error'

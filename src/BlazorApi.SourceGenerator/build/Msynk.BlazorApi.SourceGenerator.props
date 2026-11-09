@@ -1,0 +1,13 @@
+<Project>
+
+  <!-- Make OpenAPI contract metadata visible to the BlazorApi source generator. -->
+  <ItemGroup>
+    <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="BlazorApiKind" />
+    <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="BlazorApiNamespace" />
+    <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="BlazorApiClientName" />
+    <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="BlazorApiOptions" />
+    <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="BlazorApiConfig" />
+    <CompilerVisibleProperty Include="RootNamespace" />
+  </ItemGroup>
+
+</Project>

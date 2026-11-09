@@ -1,0 +1,26 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/BlazorApi.OpenApi/BlazorApi.OpenApi.csproj" />
+    <Project Path="src/BlazorApi.CodeGeneration/BlazorApi.CodeGeneration.csproj" />
+    <Project Path="src/BlazorApi.Runtime/BlazorApi.Runtime.csproj" />
+    <Project Path="src/BlazorApi.DotNetQuery/BlazorApi.DotNetQuery.csproj" />
+    <Project Path="src/BlazorApi.Testing/BlazorApi.Testing.csproj" />
+    <Project Path="src/BlazorApi.Blazor/BlazorApi.Blazor.csproj" />
+    <Project Path="src/BlazorApi.SourceGenerator/BlazorApi.SourceGenerator.csproj" />
+    <Project Path="src/BlazorApi.Cli/BlazorApi.Cli.csproj" />
+  </Folder>
+  <Folder Name="/samples/">
+    <Project Path="samples/Petstore.BlazorApp/Petstore.BlazorApp.csproj" />
+    <Project Path="samples/Petstore.ConsoleClient/Petstore.ConsoleClient.csproj" />
+    <Project Path="samples/Petstore.Tests/Petstore.Tests.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/BlazorApi.OpenApi.Tests/BlazorApi.OpenApi.Tests.csproj" />
+    <Project Path="tests/BlazorApi.CodeGeneration.Tests/BlazorApi.CodeGeneration.Tests.csproj" />
+    <Project Path="tests/BlazorApi.Integration.Tests/BlazorApi.Integration.Tests.csproj" />
+    <Project Path="tests/BlazorApi.SourceGenerator.Tests/BlazorApi.SourceGenerator.Tests.csproj" />
+    <Project Path="tests/BlazorApi.Cli.Tests/BlazorApi.Cli.Tests.csproj" />
+    <Project Path="tests/BlazorApi.Blazor.Tests/BlazorApi.Blazor.Tests.csproj" />
+    <Project Path="tests/BlazorApi.Benchmarks/BlazorApi.Benchmarks.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,25 @@
+openapi: 3.0.3
+info:
+  title: External references
+  version: 1.0.0
+paths:
+  /items:
+    get:
+      operationId: listItems
+      parameters:
+        - $ref: 'schemas/common.yaml#/parameters/PageSize'
+      responses:
+        '200':
+          description: Items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: 'schemas/item.yaml'
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: 'schemas/common.yaml#/schemas/Error'

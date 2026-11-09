@@ -1,0 +1,51 @@
+@page "/inventory"
+@implements IDisposable
+@inject IQueryClient Queries
+@inject IPetstoreClient Api
+
+<h1>Inventory</h1>
+
+@* A cached query (getInventory needs the API key, which the registered handler adds for this operation only). *@
+@if (_result is { } result)
+{
+    @if (result.Error is { } error)
+    {
+        <ApiErrorView Exception="error" OnRetry="RefreshAsync" />
+    }
+    else if (result.Data is { } inventory)
+    {
+        <ul>
+            @foreach (var pair in inventory.OrderBy(p => p.Key))
+            {
+                <li>@pair.Key: @pair.Value</li>
+            }
+        </ul>
+    }
+}
+else
+{
+    <p aria-busy="true">Loading...</p>
+}
+
+<button type="button" @onclick="RefreshAsync">Refresh</button>
+
+@code {
+    private QueryObserver<IReadOnlyDictionary<string, int>>? _observer;
+    private QueryResult<IReadOnlyDictionary<string, int>>? _result;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var definition = PetstoreQueries.GetInventory(Api);
+        _observer = Queries.Watch(definition);
+        _observer.StateChanged += _ => InvokeAsync(() =>
+        {
+            _result = _observer.CurrentResult;
+            StateHasChanged();
+        });
+        _result = await Queries.FetchAsync(definition);
+    }
+
+    private Task RefreshAsync() => Queries.InvalidateQueriesAsync(PetstoreQueries.Keys.GetInventoryPrefix);
+
+    public void Dispose() => _observer?.Dispose();
+}

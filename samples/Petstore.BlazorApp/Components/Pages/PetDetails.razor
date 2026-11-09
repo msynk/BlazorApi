@@ -1,0 +1,69 @@
+@page "/pets/{PetId:long}"
+@inject IPetstoreClient Api
+@inject IQueryClient Queries
+@inject NavigationManager Navigation
+
+@* ApiResultView loads with the generated ...ResultAsync method and renders loading, success and error states; a
+   missing pet shows the API's 404 error body. *@
+<ApiResultView TValue="Pet" @ref="_view" Load="ct => Api.GetPetResultAsync(PetId, ct)" Key="PetId">
+    <ChildContent Context="pet">
+        <h1>@pet.Name</h1>
+        <dl>
+            <dt>Kind</dt>
+            <dd>@pet.Kind</dd>
+            <dt>Status</dt>
+            <dd>@(pet.Status?.ToString() ?? "unknown")</dd>
+            <dt>Tag</dt>
+            <dd>@(pet.Tag ?? "(none)")</dd>
+            @if (pet is Dog dog)
+            {
+                <dt>Bark volume</dt>
+                <dd>@(dog.BarkVolume?.ToString() ?? "unknown")</dd>
+            }
+        </dl>
+
+        <p>
+            <input @bind="_tag" placeholder="New tag (empty clears it)" />
+            <button type="button" @onclick="SaveTagAsync">Save tag</button>
+        </p>
+        <button type="button" @onclick="DeleteAsync">Delete</button>
+    </ChildContent>
+</ApiResultView>
+
+<ApiErrorView Error="_error" />
+
+<p><a href="">Back to the list</a></p>
+
+@code {
+    private ApiResultView<Pet>? _view;
+    private string? _tag;
+    private ApiError? _error;
+
+    [Parameter]
+    public long PetId { get; set; }
+
+    private async Task SaveTagAsync()
+    {
+        // A JSON merge-patch body: an empty input sends "tag": null (clearing the tag); unset properties are omitted.
+        var result = await Api.PatchPetResultAsync(PetId, new PetPatch { Tag = string.IsNullOrWhiteSpace(_tag) ? null : _tag });
+        _error = result.Error;
+        if (result.IsSuccess)
+        {
+            await Queries.InvalidateQueriesAsync(PetstoreQueries.All);
+            await _view!.ReloadAsync();
+        }
+    }
+
+    private async Task DeleteAsync()
+    {
+#pragma warning disable CS0618 // deletePet is deprecated by the contract.
+        var result = await Api.DeletePetResultAsync(PetId);
+#pragma warning restore CS0618
+        _error = result.Error;
+        if (result.IsSuccess)
+        {
+            await Queries.InvalidateQueriesAsync(PetstoreQueries.All);
+            Navigation.NavigateTo("");
+        }
+    }
+}

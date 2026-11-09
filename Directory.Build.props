@@ -1,0 +1,51 @@
+<Project>
+
+  <PropertyGroup>
+    <!-- Each project declares its own TargetFramework(s). -->
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <!-- The generation engine treats input documents as data: culture must never change generated output. -->
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Package metadata">
+    <Product>BlazorApi</Product>
+    <Authors>Saleh Yusefnejad</Authors>
+    <Company>BlazorApi</Company>
+    <VersionPrefix>0.1.0</VersionPrefix>
+    <VersionSuffix>preview</VersionSuffix>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <Copyright>Copyright (c) 2026 Saleh Yusefnejad</Copyright>
+    <PackageProjectUrl>https://github.com/msynk/BlazorApi</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/msynk/BlazorApi</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>openapi;swagger;codegen;api-client;http;blazor;source-generator</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Reproducible packaging">
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <Deterministic>true</Deterministic>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
+  </PropertyGroup>
+
+  <!-- netstandard2.0 projects (the generation engine, shared with the Roslyn source generator) get the
+       compiler attributes that newer target frameworks provide (init, required, nullable flow attributes). -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
+    <Compile Include="$(MSBuildThisFileDirectory)src/Shared/Polyfills.cs" Link="Shared/Polyfills.cs" Visible="false" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(IsPackable)' != 'false'">
+    <None Include="$(MSBuildThisFileDirectory)README.md" Pack="true" PackagePath="\" Visible="false" />
+  </ItemGroup>
+
+</Project>

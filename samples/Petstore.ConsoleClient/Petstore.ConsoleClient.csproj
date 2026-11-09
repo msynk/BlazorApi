@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <Import Project="..\..\src\BlazorApi.SourceGenerator\build\Msynk.BlazorApi.SourceGenerator.props" />
+
+  <!-- The basic typed client: generated at build time from ../Contracts/petstore.yaml, used without dependency
+       injection. Run samples/Petstore.BlazorApp first; it hosts the API. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\BlazorApi.SourceGenerator\BlazorApi.SourceGenerator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\..\src\BlazorApi.Runtime\BlazorApi.Runtime.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <OpenApiContract Include="..\Contracts\petstore.yaml" Namespace="Petstore.ConsoleClient.Api" />
+  </ItemGroup>
+
+  <Import Project="..\..\src\BlazorApi.SourceGenerator\build\Msynk.BlazorApi.SourceGenerator.targets" />
+
+</Project>

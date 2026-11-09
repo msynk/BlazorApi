@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Blazor integration for generated clients: result and error components, server-side validation errors in
+       EditForm, and authentication registration helpers. Optional: core libraries never depend on Blazor. -->
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <PackageId>Msynk.BlazorApi.Blazor</PackageId>
+    <Description>Blazor components for BlazorApi-generated clients: loading/success/error views, problem details display and server validation errors in EditForm.</Description>
+    <RootNamespace>BlazorApi.Blazor</RootNamespace>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net8.0'">
+    <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="8.0.11" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
+    <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="10.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BlazorApi.Runtime\BlazorApi.Runtime.csproj" />
+  </ItemGroup>
+
+</Project>

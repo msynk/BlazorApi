@@ -1,0 +1,12 @@
+<Project>
+
+  <!-- Samples use the repository build settings but are not packages and do not need XML documentation. -->
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CA1515;CA1812;CA2007;CA1031;CA1848;CA2000</NoWarn>
+  </PropertyGroup>
+
+</Project>

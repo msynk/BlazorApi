@@ -1,0 +1,106 @@
+@page "/"
+@implements IDisposable
+@inject IQueryClient Queries
+@inject IPetstoreClient Api
+
+<h1>Pets</h1>
+
+@* An infinite query: pages are cached by dotnet-query and the generated definition follows the API's cursors. *@
+@if (_pets?.CurrentState is { } state)
+{
+    @if (state.Error is { } error)
+    {
+        <ApiErrorView Exception="error" OnRetry="() => _pets.RefetchAsync()" />
+    }
+    else if (state.Data is null)
+    {
+        <p aria-busy="true">Loading...</p>
+    }
+    else
+    {
+        <ul>
+            @foreach (var pet in state.Data.Pages.SelectMany(page => page.Items))
+            {
+                <li>
+                    <a href="pets/@pet.Id">@pet.Name</a>
+                    (@pet.Kind@(pet is Cat { Indoor: true } ? ", indoor" : string.Empty))
+                </li>
+            }
+        </ul>
+
+        @if (_pets.HasNextPage)
+        {
+            <button type="button" disabled="@state.IsFetchingNextPage" @onclick="() => _pets.FetchNextPageAsync()">Load more</button>
+        }
+    }
+}
+
+<h2>Add a pet</h2>
+
+@* Client-side rules come from the contract (DataAnnotations); server-side errors (422 problem details) appear on
+   the same fields through ApiValidationErrors. Try an empty name or a kind the server rejects. *@
+<EditForm Model="_new" OnValidSubmit="CreateAsync" FormName="new-pet">
+    <DataAnnotationsValidator />
+    <ApiValidationErrors Error="_createError" />
+    <ValidationSummary />
+
+    <label>Name <InputText @bind-Value="_new.Name" /></label>
+    <ValidationMessage For="() => _new.Name" />
+
+    <label>
+        Kind
+        <InputSelect @bind-Value="_new.Kind">
+            <option value="dog">Dog</option>
+            <option value="cat">Cat</option>
+            <option value="parrot">Parrot (rejected by the server)</option>
+        </InputSelect>
+    </label>
+    <ValidationMessage For="() => _new.Kind" />
+
+    <button type="submit" disabled="@(_create?.CurrentState.IsPending == true)">Add</button>
+</EditForm>
+
+@code {
+    private InfiniteQuery<string?, PetPage>? _pets;
+    private Mutation<NewPet, Pet>? _create;
+    private NewPet _new = NewModel();
+    private ApiError? _createError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _pets = PetstoreQueries.ListPetsInfinite(Queries, Api, limit: 5);
+        _pets.StateChanged += OnStateChanged;
+
+        // Creating a pet invalidates every listPets query (the generated mutation options say so), so the list
+        // above refreshes on its own.
+        _create = PetstoreQueries.CreatePet(Queries, Api);
+        await _pets.FetchAsync();
+    }
+
+    private async Task CreateAsync()
+    {
+        _createError = null;
+        try
+        {
+            await _create!.MutateAsync(_new);
+            _new = NewModel();
+        }
+        catch (ApiException ex)
+        {
+            _createError = ex.Error;
+        }
+    }
+
+    private static NewPet NewModel() => new() { Name = string.Empty, Kind = "dog" };
+
+    private void OnStateChanged(InfiniteQueryState<string?, PetPage> state) => InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        if (_pets is not null)
+        {
+            _pets.StateChanged -= OnStateChanged;
+            _pets.Dispose();
+        }
+    }
+}

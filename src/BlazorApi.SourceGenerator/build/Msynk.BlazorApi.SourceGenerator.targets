@@ -1,0 +1,21 @@
+<Project>
+
+  <!--
+    Usage:
+      <OpenApiContract Include="Contracts/petstore.yaml" Namespace="MyApp.Petstore" Options="GenerateQueries=true" />
+      <OpenApiReference Include="Contracts/shared/**/*.yaml" />   (documents referenced with $ref)
+    Optional metadata: Namespace, ClientName, Options (key=value;...), Config (a blazorapi.json file, also an AdditionalFile).
+  -->
+  <Target Name="BlazorApiAddContracts" BeforeTargets="GenerateMSBuildEditorConfigFileShouldRun;GenerateMSBuildEditorConfigFileCore;CoreCompile">
+    <ItemGroup>
+      <AdditionalFiles Include="@(OpenApiContract)" BlazorApiKind="Contract"
+                       BlazorApiNamespace="%(OpenApiContract.Namespace)"
+                       BlazorApiClientName="%(OpenApiContract.ClientName)"
+                       BlazorApiOptions="%(OpenApiContract.Options)"
+                       BlazorApiConfig="%(OpenApiContract.Config)" />
+      <AdditionalFiles Include="@(OpenApiReference)" BlazorApiKind="Reference" />
+      <AdditionalFiles Include="@(OpenApiContract->'%(Config)')" Condition="'%(OpenApiContract.Config)' != ''" BlazorApiKind="Config" />
+    </ItemGroup>
+  </Target>
+
+</Project>
