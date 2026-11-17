@@ -79,7 +79,13 @@ target .NET Standard 2.0.
 - **Mock server**: `api-gen mock` serves examples (or values synthesized by `OpenApiExamples`) with `Prefer` response
   selection and open CORS.
 
+- **Caching**: `AddApiCaching()` / `ApiCacheHandler` revalidate GET responses with `If-None-Match` and
+  `If-Modified-Since` and answer 304s from a per-user, `Vary`-aware in-memory cache (`ApiResponseCache`).
+
 ### Fixed
+
+- Values typed as an intermediate class of a discriminated hierarchy (`Car` with a `SportsCar` subtype) were read as
+  that class; intermediate classes now get their own converter and dispatch to their subtypes.
 
 - Exceptions of resilience pipelines (Polly timeouts, open circuits, rate limiters) escaped `XxxResultAsync`; they
   are now `Timeout` and `Network` errors.
@@ -92,7 +98,6 @@ target .NET Standard 2.0.
 - No BlazorApi package has been published yet.
 - Trimmed and native AOT applications that use the source generator (not the CLI) must supply a
   `JsonSerializerContext` for the generated types.
-- Polymorphic responses typed as an intermediate class are not dispatched to its subtypes; only the first success
-  body of an operation is the typed value (others are in `ApiResult.Content`); `format: time` and `duration` map to
-  `string` by default.
+- Only the first success body of an operation is the typed value (others are in `ApiResult.Content`);
+  `format: time` and `duration` map to `string` by default.
 - See `IMPLEMENTATION-STATUS.md` for the complete list.

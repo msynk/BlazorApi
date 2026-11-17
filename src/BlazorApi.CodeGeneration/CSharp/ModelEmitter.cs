@@ -49,10 +49,15 @@ internal sealed class ModelEmitter
     {
         var name = _plan.TypeName(type);
         _plan.Polymorphic.TryGetValue(type, out var polymorphic);
+        var subtree = polymorphic is null ? SubtreePlan(type) : null;
         WriteTypeDocs(writer, type);
         if (polymorphic is not null)
         {
             writer.Line($"[{Serialization}.JsonConverter(typeof({polymorphic.ConverterName}))]");
+        }
+        else if (subtree is not null)
+        {
+            writer.Line($"[{Serialization}.JsonConverter(typeof({subtree.Value.Converter}))]");
         }
 
         var baseType = _plan.CSharpBase(type);
@@ -81,7 +86,7 @@ internal sealed class ModelEmitter
 
             if (type.AdditionalProperties is not null && !HasExtensionDataInBase(type))
             {
-                var propertyName = _plan.MemberScope(type).Allocate("AdditionalProperties");
+                var propertyName = _plan.ExtensionDataName(type);
                 members.Add(() => EmitExtensionData(writer, propertyName, $"Properties not declared by {name}, keyed by name" +
                     (type.AdditionalProperties is ApiPrimitiveType { Kind: ApiPrimitiveKind.Any } ? "." : $" (values are {Describe(type.AdditionalProperties)})."))
                 );
@@ -96,6 +101,139 @@ internal sealed class ModelEmitter
             EmitUnrecognized(writer, type, polymorphic);
             writer.Line();
             EmitPolymorphicConverter(writer, type, polymorphic);
+        }
+
+        if (subtree is { } plan)
+        {
+            writer.Line();
+            EmitSubtreeConverter(writer, type, plan);
+        }
+    }
+
+    private readonly record struct Subtree(PolymorphicPlan Root, string Converter, string Payload, List<(string Value, ApiObjectType Type)> Subtypes);
+
+    /// <summary>
+    /// A concrete class of a discriminated hierarchy that has subtypes of its own (<c>Dog</c> with <c>Puppy</c>)
+    /// gets a converter, so values typed as that class are read as their most derived type too.
+    /// </summary>
+    private Subtree? SubtreePlan(ApiObjectType type)
+    {
+        if (_plan.PolymorphicRootOf(type) is not { } root || ReferenceEquals(root.Root, type))
+        {
+            return null;
+        }
+
+        var subtypes = root.Mappings.Where(m => !ReferenceEquals(m.Type, type) && _plan.DerivesFrom(m.Type, type)).ToList();
+        if (subtypes.Count == 0)
+        {
+            return null;
+        }
+
+        var name = _plan.TypeName(type);
+        return new Subtree(root, _plan.TypeScope.Allocate(name + "JsonConverter"), _plan.TypeScope.Allocate(name + "JsonPayload"), subtypes);
+    }
+
+    private ApiObjectType DeclaringType(ApiObjectType type, ApiProperty property)
+    {
+        for (var current = type; current is not null; current = _plan.CSharpBase(current) as ApiObjectType)
+        {
+            if (current.Properties.Any(p => ReferenceEquals(p, property)))
+            {
+                return current;
+            }
+        }
+
+        return type;
+    }
+
+    /// <summary>
+    /// The converter of an intermediate hierarchy class. Subtypes are dispatched by discriminator; the class itself
+    /// is read and written through a payload class with the same JSON shape, because reading it directly would call
+    /// this converter again.
+    /// </summary>
+    private void EmitSubtreeConverter(CodeWriter writer, ApiObjectType type, Subtree plan)
+    {
+        var name = _plan.TypeName(type);
+        var properties = type.AllProperties.Select(p => (Property: p, Name: _plan.PropertyName(type, p))).ToList();
+        ApiObjectType? extensionOwner = null;
+        for (var current = type; current is not null; current = _plan.CSharpBase(current) as ApiObjectType)
+        {
+            if (current.AdditionalProperties is not null)
+            {
+                extensionOwner = current;
+            }
+        }
+
+        var extension = extensionOwner is null ? null : _plan.ExtensionDataName(extensionOwner);
+        string Copy(string source) => string.Join(", ", properties.Select(p => $"{p.Name} = {source}.{p.Name}")
+            .Concat(extension is null ? [] : [$"{extension} = {source}.{extension}"]));
+
+        writer.Doc("summary", $"Reads and writes {name} values as their most derived type, selected by the '{plan.Root.DiscriminatorProperty}' property.");
+        using (writer.Block($"{_plan.Accessibility} sealed class {plan.Converter} : {Serialization}.JsonConverter<{name}>"))
+        {
+            writer.Doc("summary", $"Reads a subtype named by the discriminator, otherwise a {name}.");
+            using (writer.Block($"public override {name}? Read(ref {Json}.Utf8JsonReader reader, global::System.Type typeToConvert, {Json}.JsonSerializerOptions options)"))
+            {
+                using (writer.Block($"if (reader.TokenType == {Json}.JsonTokenType.Null)"))
+                {
+                    writer.Line("return null;");
+                }
+
+                writer.Line();
+                using (writer.Block($"switch ({ApiJson}.PeekDiscriminator(reader, {Literal.String(plan.Root.DiscriminatorProperty)}))"))
+                {
+                    foreach (var mapping in plan.Subtypes.GroupBy(m => m.Value).Select(g => g.First()))
+                    {
+                        writer.Line($"case {Literal.String(mapping.Value)}:");
+                        using (writer.Indent())
+                        {
+                            writer.Line($"return {ApiJson}.Read<{_plan.TypeName(mapping.Type)}>(ref reader, options);");
+                        }
+                    }
+                }
+
+                writer.Line();
+                writer.Line($"var payload = {ApiJson}.Read<{plan.Payload}>(ref reader, options)!;");
+                writer.Line($"return new {name} {{ {Copy("payload")} }};");
+            }
+
+            writer.Line();
+            writer.Doc("summary", "Writes the value as its runtime type.");
+            using (writer.Block($"public override void Write({Json}.Utf8JsonWriter writer, {name} value, {Json}.JsonSerializerOptions options)"))
+            {
+                using (writer.Block("switch (value)"))
+                {
+                    var written = new HashSet<ApiObjectType>(IdentityComparer.Instance);
+                    foreach (var mapping in plan.Subtypes.Where(m => written.Add(m.Type)))
+                    {
+                        var typeName = _plan.TypeName(mapping.Type);
+                        writer.Line($"case {typeName} typed:");
+                        using (writer.Indent())
+                        {
+                            writer.Line($"{ApiJson}.Write<{typeName}>(writer, typed, options);");
+                            writer.Line("return;");
+                        }
+                    }
+                }
+
+                writer.Line();
+                writer.Line($"{ApiJson}.Write<{plan.Payload}>(writer, new {plan.Payload} {{ {Copy("value")} }}, options);");
+            }
+        }
+
+        writer.Line();
+        writer.Doc("summary", $"The JSON shape of {name} itself, used by {plan.Converter}. Not for direct use.");
+        writer.Line("[global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]");
+        using (writer.Block($"{_plan.Accessibility} sealed class {plan.Payload}"))
+        {
+            // Each property keeps the shape of the class that declares it (the root's discriminator stays a discriminator).
+            var members = properties.Select(p => (Action)(() => EmitProperty(writer, DeclaringType(type, p.Property), p.Property))).ToList();
+            if (extension is not null)
+            {
+                members.Add(() => EmitExtensionData(writer, extension, "Properties not declared by the type."));
+            }
+
+            WriteMembers(writer, members);
         }
     }
 

@@ -22,7 +22,7 @@ stable `BAPIxxxx` diagnostics with file, line and JSON pointer, and produces det
 - Typed error bodies per status code, RFC 9457 problem details, distinct network/timeout/deserialization errors;
   other success bodies (`ApiResult.Content`) and typed response headers (`{Operation}ResponseHeaders`).
 - Upload/download progress, reconnecting server-sent event streams (`ApiEventSource`), operation logging with
-  `Deprecation`/`Sunset` warnings.
+  `Deprecation`/`Sunset` warnings, `ETag` revalidation (`AddApiCaching`).
 - Streamed responses: server-sent events and JSON Lines/NDJSON/`json-seq` as `IAsyncEnumerable` (`ApiStream<T>`),
   rendered incrementally by the Blazor `ApiStreamView`.
 - Per-call options (`WithOptions`), document and operation-level servers with variables (`Servers`).

@@ -109,8 +109,10 @@ and reads unknown values as `UnrecognizedPet`, which keeps undeclared properties
 subtype's constructor sets its discriminator value. Mappings that do not resolve report BAPI4009; a discriminator
 property that is not defined reports BAPI3010.
 
-Limitation: deserialization dispatches from the hierarchy root. A response typed as an intermediate concrete class
-(`Dog` with a `Puppy` subtype) is read as that class.
+A concrete class with subtypes of its own (`Car` with `SportsCar`) gets its own converter (`CarJsonConverter`), so
+values typed as that class are read as their most derived type too, and unknown discriminator values read as the class
+itself. It reads and writes the class's own JSON through a generated payload class (`CarJsonPayload`, hidden from
+IntelliSense) because reading the class directly would call the converter again.
 
 **oneOf / anyOf.** A discriminated `oneOf`/`anyOf` whose variants are object schemas used by no other union and
 without their own base type becomes an abstract base class (like a hierarchy, `Shape` with `Circle` and `Square`).

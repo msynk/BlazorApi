@@ -150,6 +150,34 @@ internal sealed class GenerationPlan
         type.BaseType is { } baseType ? baseType : UnionBase.TryGetValue(type, out var union) ? union : null;
 
     /// <summary>The polymorphic plan whose hierarchy contains the type, if any.</summary>
+    private readonly Dictionary<ApiObjectType, string> _extensionDataNames = new(IdentityComparer.Instance);
+
+    /// <summary>The name of the extension data property a type declares (allocated once per type).</summary>
+    public string ExtensionDataName(ApiObjectType type)
+    {
+        if (!_extensionDataNames.TryGetValue(type, out var name))
+        {
+            name = MemberScope(type).Allocate("AdditionalProperties");
+            _extensionDataNames[type] = name;
+        }
+
+        return name;
+    }
+
+    /// <summary>Whether <paramref name="type"/> derives (directly or not) from <paramref name="ancestor"/>.</summary>
+    public bool DerivesFrom(ApiObjectType type, ApiObjectType ancestor)
+    {
+        for (var current = CSharpBase(type) as ApiObjectType; current is not null; current = CSharpBase(current) as ApiObjectType)
+        {
+            if (ReferenceEquals(current, ancestor))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public PolymorphicPlan? PolymorphicRootOf(ApiObjectType type)
     {
         for (ApiNamedType? current = type; current is not null; current = current is ApiObjectType o ? CSharpBase(o) : null)

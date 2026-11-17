@@ -202,4 +202,106 @@ public class RetryHandlerTests
         Assert.Contains(logger.Entries, e => e.Level == Microsoft.Extensions.Logging.LogLevel.Warning && e.Message.Contains("failed after", StringComparison.Ordinal));
         Assert.DoesNotContain(messages, m => m.Contains("4242", StringComparison.Ordinal) || m.Contains("api.example.com", StringComparison.Ordinal));
     }
+
+    [Fact]
+    public async Task Cache_revalidates_with_etags_per_user()
+    {
+        var handler = new RecordingHandler();
+        HttpResponseMessage Ok(string etag)
+        {
+            var response = new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(DogJson, Encoding.UTF8, "application/json") };
+            response.Headers.ETag = new System.Net.Http.Headers.EntityTagHeaderValue(etag);
+            return response;
+        }
+
+        handler.Respond(_ => Task.FromResult(Ok("\"v1\"")))
+            .Respond(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotModified)))
+            .Respond(_ => Task.FromResult(Ok("\"v1\"")))
+            .Respond(_ => Task.FromResult(Ok("\"v2\"")))
+            .Respond(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotModified)));
+        var cache = new ApiCacheHandler { InnerHandler = handler };
+        var client = new PetstoreClient(new HttpClient(cache));
+        var other = client.WithOptions(o => o.DefaultHeaders["Authorization"] = "Bearer other-user");
+
+        var first = await client.GetPetResultAsync(42);
+        var second = await client.GetPetResultAsync(42);
+        var otherUser = await other.GetPetResultAsync(42);
+        var changed = await client.GetPetResultAsync(42);
+        var third = await client.GetPetResultAsync(42);
+
+        Assert.Equal("Rex", first.Value!.Name);
+        Assert.False(handler.Requests[0].Headers.ContainsKey("If-None-Match"));
+        Assert.Equal("\"v1\"", handler.Requests[1].Headers["If-None-Match"]);
+        Assert.Equal(200, second.StatusCode);
+        Assert.Equal("Rex", second.Value!.Name);
+        Assert.Equal("revalidated", second.GetHeader(ApiCacheHandler.CacheHeader));
+        Assert.False(handler.Requests[2].Headers.ContainsKey("If-None-Match")); // another user's credentials
+        Assert.Equal("\"v1\"", handler.Requests[3].Headers["If-None-Match"]);
+        Assert.Null(changed.GetHeader(ApiCacheHandler.CacheHeader));
+        Assert.Equal("\"v2\"", handler.Requests[4].Headers["If-None-Match"]);
+        Assert.Equal("Rex", third.Value!.Name);
+        Assert.Equal(2, cache.Cache.Count);
+    }
+
+    private sealed class UnknownLengthContent(string text) : HttpContent
+    {
+        protected override Task SerializeToStreamAsync(Stream stream, System.Net.TransportContext? context) =>
+            stream.WriteAsync(Encoding.UTF8.GetBytes(text)).AsTask();
+
+        protected override bool TryComputeLength(out long length)
+        {
+            length = 0;
+            return false;
+        }
+    }
+
+    [Fact]
+    public async Task Cache_survives_outer_retries_and_keeps_api_keys_apart()
+    {
+        var handler = new RecordingHandler();
+        HttpResponseMessage Ok()
+        {
+            var response = new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(DogJson, Encoding.UTF8, "application/json") };
+            response.Headers.ETag = new System.Net.Http.Headers.EntityTagHeaderValue("\"v1\"");
+            return response;
+        }
+
+        handler.Respond(_ => Task.FromResult(Ok()))
+            .Respond(Status(HttpStatusCode.ServiceUnavailable))
+            .Respond(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotModified)))
+            .Respond(_ => Task.FromResult(Ok()));
+        var cache = new ApiCacheHandler { InnerHandler = handler };
+        var retry = new ApiRetryHandler(new ApiRetryOptions { BaseDelay = TimeSpan.Zero }) { InnerHandler = cache };
+        var client = new PetstoreClient(new HttpClient(retry));
+
+        await client.GetPetAsync(42);
+        var revalidated = await client.GetPetResultAsync(42);
+        var otherKey = await client.WithOptions(o => o.DefaultHeaders["X-Api-Key"] = "tenant-2").GetPetResultAsync(42);
+
+        Assert.Equal("\"v1\"", handler.Requests[1].Headers["If-None-Match"]);
+        Assert.Equal("\"v1\"", handler.Requests[2].Headers["If-None-Match"]); // the retried request, re-conditioned once
+        Assert.Equal("Rex", revalidated.Value!.Name);
+        Assert.False(handler.Requests[3].Headers.ContainsKey("If-None-Match")); // another API key is another caller
+        Assert.Equal(200, otherKey.StatusCode);
+    }
+
+    [Fact]
+    public async Task Cache_hands_back_large_bodies_of_unknown_length_intact()
+    {
+        var big = "\"" + new string('x', 5000) + "\"";
+        var handler = new RecordingHandler().Respond(_ =>
+        {
+            var response = new HttpResponseMessage(HttpStatusCode.OK) { Content = new UnknownLengthContent(big) };
+            response.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("text/plain");
+            response.Headers.ETag = new System.Net.Http.Headers.EntityTagHeaderValue("\"big\"");
+            return Task.FromResult(response);
+        });
+        var cache = new ApiCacheHandler(new ApiCacheOptions { MaxBodyLength = 1000 }) { InnerHandler = handler };
+        using var http = new HttpClient(cache);
+
+        var text = await http.GetStringAsync(new Uri("https://api.example.com/v1/health"));
+
+        Assert.Equal(big, text);
+        Assert.Equal(0, cache.Cache.Count);
+    }
 }

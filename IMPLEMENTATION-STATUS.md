@@ -31,6 +31,7 @@ scoped to be reviewable on its own; the working tree has not been committed or s
 | M22 | Advanced generation features | Partly: operation/tag filters, unused-model pruning, multi-contract projects, `x-pagination`, `x-enum-varnames`; custom templates deferred |
 | M23 | Blazor integration (`BlazorApi.Blazor`: `ApiResultView`, `ApiErrorView`, `ApiValidationErrors`; auth registration helpers `AddBearerToken`/`AddApiKey`/`AddBasicAuthentication` in `BlazorApi.Runtime`) | Done |
 | M24 | Documentation, demo, benchmarks, CI workflow, packaging | Done (not published) |
+| M28 | Intermediate hierarchy classes dispatch to their subtypes (subtree converters with payload classes); conditional-request cache (`AddApiCaching`) | Done |
 | M27 | Other success bodies (`ApiResult.Content`), typed response headers, transfer progress, reconnecting SSE, operation logging with deprecation warnings, `api-gen mock` with example synthesis | Done |
 | M26 | Overlays (1.0-1.2, RFC 9535 JSONPath), OpenAPI 3.2 `additionalOperations` and `querystring`, `durationType=timeSpan`, `generate --watch`, Blazor `ApiStreamView` | Done |
 | M25 | Gap closure after an ecosystem survey (see below): streaming, per-call options, servers, retries, telemetry, forward-compatible enums, JSON context, CLI URLs | Done |
@@ -48,6 +49,7 @@ scoped to be reviewable on its own; the working tree has not been committed or s
 | 2026-11-09 | After documentation-review fixes: 440 tests (net8.0 + net10.0) + 5 demo tests | all passed |
 | 2026-11-09 | demo/BlazorApi.Demo.Tests (5); BlazorApi.Demo.BlazorApp run and checked over HTTP (pages, 401, 404, API key); BlazorApi.Demo.ConsoleClient run against it | passed |
 | 2026-11-17 | After removing the dotnet-query integration: full suite (net8.0 + net10.0) + 5 demo tests | all passed |
+| 2026-11-17 | M28 after review fixes, Release build: OpenApi 199, CodeGeneration 13, Integration 78 (intermediate hierarchies, cache incl. retries, API keys, large chunked bodies), SourceGenerator 14, Cli 24, Blazor 11, per framework (net8.0, net10.0); demo 5 | all passed |
 | 2026-11-17 | M27, Release build: OpenApi 199, CodeGeneration 13, Integration 74 (alternate bodies, headers, progress, reconnection, logging), SourceGenerator 14, Cli 24 (mock server), Blazor 11, per framework (net8.0, net10.0); demo 5 | all passed |
 | 2026-11-17 | M26, Release build: OpenApi 197 (JSONPath RFC 9535 examples, overlays, 3.2), CodeGeneration 13, Integration 68, SourceGenerator 14, Cli 23 (overlays, watch), Blazor 11 (stream view), per framework (net8.0, net10.0); demo 5 | all passed |
 | 2026-11-17 | M25 gap closure: full suite (net8.0 + net10.0): OpenApi 142, CodeGeneration 11, Integration 50, SourceGenerator 12, Cli 21, Blazor 8, demo 5; `dotnet pack` of the source generator checked for the `BlazorApi.Runtime` dependency | all passed |
@@ -137,11 +139,20 @@ scoped to be reviewable on its own; the working tree has not been committed or s
     signatures and mocks stay; other bodies are read into `Content` and recovered with `TryGetContent<T>`.
 27. **The mock server is a socket server.** `api-gen mock` speaks HTTP/1.1 over `TcpListener` (one request per
     connection, IPv4 and IPv6 loopback), so it needs no ASP.NET Core dependency, URL reservation or elevation.
+28. **Intermediate classes read through a payload twin.** STJ cannot read a type while bypassing its own
+    `[JsonConverter]`, so a subtree converter reads the class's exact JSON through a generated payload class with the
+    same properties and attributes and copies the values. The root converter is unchanged and calls the intermediate
+    converter, which never calls itself.
+29. **The cache revalidates, it does not trust freshness.** Serving cached responses without asking the server would
+    need full `Cache-Control` semantics; always revalidating keeps responses correct while saving the body transfer.
+    Every caller-identifying request header is part of the key (fail closed: only known per-request headers are left
+    out) because a typed client's handler pipeline is shared by every user of a server app. A review of this batch
+    found and fixed: unbounded buffering, keys computed after inner handlers ran, conditions re-sent by outer
+    retries, unbounded `Vary` bookkeeping, a sign-out race (a generation counter guards `Clear`), and the payload
+    class making the root's discriminator required.
 
 ## Known limitations (current)
 
-- Polymorphic deserialization dispatches from the hierarchy root. A response typed as an intermediate concrete
-  class (for example `Dog` with a `Puppy` subtype) is read as that class, not the subtype.
 - Only the first success response body is the typed value; other JSON/text success bodies are untyped `object`s in
   `ApiResult.Content` (binary and streamed alternatives are not read).
 - Server-sent event `retry:` fields are applied with the next event (the parser ignores `retry` in blocks without
@@ -153,8 +164,8 @@ scoped to be reviewable on its own; the working tree has not been committed or s
 - Generated JSON uses reflection-based System.Text.Json metadata by default. The CLI generates a
   `JsonSerializerContext` with `generateJsonContext=true`; with the source generator, trimmed/native AOT apps must
   supply one (generators cannot see each other's output).
-- No automatic conditional requests (`If-None-Match` caching); `ETag` is typed by the response-headers classes and
-  `If-Match` is sent with `WithOptions` or a declared header parameter.
+- The conditional-request cache is in memory only (no persistent or distributed cache) and ignores `max-age`
+  freshness: every GET is revalidated with the server.
 - Generated mocks are emitted into the project that generates them (with `GenerateMocks=true`), which must then
   reference `BlazorApi.Testing`; generate mocks in the test project.
 
@@ -209,10 +220,12 @@ Overlay 1.1, RFC 9457, RFC 9110 `Retry-After`, the Idempotency-Key draft, OpenTe
 | No SSE reconnection | FE | `ApiEventSource.Reconnecting` (M27) |
 | No operation logging or deprecation surfacing | MER logging, KI | `ApiLoggingHandler`, `blazorapi.deprecated` (M27) |
 | No mock server | Prism, Microcks, OR (MSW), SE | `api-gen mock` (M27) |
+| Intermediate hierarchy classes read as themselves | known limitation since M07 | Subtree converters (M28) |
+| No conditional-request caching | essentially none surveyed | `ApiCacheHandler` (M28) |
 | No UI for streams or infinite lists | HA/OR query integrations (front-end analogue) | Blazor `ApiStreamView` (M26) |
 
 Considered and not done (see Known limitations and Deferred features): several typed success responses per
-operation as a generated union, automatic conditional requests,
+operation as a generated union,
 custom templates and hooks, a mock server, OAuth authorization-code/device flows (delegated to identity libraries such
 as Microsoft.Identity.Web, MSAL or Blazor's `IAccessTokenProvider`), MCP server generation.
 

@@ -21,6 +21,20 @@
         }
       }
     },
+    "/cars/{id}": {
+      "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } } ],
+      "get": {
+        "operationId": "getCar",
+        "responses": {
+          "200": { "description": "Car", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Car" } } } }
+        }
+      },
+      "put": {
+        "operationId": "putCar",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Car" } } } },
+        "responses": { "204": { "description": "Stored" } }
+      }
+    },
     "/search": {
       "query": {
         "operationId": "searchDocuments",
@@ -140,6 +154,27 @@
           "percent": { "type": "integer", "format": "int32" },
           "stage": { "$ref": "#/components/schemas/Stage" }
         }
+      },
+      "Vehicle": {
+        "type": "object",
+        "required": ["vehicleType"],
+        "discriminator": { "propertyName": "vehicleType" },
+        "properties": {
+          "vehicleType": { "type": "string" },
+          "wheels": { "type": "integer", "format": "int32" }
+        }
+      },
+      "Car": {
+        "allOf": [
+          { "$ref": "#/components/schemas/Vehicle" },
+          { "type": "object", "required": ["seats"], "properties": { "seats": { "type": "integer", "format": "int32" } }, "additionalProperties": true }
+        ]
+      },
+      "SportsCar": {
+        "allOf": [
+          { "$ref": "#/components/schemas/Car" },
+          { "type": "object", "properties": { "topSpeed": { "type": "number" } } }
+        ]
       },
       "Stage": { "type": "string", "enum": ["queued", "running", "done"] },
       "Shape": {

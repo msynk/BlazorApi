@@ -40,6 +40,32 @@ circuit, rate limiter) an `ApiErrorKind.Network` error, so `XxxResultAsync` does
 handler retries POST as well; call `DisableForUnsafeHttpMethods()` on its retry options to keep requests without
 idempotency keys from being sent twice.
 
+## Conditional requests
+
+`AddApiCaching()` adds an `ApiCacheHandler` that revalidates GET responses instead of downloading them again
+(RFC 9110): a 200 response with an `ETag` or `Last-Modified` is kept in memory, the next GET of the same URL sends
+`If-None-Match` or `If-Modified-Since`, and a `304 Not Modified` is answered with the cached response (marked with the
+header `X-BlazorApi-Cache: revalidated`).
+
+```csharp
+builder.Services.AddPetstoreClient()
+    .AddBearerToken(...)
+    .AddApiCaching(o => o.MaxEntries = 500);   // after authentication: credentials are part of the key
+```
+
+- Keys are the URL, a hash of every request header that can identify a caller (`Authorization`, `Cookie`, API keys,
+  tenant headers: all headers except per-request ones such as `traceparent` and correlation ids) and the headers a
+  response names in `Vary`, so callers do not receive each other's responses. Cookies that a `CookieContainer` of the
+  primary handler adds are invisible to the cache: do not share such a client between users.
+- `Cache-Control: no-store`, `Vary: *`, event streams and bodies over `MaxBodyLength` (1 MiB) are not cached; a body
+  of unknown length is read up to the limit and handed back intact when larger. `MaxEntries` (256) and
+  `MaxTotalBytes` (32 MiB) bound the memory.
+- It works with retry handlers in either order: conditions it added are removed and re-added when a request is sent
+  again.
+- The cache (`ApiResponseCache`) is shared by the handler instances `IHttpClientFactory` recreates; `Clear()` empties
+  it (for example on sign-out). Requests that set their own conditional headers pass through.
+- Browsers already cache for Blazor WebAssembly; the handler matters most for server and desktop apps.
+
 ## Logging
 
 `AddApiLogging()` adds an `ApiLoggingHandler` that logs each request of a generated client under the category

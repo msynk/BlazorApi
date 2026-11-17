@@ -30,6 +30,43 @@ public partial interface IFeatures31Client
     /// <returns>The result: the value on success, or the error.</returns>
     global::System.Threading.Tasks.Task<global::BlazorApi.Runtime.ApiResult<string>> GetFileInfoResultAsync(string id, global::System.Threading.CancellationToken cancellationToken = default);
 
+    /// <summary>GET /cars/{id}</summary>
+    /// <remarks>GET /cars/{id} (getCar)</remarks>
+    /// <param name="id">The 'id' path parameter.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>Car</returns>
+    /// <exception cref="global::BlazorApi.Runtime.ApiException">The call failed; the exception's Error describes the status code, typed error body, network error, timeout or unreadable body.</exception>
+    global::System.Threading.Tasks.Task<Car> GetCarAsync(string id, global::System.Threading.CancellationToken cancellationToken = default);
+
+    /// <summary>GET /cars/{id}</summary>
+    /// <remarks>
+    /// GET /cars/{id} (getCar)
+    /// Failures (error status codes, network errors, timeouts, unreadable bodies) are returned in the result instead of thrown; only cancellation throws.
+    /// </remarks>
+    /// <param name="id">The 'id' path parameter.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>The result: the value on success, or the error.</returns>
+    global::System.Threading.Tasks.Task<global::BlazorApi.Runtime.ApiResult<Car>> GetCarResultAsync(string id, global::System.Threading.CancellationToken cancellationToken = default);
+
+    /// <summary>PUT /cars/{id}</summary>
+    /// <remarks>PUT /cars/{id} (putCar)</remarks>
+    /// <param name="id">The 'id' path parameter.</param>
+    /// <param name="body">The request body.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <exception cref="global::BlazorApi.Runtime.ApiException">The call failed; the exception's Error describes the status code, typed error body, network error, timeout or unreadable body.</exception>
+    global::System.Threading.Tasks.Task PutCarAsync(string id, Car body, global::System.Threading.CancellationToken cancellationToken = default);
+
+    /// <summary>PUT /cars/{id}</summary>
+    /// <remarks>
+    /// PUT /cars/{id} (putCar)
+    /// Failures (error status codes, network errors, timeouts, unreadable bodies) are returned in the result instead of thrown; only cancellation throws.
+    /// </remarks>
+    /// <param name="id">The 'id' path parameter.</param>
+    /// <param name="body">The request body.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>The result: the value on success, or the error.</returns>
+    global::System.Threading.Tasks.Task<global::BlazorApi.Runtime.ApiResult> PutCarResultAsync(string id, Car body, global::System.Threading.CancellationToken cancellationToken = default);
+
     /// <summary>QUERY /search</summary>
     /// <remarks>QUERY /search (searchDocuments)</remarks>
     /// <param name="filter">The 'filter' query parameter.</param>
@@ -202,6 +239,47 @@ public partial class Features31Client : IFeatures31Client
     }
 
     /// <inheritdoc />
+    public async global::System.Threading.Tasks.Task<Car> GetCarAsync(string id, global::System.Threading.CancellationToken cancellationToken = default)
+    {
+        var result = await GetCarResultAsync(id, cancellationToken).ConfigureAwait(false);
+        return result.GetValueOrThrow();
+    }
+
+    /// <inheritdoc />
+    public global::System.Threading.Tasks.Task<global::BlazorApi.Runtime.ApiResult<Car>> GetCarResultAsync(string id, global::System.Threading.CancellationToken cancellationToken = default)
+    {
+        global::System.ArgumentNullException.ThrowIfNull(id);
+        var builder = new global::BlazorApi.Runtime.Http.ApiRequestBuilder(global::System.Net.Http.HttpMethod.Get, "/cars/{id}", "getCar")
+        {
+            Security = GetCarSecurity,
+        };
+        builder.Path("id", global::BlazorApi.Runtime.Http.ParameterValue.Scalar(id), global::BlazorApi.Runtime.Http.ParameterStyle.Simple, explode: false);
+        builder.Accept("application/json");
+        return _connection.SendAsync(builder, GetCarResponses, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async global::System.Threading.Tasks.Task PutCarAsync(string id, Car body, global::System.Threading.CancellationToken cancellationToken = default)
+    {
+        var result = await PutCarResultAsync(id, body, cancellationToken).ConfigureAwait(false);
+        result.EnsureSuccess();
+    }
+
+    /// <inheritdoc />
+    public async global::System.Threading.Tasks.Task<global::BlazorApi.Runtime.ApiResult> PutCarResultAsync(string id, Car body, global::System.Threading.CancellationToken cancellationToken = default)
+    {
+        global::System.ArgumentNullException.ThrowIfNull(id);
+        global::System.ArgumentNullException.ThrowIfNull(body);
+        var builder = new global::BlazorApi.Runtime.Http.ApiRequestBuilder(global::System.Net.Http.HttpMethod.Put, "/cars/{id}", "putCar")
+        {
+            Security = PutCarSecurity,
+        };
+        builder.Path("id", global::BlazorApi.Runtime.Http.ParameterValue.Scalar(id), global::BlazorApi.Runtime.Http.ParameterStyle.Simple, explode: false);
+        builder.Content = global::BlazorApi.Runtime.Http.ApiBody.Json(body, _connection.JsonOptions, "application/json");
+        return await _connection.SendAsync(builder, PutCarResponses, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
     public async global::System.Threading.Tasks.Task<global::System.Collections.Generic.IReadOnlyList<Document>> SearchDocumentsAsync(SearchDocumentsFilter? filter = null, global::System.Threading.CancellationToken cancellationToken = default)
     {
         var result = await SearchDocumentsResultAsync(filter, cancellationToken).ConfigureAwait(false);
@@ -319,6 +397,16 @@ public partial class Features31Client : IFeatures31Client
         .Success("200", global::BlazorApi.Runtime.Http.ApiBody.ReadText);
 
     private static readonly global::System.Collections.Generic.IReadOnlyList<global::BlazorApi.Runtime.Http.ApiSecurityRequirement> GetFileInfoSecurity = global::System.Array.Empty<global::BlazorApi.Runtime.Http.ApiSecurityRequirement>();
+
+    private static readonly global::BlazorApi.Runtime.Http.ApiResponseHandler<Car> GetCarResponses = new global::BlazorApi.Runtime.Http.ApiResponseHandler<Car>()
+        .Success("200", global::BlazorApi.Runtime.Http.ApiBody.ReadJson<Car>);
+
+    private static readonly global::System.Collections.Generic.IReadOnlyList<global::BlazorApi.Runtime.Http.ApiSecurityRequirement> GetCarSecurity = global::System.Array.Empty<global::BlazorApi.Runtime.Http.ApiSecurityRequirement>();
+
+    private static readonly global::BlazorApi.Runtime.Http.ApiResponseHandler<global::BlazorApi.Runtime.Http.ApiNoContent> PutCarResponses = new global::BlazorApi.Runtime.Http.ApiResponseHandler<global::BlazorApi.Runtime.Http.ApiNoContent>()
+        .Success("204");
+
+    private static readonly global::System.Collections.Generic.IReadOnlyList<global::BlazorApi.Runtime.Http.ApiSecurityRequirement> PutCarSecurity = global::System.Array.Empty<global::BlazorApi.Runtime.Http.ApiSecurityRequirement>();
 
     private static readonly global::BlazorApi.Runtime.Http.ApiResponseHandler<global::System.Collections.Generic.IReadOnlyList<Document>> SearchDocumentsResponses = new global::BlazorApi.Runtime.Http.ApiResponseHandler<global::System.Collections.Generic.IReadOnlyList<Document>>()
         .Success("200", global::BlazorApi.Runtime.Http.ApiBody.ReadJson<global::System.Collections.Generic.IReadOnlyList<Document>>);

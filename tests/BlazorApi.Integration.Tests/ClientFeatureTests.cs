@@ -537,4 +537,36 @@ public class ClientFeatureTests
         Assert.Equal(403, ex.StatusCode);
         Assert.Equal(2, handler.Requests.Count);
     }
+
+    [Fact]
+    public async Task Intermediate_hierarchy_classes_read_and_write_their_subtypes()
+    {
+        var handler = new RecordingHandler()
+            .Respond(HttpStatusCode.OK, """{"wheels":4,"seats":2,"topSpeed":310.5,"vehicleType":"SportsCar"}""")
+            .Respond(HttpStatusCode.OK, """{"vehicleType":"Car","seats":5}""")
+            .Respond(HttpStatusCode.OK, """{"vehicleType":"Hovercar","seats":1}""")
+            .Respond(HttpStatusCode.NoContent)
+            .Respond(HttpStatusCode.NoContent);
+        var client = new Features31Client(new HttpClient(handler));
+
+        var sports = await client.GetCarAsync("a");
+        var plain = await client.GetCarAsync("b");
+        var unknown = await client.GetCarAsync("c");
+        await client.PutCarAsync("a", new SportsCar { Seats = 2, TopSpeed = 300 });
+        await client.PutCarAsync("b", new Car { Seats = 4, Wheels = 4 });
+
+        var sportsCar = Assert.IsType<SportsCar>(sports);
+        Assert.Equal(310.5, sportsCar.TopSpeed);
+        Assert.Equal(4, sportsCar.Wheels);
+        Assert.Equal(typeof(Car), plain.GetType());
+        Assert.Equal(5, plain.Seats);
+        Assert.Equal(typeof(Car), unknown.GetType());
+        Assert.Equal("Hovercar", unknown.VehicleType);
+        Assert.Equal("""{"topSpeed":300,"seats":2,"vehicleType":"SportsCar"}""", handler.Requests[3].Body);
+        Assert.Equal("""{"vehicleType":"Car","wheels":4,"seats":4}""", handler.Requests[4].Body);
+
+        // The hierarchy root still dispatches through the intermediate converter.
+        var vehicle = System.Text.Json.JsonSerializer.Deserialize<Vehicle>("""{"vehicleType":"Car","seats":3}""", ApiJson.CreateOptions());
+        Assert.Equal(3, Assert.IsType<Car>(vehicle).Seats);
+    }
 }
