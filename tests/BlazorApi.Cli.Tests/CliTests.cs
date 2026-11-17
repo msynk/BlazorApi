@@ -325,4 +325,64 @@ public sealed class CliTests : IDisposable
         Assert.Contains("BAPI", error + output, StringComparison.Ordinal);
         Assert.Equal(1, RunWith(server, "validate", "https://specs.example.com/missing.yaml").Exit);
     }
+
+    [Fact]
+    public void Overlays_from_the_configuration_and_the_command_line_apply_in_order()
+    {
+        File.WriteAllText(Path.Combine(_directory, "one.yaml"), """
+            overlay: 1.0.0
+            info: { title: One, version: '1' }
+            actions:
+              - target: $.paths['/health'].get
+                update: { operationId: ping }
+            """);
+        File.WriteAllText(Path.Combine(_directory, "two.yaml"), """
+            overlay: 1.0.0
+            info: { title: Two, version: '1' }
+            actions:
+              - target: $.paths[*][?@.operationId == 'ping']
+                update: { operationId: pong }
+            """);
+        File.WriteAllText(Path.Combine(_directory, "blazorapi.json"), """{ "contract": "petstore.yaml", "output": "gen", "overlays": ["one.yaml"] }""");
+
+        var (exit, output, error) = Run("generate", "--overlay", "two.yaml");
+        var (badExit, _, badError) = Run("validate", "petstore.yaml", "--overlay", "two.yaml");
+
+        Assert.True(exit == 0, output + error);
+        Assert.Contains("PongAsync", File.ReadAllText(Path.Combine(_directory, "gen", "PetstoreClient.g.cs")), StringComparison.Ordinal);
+        Assert.Equal(0, badExit); // 'ping' does not exist without the first overlay: the action matches nothing (a warning)
+        Assert.Contains("BAPI7003", badError, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Watch_regenerates_when_the_contract_changes()
+    {
+        using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+        var output = new StringWriter();
+        var app = new CliApp(TextWriter.Synchronized(output), TextWriter.Synchronized(new StringWriter()), _directory)
+        {
+            Cancellation = cancellation.Token,
+            WatchDebounce = TimeSpan.FromMilliseconds(50),
+        };
+        var client = Path.Combine(_directory, "out", "PetstoreClient.g.cs");
+
+        var run = Task.Run(() => app.Run(["generate", "petstore.yaml", "--output", "out", "--watch"]));
+        await WaitUntil(() => File.Exists(client) && output.ToString().Contains("Watching", StringComparison.Ordinal), cancellation.Token);
+        var contract = Path.Combine(_directory, "petstore.yaml");
+        File.WriteAllText(contract, File.ReadAllText(contract).Replace("operationId: getHealth", "operationId: ping", StringComparison.Ordinal));
+        await WaitUntil(() => File.ReadAllText(client).Contains("PingAsync", StringComparison.Ordinal), cancellation.Token);
+        await cancellation.CancelAsync();
+
+        Assert.Equal(0, await run);
+        Assert.Contains("Change detected", output.ToString(), StringComparison.Ordinal);
+        Assert.Equal(2, Run("generate", "petstore.yaml", "--watch", "--check").Exit);
+    }
+
+    private static async Task WaitUntil(Func<bool> condition, CancellationToken cancellationToken)
+    {
+        while (!condition())
+        {
+            await Task.Delay(50, cancellationToken);
+        }
+    }
 }

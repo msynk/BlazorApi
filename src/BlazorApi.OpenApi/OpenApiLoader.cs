@@ -1,5 +1,6 @@
 using BlazorApi.OpenApi.Diagnostics;
 using BlazorApi.OpenApi.Document;
+using BlazorApi.OpenApi.Overlays;
 using BlazorApi.OpenApi.References;
 using BlazorApi.OpenApi.Syntax;
 using BlazorApi.OpenApi.Validation;
@@ -45,6 +46,12 @@ public sealed record OpenApiLoadOptions
 
     /// <summary>The maximum number of external documents one load may read. Default: 256.</summary>
     public int MaxExternalDocuments { get; init; } = 256;
+
+    /// <summary>
+    /// OpenAPI Overlay documents (1.0 to 1.2) applied in order to the root document after parsing and before it is
+    /// read, for example to fix or extend a third-party description without editing it. Default: none.
+    /// </summary>
+    public IReadOnlyList<OpenApiOverlay> Overlays { get; init; } = [];
 
     /// <summary>Whether to run semantic validation after loading. Default: true.</summary>
     public bool Validate { get; init; } = true;
@@ -107,6 +114,15 @@ public static partial class OpenApiLoader
         if (root is null)
         {
             return new OpenApiLoadResult(null, diagnostics.ToSortedList(), []);
+        }
+
+        if (options.Overlays.Count > 0)
+        {
+            root = OverlayProcessor.Apply(root, options.Overlays, diagnostics, options.Limits);
+            if (diagnostics.HasErrors)
+            {
+                return new OpenApiLoadResult(null, diagnostics.ToSortedList(), []);
+            }
         }
 
         var version = OpenApiReader.DetectVersion(root, diagnostics, out var versionText);

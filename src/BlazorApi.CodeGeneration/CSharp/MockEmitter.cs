@@ -362,6 +362,8 @@ internal sealed class MockEmitter
                 return "new global::System.DateOnly(2024, 1, 1)";
             case "global::System.TimeOnly":
                 return "new global::System.TimeOnly(12, 0)";
+            case "global::System.TimeSpan":
+                return "global::System.TimeSpan.FromHours(1)";
             case "global::System.DateTimeOffset":
                 return "new global::System.DateTimeOffset(2024, 1, 1, 12, 0, 0, global::System.TimeSpan.Zero)";
             case "global::System.DateTime":

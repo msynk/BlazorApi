@@ -95,6 +95,12 @@ public enum ParameterLocation
 
     /// <summary>A cookie.</summary>
     Cookie,
+
+    /// <summary>
+    /// The whole query string, described by <c>content</c> (OpenAPI 3.2 <c>in: querystring</c>). The API model turns a
+    /// form-encoded one into an exploded <see cref="Query"/> object parameter.
+    /// </summary>
+    QueryString,
 }
 
 /// <summary>The properties shared by the Parameter and Header objects.</summary>

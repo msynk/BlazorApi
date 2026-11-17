@@ -311,5 +311,60 @@ public class ClientFeatureTests
         Assert.Equal(ApiErrorKind.Network, rejected.Error!.Kind);
         Assert.IsType<Polly.CircuitBreaker.BrokenCircuitException>(rejected.Error.Exception);
     }
-}
 
+    [Fact]
+    public async Task OpenApi_3_2_methods_and_query_strings_are_sent()
+    {
+        var handler = new RecordingHandler()
+            .Respond(HttpStatusCode.OK, "[]")
+            .Respond(HttpStatusCode.NoContent);
+        var client = new Features31Client(new HttpClient(handler), new ApiClientOptions { BaseAddress = new Uri("http://localhost/") });
+
+        await client.SearchDocumentsAsync(new SearchDocumentsFilter { Text = "a b", Limit = 5 });
+        await client.CopyDocumentAsync("d1", "/documents/d2");
+
+        Assert.Equal("QUERY", handler.Requests[0].Method.Method);
+        Assert.Equal("http://localhost/search?text=a%20b&limit=5", handler.Requests[0].Uri.AbsoluteUri);
+        Assert.Equal("COPY", handler.Requests[1].Method.Method);
+        Assert.Equal("/documents/d2", handler.Requests[1].Headers["Destination"]);
+    }
+
+    [Theory]
+    [InlineData("PT0S", 0)]
+    [InlineData("PT1H30M", 5400)]
+    [InlineData("P1DT2H", 93600)]
+    [InlineData("P2W", 1209600)]
+    [InlineData("PT0.5S", 0.5)]
+    [InlineData("PT1,25S", 1.25)]
+    [InlineData("-PT10M", -600)]
+    [InlineData("P0Y0M1D", 86400)]
+    public void Durations_parse_iso_8601(string text, double seconds) =>
+        Assert.Equal(TimeSpan.FromSeconds(seconds), ApiDuration.Parse(text));
+
+    [Theory]
+    [InlineData("P1Y")]
+    [InlineData("P1M")]
+    [InlineData("PT")]
+    [InlineData("P")]
+    [InlineData("1H")]
+    [InlineData("PT1M1H")]
+    [InlineData("P1H")]
+    [InlineData("")]
+    public void Invalid_durations_are_rejected(string text) =>
+        Assert.False(ApiDuration.TryParse(text, out _));
+
+    [Fact]
+    public void Durations_round_trip()
+    {
+        foreach (var value in new[] { TimeSpan.Zero, TimeSpan.FromMinutes(90), TimeSpan.FromDays(3) + TimeSpan.FromMilliseconds(1), TimeSpan.FromSeconds(-0.25), TimeSpan.MaxValue, TimeSpan.MinValue + TimeSpan.FromTicks(1) })
+        {
+            Assert.Equal(value, ApiDuration.Parse(ApiDuration.Format(value)));
+        }
+
+        Assert.Equal("PT1H30M", ApiDuration.Format(TimeSpan.FromMinutes(90)));
+        Assert.Equal("PT0S", ApiDuration.Format(TimeSpan.Zero));
+        Assert.Equal("P1DT0.001S", ApiDuration.Format(TimeSpan.FromDays(1) + TimeSpan.FromMilliseconds(1)));
+        Assert.Equal("\"PT2M\"", JsonSerializer.Serialize(TimeSpan.FromMinutes(2), ApiJson.CreateOptions()));
+        Assert.Equal(TimeSpan.FromMinutes(2), JsonSerializer.Deserialize<TimeSpan?>("\"PT2M\"", ApiJson.CreateOptions()));
+    }
+}

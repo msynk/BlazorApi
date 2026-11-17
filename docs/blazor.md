@@ -35,6 +35,39 @@ when `Key` changes and cancels a pending load when the key changes again or the 
 
 `ApiResultView` does not cache: every load calls the API.
 
+## ApiStreamView
+
+Renders items while they arrive, from a streamed response (`Load`: a generated `...ResultAsync` method returning
+`ApiStream<T>`) or from any `IAsyncEnumerable<T>` (`Items`: for example a generated page or item walker). Fast streams
+are rendered in batches (`RenderInterval`, 50 ms by default).
+
+```razor
+@* An LLM-style text stream: join the fragments as they arrive. *@
+<ApiStreamView TItem="ServerSentEvent<Delta>" Load="ct => Api.StreamCompletionResultAsync(_prompt, ct)" Key="_prompt">
+    <ChildContent Context="events">
+        <p>@string.Concat(events.Where(e => e.Data != "[DONE]").Select(e => e.GetValue().Text))</p>
+    </ChildContent>
+</ApiStreamView>
+
+@* An infinite list over a paginated operation: 20 items, then a "Load more" button. *@
+<ApiStreamView TItem="Pet" Items="ct => Api.ListPetsItemsAsync(cancellationToken: ct)" PageSize="20">
+    <ItemTemplate Context="pet"><PetCard Pet="pet" /></ItemTemplate>
+    <Empty><p>No pets yet.</p></Empty>
+</ApiStreamView>
+```
+
+| Parameter / member | Meaning |
+|---|---|
+| `Load` or `Items` (one required) | `Func<CancellationToken, Task<ApiResult<ApiStream<TItem>>>>` or `Func<CancellationToken, IAsyncEnumerable<TItem>>` |
+| `Key` | A new value restarts the stream (the previous one is cancelled and its response released). |
+| `ItemTemplate` / `ChildContent` | Per item, or once with every item received so far. |
+| `Loading`, `Empty`, `Error` | Before the first item; when the stream ends without items; on failure (default: `ApiErrorView` with retry). |
+| `PageSize`, `LoadMoreText` | Pause after that many items and show a `button.api-load-more`. |
+| `ReceivedItems`, `IsStreaming`, `IsComplete`, `Failure`, `ReloadAsync()`, `LoadMoreAsync()`, `StopAsync()` | State and control (use `@ref`). |
+
+Errors while items are read (`ApiNetworkException`, `ApiDeserializationException`) are shown after the items
+received so far.
+
 ## ApiErrorView
 
 Shows an `ApiError` (or any exception, using `ApiException.Error` when it is one): a title, a detail, field errors

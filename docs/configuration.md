@@ -23,6 +23,7 @@ Keys are case-insensitive. Enum values are case-insensitive and ignore `-` and `
 | `numberWithoutFormat` | `double` | C# type of `type: number` without a format: `double` or `decimal`. |
 | `dateType` | `dateOnly` | `format: date`: `dateOnly`, `dateTimeOffset` or `string`. |
 | `dateTimeType` | `dateTimeOffset` | `format: date-time`: `dateTimeOffset` or `dateTime`. |
+| `durationType` | `string` | `format: duration`: `string` (lossless) or `timeSpan` (ISO 8601 read and written by `ApiDurationJsonConverter`; years and months are rejected). |
 | `timeType` | `string` | `format: time`: `string` (lossless) or `timeOnly` (fails on values with an offset). |
 | `collections` | `readOnly` | `readOnly`: `IReadOnlyList<T>`/`IReadOnlyDictionary<string,T>`. `mutable`: `List<T>`/`Dictionary<string,T>`. `array`: `T[]`/`Dictionary<string,T>`. Parameters always accept `IEnumerable<T>`. |
 | `optionalNullable` | `auto` | Optional properties that may be null. `auto`: `Optional<T>` for JSON merge-patch bodies, plain nullable elsewhere. `nullable`: always plain nullable. `optional`: always `Optional<T>`. |
@@ -87,6 +88,7 @@ api-gen generate petstore.yaml --option GenerateMocks=true --option "dateType=st
 | `output` | Output directory, relative to the configuration file. Default `Generated`. CLI only. |
 | `references.policy` | External `$ref` policy: `disabled`, `localFiles` (default) or `localFilesAndRemote`. |
 | `references.root` | Directory referenced files must be inside, relative to the configuration file. Default: the contract's directory. |
+| `overlays` | Array of [overlay](overlays.md) files applied to the contract in order, relative to the configuration file. |
 | `include.operations`, `include.tags` | Arrays; same as `includeOperations`, `includeTags`. |
 | `exclude.operations`, `exclude.tags` | Arrays; same as `excludeOperations`, `excludeTags`. |
 | `diagnostics` | Object mapping diagnostic ids to `none` (also `hidden`, `suppress`), `info` (also `suggestion`), `warning` or `error` ([Diagnostics](diagnostics.md)). |

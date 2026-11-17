@@ -461,8 +461,27 @@ internal sealed class OpenApiReader
                 case "description": item.Description = ReadString(p.Value, path); break;
                 case "servers": item.Servers = ReadList(p.Value, path, ReadServer); break;
                 case "parameters": item.Parameters = ReadList(p.Value, path, ReadParameter); break;
-                case "additionalOperations":
-                    Report(DiagnosticDescriptors.FeatureIgnored, p.KeyLocation, path, "'additionalOperations' (OpenAPI 3.2)");
+                case "additionalOperations" when Version != OpenApiSpecVersion.OpenApi3_0:
+                    // OpenAPI 3.2: operations for other HTTP methods (COPY, LINK, ...), keyed by the method as sent.
+                    if (Expect(p.Value, path, "a map of operations") is ObjectNode additional)
+                    {
+                        foreach (var entry in additional.Properties)
+                        {
+                            var entryPath = Child(path, entry.Name);
+                            if (HttpMethods.Contains(entry.Name.ToLowerInvariant()) || entry.Name.Length == 0 || entry.Name.Any(c => c <= ' ' || "()<>@,;:\\\"/[]?={}".IndexOf(c) >= 0))
+                            {
+                                Report(DiagnosticDescriptors.InvalidValue, entry.KeyLocation, entryPath, entry.Name, "additionalOperations",
+                                    "expected an HTTP method token other than the methods with their own Path Item field");
+                                continue;
+                            }
+
+                            if (ReadOperation(entry.Value, entryPath, entry.Name, item) is { } additionalOperation)
+                            {
+                                operations.Set(entry.Name, additionalOperation);
+                            }
+                        }
+                    }
+
                     break;
                 default: Unknown(p, path, "the Path Item Object", extensions); break;
             }
@@ -735,11 +754,12 @@ internal sealed class OpenApiReader
                         "header" => ParameterLocation.Header,
                         "path" => ParameterLocation.Path,
                         "cookie" => ParameterLocation.Cookie,
+                        "querystring" when Version != OpenApiSpecVersion.OpenApi3_0 => ParameterLocation.QueryString,
                         _ => null,
                     };
                     if (parameter.In is null && location is not null)
                     {
-                        Report(DiagnosticDescriptors.InvalidValue, p.Value.Location, path, location, "in", "expected query, header, path or cookie");
+                        Report(DiagnosticDescriptors.InvalidValue, p.Value.Location, path, location, "in", "expected query, querystring (3.2), header, path or cookie");
                     }
 
                     break;

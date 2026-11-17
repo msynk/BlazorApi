@@ -246,7 +246,7 @@ internal sealed class GenerationPlan
         },
         ApiPrimitiveKind.DateTime => Options.DateTimeType == DateTimeType.DateTime ? "global::System.DateTime" : "global::System.DateTimeOffset",
         ApiPrimitiveKind.Time => Options.TimeType == TimeType.TimeOnly ? "global::System.TimeOnly" : "string",
-        ApiPrimitiveKind.Duration => "string",
+        ApiPrimitiveKind.Duration => Options.DurationType == DurationType.TimeSpan ? "global::System.TimeSpan" : "string",
         ApiPrimitiveKind.Uuid => "global::System.Guid",
         ApiPrimitiveKind.Uri => "global::System.Uri",
         ApiPrimitiveKind.Base64 => "byte[]",

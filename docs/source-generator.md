@@ -19,6 +19,11 @@ loads it. Add `BlazorApi.Testing` for `GenerateMocks=true`.
 
 ## Items and metadata
 
+Overlays: `Overlays="a.overlay.yaml;b.overlay.yaml"` metadata on `OpenApiContract` applies [overlays](overlays.md) in
+order (they become AdditionalFiles automatically); overlays listed in a `Config` file's `overlays` also need an
+`<OpenApiOverlay Include="..." />` item. A listed overlay that is not an AdditionalFile reports BAPI5003.
+
+
 ```xml
 <ItemGroup>
   <OpenApiContract Include="Contracts/petstore.yaml"

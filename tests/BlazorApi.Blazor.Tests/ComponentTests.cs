@@ -119,4 +119,67 @@ public class ComponentTests
         Assert.Equal(["Invalid"], context.GetValidationMessages(new FieldIdentifier(model.Owner, nameof(Owner.Email))));
         Assert.Contains("Server says no", context.GetValidationMessages());
     }
+
+    private static async IAsyncEnumerable<int> Numbers(int count, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        for (var i = 1; i <= count; i++)
+        {
+            await Task.Yield();
+            cancellationToken.ThrowIfCancellationRequested();
+            yield return i;
+        }
+    }
+
+    [Fact]
+    public async Task Stream_view_renders_streamed_items()
+    {
+        RenderFragment<IReadOnlyList<string>> content = items => builder => builder.AddContent(0, string.Concat(items));
+        Func<CancellationToken, Task<ApiResult<ApiStream<string>>>> load = _ =>
+            Task.FromResult(ApiResults.Success(ApiStream.From(["Hel", "lo", "!"])));
+
+        var html = await RenderAsync<ApiStreamView<string>>(new()
+        {
+            [nameof(ApiStreamView<string>.Load)] = load,
+            [nameof(ApiStreamView<string>.ChildContent)] = content,
+        });
+
+        Assert.Equal("Hello!", html);
+    }
+
+    [Fact]
+    public async Task Stream_view_pages_through_walkers_with_a_load_more_button()
+    {
+        RenderFragment<int> item = n => builder => builder.AddContent(0, "[" + n + "]");
+        Func<CancellationToken, IAsyncEnumerable<int>> items = ct => Numbers(5, ct);
+
+        var html = await RenderAsync<ApiStreamView<int>>(new()
+        {
+            [nameof(ApiStreamView<int>.Items)] = items,
+            [nameof(ApiStreamView<int>.ItemTemplate)] = item,
+            [nameof(ApiStreamView<int>.PageSize)] = 2,
+        });
+
+        Assert.StartsWith("[1][2]<button", html, StringComparison.Ordinal);
+        Assert.Contains("api-load-more", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("[3]", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Stream_view_shows_errors_and_empty_streams()
+    {
+        Func<CancellationToken, Task<ApiResult<ApiStream<int>>>> failing = _ =>
+            Task.FromResult(ApiResults.Failure<ApiStream<int>>(ApiError.Http(503)));
+        Func<CancellationToken, IAsyncEnumerable<int>> none = ct => Numbers(0, ct);
+        RenderFragment empty = builder => builder.AddContent(0, "Nothing yet");
+
+        var error = await RenderAsync<ApiStreamView<int>>(new() { [nameof(ApiStreamView<int>.Load)] = failing });
+        var nothing = await RenderAsync<ApiStreamView<int>>(new()
+        {
+            [nameof(ApiStreamView<int>.Items)] = none,
+            [nameof(ApiStreamView<int>.Empty)] = empty,
+        });
+
+        Assert.Contains("role=\"alert\"", error, StringComparison.Ordinal);
+        Assert.Equal("Nothing yet", nothing);
+    }
 }

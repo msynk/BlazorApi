@@ -56,6 +56,9 @@ public static class ApiFormat
     /// <summary>Formats a time as an RFC 3339 partial time (<c>13:45:00</c>).</summary>
     public static string Value(TimeOnly value) => value.ToString("HH:mm:ss.FFFFFFF", CultureInfo.InvariantCulture);
 
+    /// <summary>Formats a duration as ISO 8601 (<c>PT1H30M</c>).</summary>
+    public static string Value(TimeSpan value) => Json.ApiDuration.Format(value);
+
     /// <summary>Formats a date-time as RFC 3339 (<c>2024-05-01T13:45:00+02:00</c>).</summary>
     public static string Value(DateTimeOffset value) =>
         value.ToString(value.Offset == TimeSpan.Zero ? "yyyy-MM-dd'T'HH:mm:ss.FFFFFFF'Z'" : "yyyy-MM-dd'T'HH:mm:ss.FFFFFFFzzz", CultureInfo.InvariantCulture);

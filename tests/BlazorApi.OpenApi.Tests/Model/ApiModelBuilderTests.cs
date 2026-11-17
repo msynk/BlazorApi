@@ -538,4 +538,26 @@ public class ApiModelBuilderTests
         Assert.Equal("https://files.example.com", Assert.Single(operation.Servers).DefaultUrl);
         Assert.Equal("https://eu.features.example.com/v2", model.Servers[0].DefaultUrl);
     }
+
+    [Fact]
+    public void Query_strings_without_form_content_are_skipped_with_a_warning()
+    {
+        var (model, diagnostics) = BuildYaml("""
+            /search:
+              query:
+                parameters:
+                  - name: q
+                    in: querystring
+                    content:
+                      application/json:
+                        schema: { type: object }
+                responses:
+                  '200': { description: ok }
+            """, version: "3.2.0");
+
+        var operation = Assert.Single(model.Operations);
+        Assert.Equal("QUERY", operation.Method);
+        Assert.Empty(operation.Parameters);
+        Assert.Contains(diagnostics, d => d.Id == "BAPI4008");
+    }
 }

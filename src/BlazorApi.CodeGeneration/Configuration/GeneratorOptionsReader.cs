@@ -22,6 +22,9 @@ public sealed record GenerationConfiguration
 
     /// <summary>The directory referenced files must be inside, relative to the configuration file.</summary>
     public string? ReferenceRoot { get; init; }
+
+    /// <summary>OpenAPI Overlay files applied to the contract in order, relative to the configuration file.</summary>
+    public IReadOnlyList<string> Overlays { get; init; } = [];
 }
 
 /// <summary>
@@ -88,6 +91,9 @@ public static class GeneratorOptionsReader
                         Invalid(property, diagnostics, "expected an object with 'policy' and 'root'");
                     }
 
+                    break;
+                case "overlays":
+                    configuration = configuration with { Overlays = List(property, diagnostics) };
                     break;
                 case "include":
                 case "exclude":
@@ -225,6 +231,7 @@ public static class GeneratorOptionsReader
             case "datetype": return options with { DateType = Enum(options.DateType) };
             case "datetimetype": return options with { DateTimeType = Enum(options.DateTimeType) };
             case "timetype": return options with { TimeType = Enum(options.TimeType) };
+            case "durationtype": return options with { DurationType = Enum(options.DurationType) };
             case "collections": return options with { Collections = Enum(options.Collections) };
             case "optionalnullable": return options with { OptionalNullable = Enum(options.OptionalNullable) };
             case "unknownenumvalues": return options with { UnknownEnumValues = Enum(options.UnknownEnumValues) };

@@ -5,7 +5,7 @@ internal sealed class CommandLine
 {
     private static readonly HashSet<string> Flags = new(StringComparer.Ordinal)
     {
-        "--dry-run", "--check", "--strict", "--quiet", "--help", "-h", "--version",
+        "--dry-run", "--check", "--strict", "--quiet", "--help", "-h", "--version", "--watch",
     };
 
     private readonly Dictionary<string, List<string>> _options = new(StringComparer.Ordinal);

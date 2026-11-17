@@ -6,7 +6,7 @@
 |---|---|
 | OpenAPI 3.0.x | Supported. Read into the same model as 3.1: `nullable: true` becomes a `null` type, boolean `exclusiveMinimum`/`exclusiveMaximum` become the 3.1 numeric form. |
 | OpenAPI 3.1.x | Supported, including JSON Schema 2020-12 type arrays, `const`, `$defs`, `contentEncoding`, `examples` and `$ref` with sibling keywords. |
-| OpenAPI 3.2.x | Read as 3.1 with a BAPI1003 warning. `itemSchema` of sequential media types is supported ([streaming](#streamed-responses)); other 3.2-only features (`additionalOperations`, `itemEncoding`, `prefixEncoding`) are reported with BAPI3017 and ignored. |
+| OpenAPI 3.2.x | Read as 3.1 with a BAPI1003 warning. Supported: the `query` method, `additionalOperations` (other methods such as `COPY`, sent as written), `in: querystring` parameters with `application/x-www-form-urlencoded` content (an object whose properties are the query fields; other content reports BAPI4008 and the parameter is skipped), and `itemSchema` of sequential media types ([streaming](#streamed-responses)). `itemEncoding` and `prefixEncoding` are reported with BAPI3017 and ignored. |
 | Swagger 2.0 | Rejected with BAPI1003. Convert it first (for example with the `swagger2openapi` tool). |
 | No `openapi` field | BAPI1004. |
 
@@ -64,7 +64,7 @@ loaded through a custom `IDocumentResolver` passed in `OpenApiLoadOptions.Docume
 | `string` `date` | `DateOnly` (`dateType`: `DateTimeOffset` or `string`) |
 | `string` `date-time` | `DateTimeOffset` (`dateTimeType=dateTime` for `DateTime`) |
 | `string` `time` | `string` (`timeType=timeOnly` for `TimeOnly`) |
-| `string` `duration` | `string` |
+| `string` `duration` | `string` (`durationType=timeSpan` for `TimeSpan`, ISO 8601) |
 | `string` `uuid` / `guid` | `Guid` |
 | `string` `uri` / `uri-reference` / `url` | `Uri` |
 | `string` `byte`, or `contentEncoding: base64`/`base64url` | `byte[]` |

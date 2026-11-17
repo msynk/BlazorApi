@@ -37,7 +37,7 @@ public sealed class BlazorApiGenerator : IIncrementalGenerator
         // shared reference and configuration files, never on other contracts.
         var contracts = inputs.Where(static file => file.Kind == "Contract");
         var documents = inputs
-            .Where(static file => file.Kind is "Reference" or "Config")
+            .Where(static file => file.Kind is "Reference" or "Config" or "Overlay")
             .Collect()
             .Select(static (files, _) => new EquatableArray<InputFile>(files.Sort((a, b) => string.CompareOrdinal(a.Path, b.Path))));
         var rootNamespace = context.AnalyzerConfigOptionsProvider
@@ -62,9 +62,11 @@ public sealed class BlazorApiGenerator : IIncrementalGenerator
                 Options = new GeneratorOptions { Namespace = DefaultNamespace(contract.Path, rootNamespace) },
             };
 
+            string? configPath = null;
             if (!string.IsNullOrEmpty(contract.Config))
             {
                 var config = documents.FirstOrDefault(d => d.Kind == "Config" && SamePath(d.Path, contract.Config!));
+                configPath = config?.Path;
                 if (config is null)
                 {
                     diagnostics.Report(CodeGenerationDiagnostics.InvalidConfiguration, new SourceLocation(contract.Path, 0, 0), null,
@@ -99,8 +101,26 @@ public sealed class BlazorApiGenerator : IIncrementalGenerator
 
             cancellationToken.ThrowIfCancellationRequested();
 
+            var overlays = new List<OpenApi.Overlays.OpenApiOverlay>();
+            var overlayNames = configuration.Overlays
+                .Select(o => configPath is null || IsRooted(o) ? o : DirectoryOf(configPath) + o)
+                .Concat((contract.Overlays ?? string.Empty).Split(';').Select(o => o.Trim()).Where(o => o.Length > 0));
+            foreach (var name in overlayNames)
+            {
+                var overlay = documents.FirstOrDefault(d => d.Kind == "Overlay" && SamePath(d.Path, Normalize(name)));
+                if (overlay is null)
+                {
+                    diagnostics.Report(CodeGenerationDiagnostics.InvalidConfiguration, new SourceLocation(contract.Path, 0, 0), null,
+                        $"The overlay '{name}' is not an AdditionalFile (add it with an OpenApiOverlay item or the Overlays metadata of OpenApiContract)");
+                }
+                else
+                {
+                    overlays.Add(new OpenApi.Overlays.OpenApiOverlay(overlay.Path, overlay.Text));
+                }
+            }
+
             var resolver = new InMemoryDocumentResolver();
-            foreach (var document in documents.Where(d => d.Kind != "Config"))
+            foreach (var document in documents.Where(d => d.Kind is not ("Config" or "Overlay")))
             {
                 resolver.Add(document.Path, document.Text);
             }
@@ -111,6 +131,7 @@ public sealed class BlazorApiGenerator : IIncrementalGenerator
                 ExternalReferences = configuration.ExternalReferences,
                 SeverityOverrides = options.SeverityOverrides,
                 ReferenceRoot = configuration.ReferenceRoot,
+                Overlays = overlays,
             };
             var result = ApiClientGenerator.Generate(contract.Text, contract.Path, options, loadOptions);
             diagnostics.AddRange(result.Diagnostics);
@@ -218,6 +239,33 @@ public sealed class BlazorApiGenerator : IIncrementalGenerator
             string.Equals(normalizedFull, normalizedRelative, StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>Resolves <c>.</c> and <c>..</c> segments of a path (no file system access).</summary>
+    private static string Normalize(string path)
+    {
+        var rooted = IsRooted(path);
+        var parts = new List<string>();
+        foreach (var part in path.Replace('\\', '/').Split('/'))
+        {
+            if (part == "..")
+            {
+                if (parts.Count > 0 && parts[parts.Count - 1] != "..")
+                {
+                    parts.RemoveAt(parts.Count - 1);
+                }
+                else if (!rooted)
+                {
+                    parts.Add(part);
+                }
+            }
+            else if (part != "." && (part.Length > 0 || parts.Count == 0))
+            {
+                parts.Add(part);
+            }
+        }
+
+        return string.Join("/", parts);
+    }
+
     private static string FileName(string path)
     {
         var slash = Math.Max(path.LastIndexOf('/'), path.LastIndexOf('\\'));
@@ -244,7 +292,7 @@ public sealed class BlazorApiGenerator : IIncrementalGenerator
 }
 
 /// <summary>An AdditionalFile relevant to generation, with its text and metadata (value-equatable).</summary>
-internal sealed record InputFile(string Path, string Text, string Kind, string? Namespace, string? ClientName, string? Options, string? Config)
+internal sealed record InputFile(string Path, string Text, string Kind, string? Namespace, string? ClientName, string? Options, string? Config, string? Overlays = null)
 {
     public static InputFile? Create(AdditionalText file, AnalyzerConfigOptions options, CancellationToken cancellationToken)
     {
@@ -252,13 +300,13 @@ internal sealed record InputFile(string Path, string Text, string Kind, string? 
             options.TryGetValue("build_metadata.AdditionalFiles." + name, out var value) && !string.IsNullOrWhiteSpace(value) ? value : null;
 
         var kind = Metadata("BlazorApiKind");
-        if (kind is not ("Contract" or "Reference" or "Config"))
+        if (kind is not ("Contract" or "Reference" or "Config" or "Overlay"))
         {
             return null;
         }
 
         var text = file.GetText(cancellationToken)?.ToString();
-        return text is null ? null : new InputFile(file.Path, text, kind, Metadata("BlazorApiNamespace"), Metadata("BlazorApiClientName"), Metadata("BlazorApiOptions"), Metadata("BlazorApiConfig"));
+        return text is null ? null : new InputFile(file.Path, text, kind, Metadata("BlazorApiNamespace"), Metadata("BlazorApiClientName"), Metadata("BlazorApiOptions"), Metadata("BlazorApiConfig"), Metadata("BlazorApiOverlays"));
     }
 }
 

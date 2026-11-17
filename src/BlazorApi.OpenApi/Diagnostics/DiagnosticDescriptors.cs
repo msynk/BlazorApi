@@ -3,7 +3,7 @@ namespace BlazorApi.OpenApi.Diagnostics;
 /// <summary>
 /// The catalog of diagnostics produced by the OpenAPI processing engine. Identifier ranges:
 /// BAPI1xxx syntax and document structure, BAPI2xxx references, BAPI3xxx semantic validation, BAPI4xxx API model
-/// construction. Configuration (BAPI5xxx) and code generation (BAPI6xxx) diagnostics are defined by the code generator.
+/// construction, BAPI7xxx overlays. Configuration (BAPI5xxx) and code generation (BAPI6xxx) diagnostics are defined by the code generator.
 /// </summary>
 public static class DiagnosticDescriptors
 {
@@ -11,6 +11,7 @@ public static class DiagnosticDescriptors
     private const string Reference = "Reference";
     private const string Validation = "Validation";
     private const string Model = "Model";
+    private const string Overlay = "Overlay";
 
     // ---- BAPI1xxx: syntax and document structure ----
 
@@ -191,4 +192,26 @@ public static class DiagnosticDescriptors
     /// <summary>A discriminator mapping value that cannot be resolved to a variant.</summary>
     public static readonly DiagnosticDescriptor InvalidDiscriminatorMapping = new(
         "BAPI4009", "Invalid discriminator mapping", "Discriminator mapping '{0}' -> '{1}' {2}", DiagnosticSeverity.Warning, Model);
+
+    // ---- BAPI7xxx: overlays ----
+
+    /// <summary>An overlay document is not valid.</summary>
+    public static readonly DiagnosticDescriptor InvalidOverlay = new(
+        "BAPI7001", "Invalid overlay", "Overlay: {0}", DiagnosticSeverity.Error, Overlay);
+
+    /// <summary>A JSONPath expression of an overlay is not valid.</summary>
+    public static readonly DiagnosticDescriptor InvalidJsonPath = new(
+        "BAPI7002", "Invalid JSONPath", "Overlay action target '{0}' is not a valid JSONPath (RFC 9535): {1}", DiagnosticSeverity.Error, Overlay);
+
+    /// <summary>An overlay action selects nothing.</summary>
+    public static readonly DiagnosticDescriptor OverlayTargetMatchedNothing = new(
+        "BAPI7003", "Overlay target matched nothing", "Overlay action target '{0}' selects no node; the action changes nothing", DiagnosticSeverity.Warning, Overlay);
+
+    /// <summary>An overlay update cannot be merged into its target.</summary>
+    public static readonly DiagnosticDescriptor IncompatibleOverlayUpdate = new(
+        "BAPI7004", "Incompatible overlay update", "Overlay action target '{0}': {1}", DiagnosticSeverity.Error, Overlay);
+
+    /// <summary>An overlay version newer than the supported one.</summary>
+    public static readonly DiagnosticDescriptor UnsupportedOverlayVersion = new(
+        "BAPI7005", "Unsupported overlay version", "Overlay version '{0}' is newer than 1.2; it is applied with the 1.2 rules", DiagnosticSeverity.Warning, Overlay);
 }

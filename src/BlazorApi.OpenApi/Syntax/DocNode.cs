@@ -69,6 +69,35 @@ public abstract class DocNode
     public abstract void WriteJson(StringBuilder builder);
 
     /// <summary>
+    /// Copies the node and everything below it. Shared subtrees (YAML aliases) become separate copies, so the copy can
+    /// be changed in place (overlays) without affecting the original.
+    /// </summary>
+    internal DocNode DeepClone()
+    {
+        switch (this)
+        {
+            case ObjectNode obj:
+                var objCopy = new ObjectNode(Location);
+                foreach (var property in obj.Properties)
+                {
+                    objCopy.Add(property.Name, property.KeyLocation, property.Value.DeepClone());
+                }
+
+                return objCopy;
+            case ArrayNode array:
+                var arrayCopy = new ArrayNode(Location);
+                foreach (var item in array.Items)
+                {
+                    arrayCopy.Add(item.DeepClone());
+                }
+
+                return arrayCopy;
+            default:
+                return this; // Scalars are immutable.
+        }
+    }
+
+    /// <summary>
     /// Compares two nodes structurally: same kind, equal scalar values (numbers compared by value), equal array
     /// items in order, and equal object entries regardless of key order.
     /// </summary>
@@ -254,6 +283,29 @@ public sealed class ObjectNode : DocNode
         return true;
     }
 
+    /// <summary>Removes an entry (overlays). Returns whether it existed.</summary>
+    internal bool Remove(string name)
+    {
+        var index = IndexOf(name);
+        if (index < 0)
+        {
+            return false;
+        }
+
+        Weight -= _properties[index].Value.Weight;
+        _properties.RemoveAt(index);
+        if (_index is not null)
+        {
+            _index.Clear();
+            for (var i = 0; i < _properties.Count; i++)
+            {
+                _index[_properties[i].Name] = i;
+            }
+        }
+
+        return true;
+    }
+
     private int IndexOf(string name)
     {
         if (_index is not null)
@@ -318,6 +370,34 @@ public sealed class ArrayNode : DocNode
     {
         _items.Add(item);
         Weight += item.Weight;
+    }
+
+    /// <summary>Replaces an item (overlays).</summary>
+    internal void Set(int index, DocNode item)
+    {
+        Weight += item.Weight - _items[index].Weight;
+        _items[index] = item;
+    }
+
+    /// <summary>Removes an item (overlays).</summary>
+    internal void RemoveAt(int index)
+    {
+        Weight -= _items[index].Weight;
+        _items.RemoveAt(index);
+    }
+
+    /// <summary>The index of an item by identity, or -1.</summary>
+    internal int IndexOfReference(DocNode item)
+    {
+        for (var i = 0; i < _items.Count; i++)
+        {
+            if (ReferenceEquals(_items[i], item))
+            {
+                return i;
+            }
+        }
+
+        return -1;
     }
 
     /// <inheritdoc />

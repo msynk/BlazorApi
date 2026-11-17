@@ -4,7 +4,9 @@
     Usage:
       <OpenApiContract Include="Contracts/petstore.yaml" Namespace="MyApp.Petstore" Options="GenerateMocks=true" />
       <OpenApiReference Include="Contracts/shared/**/*.yaml" />   (documents referenced with $ref)
-    Optional metadata: Namespace, ClientName, Options (key=value;...), Config (a blazorapi.json file, also an AdditionalFile).
+      <OpenApiOverlay Include="Contracts/fixes.overlay.yaml" />  (overlays listed in a Config file's "overlays")
+    Optional metadata: Namespace, ClientName, Options (key=value;...), Config (a blazorapi.json file, also an AdditionalFile),
+    Overlays (OpenAPI Overlay files applied in order, separated by ';').
   -->
   <Target Name="BlazorApiAddContracts" BeforeTargets="GenerateMSBuildEditorConfigFileShouldRun;GenerateMSBuildEditorConfigFileCore;CoreCompile">
     <ItemGroup>
@@ -12,8 +14,12 @@
                        BlazorApiNamespace="%(OpenApiContract.Namespace)"
                        BlazorApiClientName="%(OpenApiContract.ClientName)"
                        BlazorApiOptions="%(OpenApiContract.Options)"
-                       BlazorApiConfig="%(OpenApiContract.Config)" />
+                       BlazorApiConfig="%(OpenApiContract.Config)"
+                       BlazorApiOverlays="%(OpenApiContract.Overlays)" />
       <AdditionalFiles Include="@(OpenApiReference)" BlazorApiKind="Reference" />
+      <_BlazorApiOverlay Include="%(OpenApiContract.Overlays)" Condition="'%(OpenApiContract.Overlays)' != ''" />
+      <_BlazorApiOverlay Include="@(OpenApiOverlay)" />
+      <AdditionalFiles Include="@(_BlazorApiOverlay->Distinct())" BlazorApiKind="Overlay" />
       <AdditionalFiles Include="@(OpenApiContract->'%(Config)')" Condition="'%(OpenApiContract.Config)' != ''" BlazorApiKind="Config" />
     </ItemGroup>
   </Target>

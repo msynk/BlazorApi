@@ -10,7 +10,9 @@ stable `BAPIxxxx` diagnostics with file, line and JSON pointer, and produces det
 ## Features
 
 - OpenAPI 3.0 and 3.1 in JSON or YAML (3.2 `itemSchema` too), local `$ref` across files with a restrictive
-  reference policy; the CLI also downloads contracts from URLs.
+  reference policy; the CLI also downloads contracts from URLs. OpenAPI 3.2 `QUERY`, `additionalOperations` and
+  form-encoded `querystring` parameters.
+- OpenAPI Overlays (1.0 to 1.2, RFC 9535 JSONPath) to fix or trim third-party contracts without editing them.
 - Typed models: `required` members, nullability that follows the contract, `Optional<T>` for JSON merge-patch,
   DataAnnotations from schema constraints, strict or forward-compatible (`Unrecognized`) enum converters.
 - Composition: `allOf` inheritance, discriminated hierarchies with forward-compatible `Unrecognized*` types,
@@ -18,7 +20,8 @@ stable `BAPIxxxx` diagnostics with file, line and JSON pointer, and produces det
 - Clients with two methods per operation: `XxxAsync` (returns the value, throws `ApiException`) and
   `XxxResultAsync` (returns `ApiResult<T>`, never throws for API failures).
 - Typed error bodies per status code, RFC 9457 problem details, distinct network/timeout/deserialization errors.
-- Streamed responses: server-sent events and JSON Lines/NDJSON/`json-seq` as `IAsyncEnumerable` (`ApiStream<T>`).
+- Streamed responses: server-sent events and JSON Lines/NDJSON/`json-seq` as `IAsyncEnumerable` (`ApiStream<T>`),
+  rendered incrementally by the Blazor `ApiStreamView`.
 - Per-call options (`WithOptions`), document and operation-level servers with variables (`Servers`).
 - Safe retries (`AddApiRetries`: idempotent requests or idempotency keys, `Retry-After`), compatible with
   Microsoft.Extensions.Http.Resilience; OpenTelemetry spans and metrics per operation.
@@ -29,7 +32,7 @@ stable `BAPIxxxx` diagnostics with file, line and JSON pointer, and produces det
   walkers.
 - Generated mocks and fixtures, an HTTP-level `MockApiHandler`, and contract compatibility analysis
   (`api-gen diff`).
-- Blazor components for loading/error states and server-side validation errors in `EditForm`.
+- Blazor components for loading/error states, streamed and paged lists, and server-side validation errors in `EditForm`.
 
 ## Packages
 
@@ -41,7 +44,7 @@ stable `BAPIxxxx` diagnostics with file, line and JSON pointer, and produces det
 | `BlazorApi.SourceGenerator` | Roslyn source generator; generates clients at build time from `<OpenApiContract>` items. |
 | `BlazorApi.Cli` | The `api-gen` .NET tool: `generate`, `validate`, `diff`, `inspect`. |
 | `BlazorApi.Testing` | Base class of generated mocks, `MockApiHandler`, request recording and verification. |
-| `BlazorApi.Blazor` | `ApiResultView`, `ApiErrorView`, `ApiValidationErrors` components. |
+| `BlazorApi.Blazor` | `ApiResultView`, `ApiStreamView`, `ApiErrorView`, `ApiValidationErrors` components. |
 
 The packages are not published to nuget.org yet (see [Project status](#project-status)); build them locally with
 `dotnet pack` as described in [Getting started](docs/getting-started.md#installing-the-packages).
@@ -116,6 +119,7 @@ else if (result.Error.Kind == ApiErrorKind.Http && result.Error.TryGetContent<Er
 
 - [Getting started](docs/getting-started.md)
 - [Configuration](docs/configuration.md)
+- [Overlays](docs/overlays.md)
 - [OpenAPI support and type mapping](docs/openapi-support.md)
 - [Generated code](docs/generated-code.md)
 - [Authentication](docs/authentication.md)

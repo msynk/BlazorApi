@@ -31,6 +31,7 @@ scoped to be reviewable on its own; the working tree has not been committed or s
 | M22 | Advanced generation features | Partly: operation/tag filters, unused-model pruning, multi-contract projects, `x-pagination`, `x-enum-varnames`; custom templates deferred |
 | M23 | Blazor integration (`BlazorApi.Blazor`: `ApiResultView`, `ApiErrorView`, `ApiValidationErrors`; auth registration helpers `AddBearerToken`/`AddApiKey`/`AddBasicAuthentication` in `BlazorApi.Runtime`) | Done |
 | M24 | Documentation, demo, benchmarks, CI workflow, packaging | Done (not published) |
+| M26 | Overlays (1.0-1.2, RFC 9535 JSONPath), OpenAPI 3.2 `additionalOperations` and `querystring`, `durationType=timeSpan`, `generate --watch`, Blazor `ApiStreamView` | Done |
 | M25 | Gap closure after an ecosystem survey (see below): streaming, per-call options, servers, retries, telemetry, forward-compatible enums, JSON context, CLI URLs | Done |
 
 ## Tests executed
@@ -46,6 +47,7 @@ scoped to be reviewable on its own; the working tree has not been committed or s
 | 2026-11-09 | After documentation-review fixes: 440 tests (net8.0 + net10.0) + 5 demo tests | all passed |
 | 2026-11-09 | demo/BlazorApi.Demo.Tests (5); BlazorApi.Demo.BlazorApp run and checked over HTTP (pages, 401, 404, API key); BlazorApi.Demo.ConsoleClient run against it | passed |
 | 2026-11-17 | After removing the dotnet-query integration: full suite (net8.0 + net10.0) + 5 demo tests | all passed |
+| 2026-11-17 | M26, Release build: OpenApi 197 (JSONPath RFC 9535 examples, overlays, 3.2), CodeGeneration 13, Integration 68, SourceGenerator 14, Cli 23 (overlays, watch), Blazor 11 (stream view), per framework (net8.0, net10.0); demo 5 | all passed |
 | 2026-11-17 | M25 gap closure: full suite (net8.0 + net10.0): OpenApi 142, CodeGeneration 11, Integration 50, SourceGenerator 12, Cli 21, Blazor 8, demo 5; `dotnet pack` of the source generator checked for the `BlazorApi.Runtime` dependency | all passed |
 | 2026-11-17 | BlazorApi.Demo.BlazorApp rework: every contract operation served; browser end-to-end run in Chrome (list, filter, pagination, create with 422, merge patch, PUT, photo upload/download, order with 409, delete, inventory, 8 playground scenarios, not-found, mobile width, light and dark); full suite + 5 demo tests; console client against the app | all passed |
 
@@ -123,13 +125,21 @@ scoped to be reviewable on its own; the working tree has not been committed or s
     System.Text.Json generator (BAPI6005).
 23. **Remote contracts are same-origin.** The CLI downloads URL contracts and their references only from the
     contract's origin, never local files, bounded by the parser's size limit and a timeout.
+24. **Overlays apply to the parsed tree before reading.** The root document is deep-copied (YAML aliases become
+    separate copies) and changed in place, so every later stage (references, validation, generation, diagnostics
+    with overlay source positions) works unchanged. JSONPath is implemented in the engine (RFC 9535, I-Regexp mapped
+    to .NET regular expressions with a time limit) to keep it dependency-free. Overlay errors stop loading.
+25. **3.2 query strings reuse object query parameters.** A form-encoded `querystring` is exactly an exploded `form`
+    object parameter, so the model converts it instead of adding a parameter kind to every later stage.
 
 ## Known limitations (current)
 
 - Polymorphic deserialization dispatches from the hierarchy root. A response typed as an intermediate concrete
   class (for example `Dog` with a `Puppy` subtype) is read as that class, not the subtype.
 - Only the first success response body is typed per operation (BAPI6001 warns when others differ).
-- `format: time` and `format: duration` map to `string` by default (lossless); `TimeType=TimeOnly` is opt-in.
+- `format: time` and `format: duration` map to `string` by default (lossless); `timeType=timeOnly` and
+  `durationType=timeSpan` are opt-in.
+- Overlays change the root document only, not documents it references with `$ref`.
 - Generated JSON uses reflection-based System.Text.Json metadata by default. The CLI generates a
   `JsonSerializerContext` with `generateJsonContext=true`; with the source generator, trimmed/native AOT apps must
   supply one (generators cannot see each other's output).
@@ -181,9 +191,14 @@ Overlay 1.1, RFC 9457, RFC 9110 `Retry-After`, the Idempotency-Key draft, OpenTe
 | Strict enums only (new server values break reading) | SE, ST, OG, OC | `unknownEnumValues=unrecognized` |
 | AOT required a hand-written `JsonSerializerContext` | RF, OG generichost | `generateJsonContext` (CLI), runtime context |
 | CLI could not read contracts from URLs | every CLI surveyed | Same-origin URL loading |
+| No overlays to fix third-party contracts | SE, Redocly, FE | Overlay 1.0-1.2 with RFC 9535 JSONPath (M26) |
+| OpenAPI 3.2 `additionalOperations` and `querystring` ignored or rejected | Microsoft.OpenApi v3 | Supported (M26) |
+| `format: duration` only as `string` | KI, OG | `durationType=timeSpan` (M26) |
+| No watch mode | HA, OR | `api-gen generate --watch` (M26) |
+| No UI for streams or infinite lists | HA/OR query integrations (front-end analogue) | Blazor `ApiStreamView` (M26) |
 
 Considered and not done (see Known limitations and Deferred features): several typed success responses per
-operation, typed response headers and ETag helpers, upload/download progress, SSE reconnection, Overlay support,
+operation, typed response headers and ETag helpers, upload/download progress, SSE reconnection,
 custom templates and hooks, a mock server, OAuth authorization-code/device flows (delegated to identity libraries such
 as Microsoft.Identity.Web, MSAL or Blazor's `IAccessTokenProvider`), MCP server generation.
 
@@ -198,6 +213,4 @@ as Microsoft.Identity.Web, MSAL or Blazor's `IAccessTokenProvider`), MCP server 
 - Generating a `JsonSerializerContext` for trimmed/AOT applications (possible from the CLI output; not from the
   source generator).
 - Publishing: no packages are pushed; versions are `0.1.0-preview`.
-- OpenAPI Overlay 1.1 (applying overlays before generation); needs a JSONPath (RFC 9535) implementation in the
-  dependency-free engine.
 - Several typed success bodies per operation (a generated result union) and typed response headers.

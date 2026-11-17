@@ -31,6 +31,12 @@ internal sealed class CliApp
         _httpHandler = httpHandler;
     }
 
+    /// <summary>Stops <c>generate --watch</c> (Ctrl+C in the console).</summary>
+    public CancellationToken Cancellation { get; init; }
+
+    /// <summary>How long changes must settle before <c>--watch</c> regenerates.</summary>
+    internal TimeSpan WatchDebounce { get; init; } = TimeSpan.FromMilliseconds(300);
+
     /// <summary>
     /// Loads a contract from a file, or downloads it (with the documents it references on the same origin) when it is
     /// an http or https URL.
@@ -56,6 +62,10 @@ internal sealed class CliApp
         var policy = options.ExternalReferences == ExternalReferencePolicy.Disabled ? ExternalReferencePolicy.Disabled : ExternalReferencePolicy.LocalFilesAndRemote;
         return OpenApiLoader.Parse(text, uri.AbsoluteUri, options with { DocumentResolver = resolver, ExternalReferences = policy, ReferenceRoot = null });
     }
+
+    /// <summary>Reads overlay files (missing files fail the command with an I/O error).</summary>
+    private static IReadOnlyList<OpenApi.Overlays.OpenApiOverlay> ReadOverlays(IEnumerable<string> paths) =>
+        paths.Select(p => new OpenApi.Overlays.OpenApiOverlay(p, File.ReadAllText(p))).ToArray();
 
     /// <summary>A contract argument as an absolute path, or unchanged when it is a URL.</summary>
     private static string ContractPath(string baseDirectory, string contract) =>
@@ -96,6 +106,7 @@ internal sealed class CliApp
         {
             return line.Command switch
             {
+                "generate" when line.Has("--watch") => Watch(line),
                 "generate" => Generate(line),
                 "validate" => Validate(line),
                 "diff" => Diff(line),
@@ -176,6 +187,101 @@ internal sealed class CliApp
         }
 
         return 0;
+    }
+
+    /// <summary>
+    /// Generates, then regenerates whenever a JSON or YAML file changes in the directories of the contracts, the
+    /// configuration, the overlays and the reference roots, until cancelled. Generation errors are printed and
+    /// watching continues.
+    /// </summary>
+    private int Watch(CommandLine line)
+    {
+        if (line.Has("--check") || line.Has("--dry-run"))
+        {
+            return Usage("--watch cannot be combined with --check or --dry-run.");
+        }
+
+        var exit = Generate(line);
+        var jobs = ResolveJobs(line, out _);
+        if (jobs is null)
+        {
+            return exit;
+        }
+
+        var directories = jobs
+            .SelectMany(j => new[] { j.Contract, j.LoadOptions.ReferenceRoot is { } root ? Path.Combine(root, "x") : null }
+                .Concat(j.LoadOptions.Overlays.Select(o => o.Path)))
+            .Where(p => p is not null && !RemoteDocumentResolver.IsUrl(p))
+            .Select(p => Path.GetDirectoryName(Path.GetFullPath(p!))!)
+            .Concat(line.Value("--config") is { } config ? [Path.GetDirectoryName(Path.GetFullPath(Path.Combine(_directory, config)))!] : [])
+            .Concat(File.Exists(Path.Combine(_directory, DefaultConfig)) ? [_directory] : [])
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Where(Directory.Exists)
+            .ToList();
+        // Nested directories are covered by their parents.
+        directories = directories.Where(d => !directories.Any(o => o != d && d.StartsWith(o.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))).ToList();
+
+        using var changed = new SemaphoreSlim(0);
+        var watchers = new List<FileSystemWatcher>();
+        try
+        {
+            foreach (var directory in directories)
+            {
+                var watcher = new FileSystemWatcher(directory) { IncludeSubdirectories = true, NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName | NotifyFilters.Size };
+                void OnChange(object sender, FileSystemEventArgs e)
+                {
+                    if (Path.GetExtension(e.FullPath).ToLowerInvariant() is ".json" or ".yaml" or ".yml")
+                    {
+                        changed.Release();
+                    }
+                }
+
+                watcher.Changed += OnChange;
+                watcher.Created += OnChange;
+                watcher.Renamed += (s, e) => OnChange(s, e);
+                watcher.EnableRaisingEvents = true;
+                watchers.Add(watcher);
+            }
+
+            _out.WriteLine($"Watching {string.Join(", ", directories.Select(Relative))} for changes (Ctrl+C to stop).");
+            while (true)
+            {
+                try
+                {
+                    changed.Wait(Cancellation);
+                    // Let a burst of events (editors write several times) settle, then drain it.
+                    Task.Delay(WatchDebounce, Cancellation).GetAwaiter().GetResult();
+                }
+                catch (OperationCanceledException)
+                {
+                    return exit;
+                }
+
+                while (changed.CurrentCount > 0)
+                {
+                    changed.Wait(0);
+                }
+
+                _out.WriteLine("Change detected; regenerating.");
+                try
+                {
+                    exit = Generate(line);
+                }
+                catch (IOException ex)
+                {
+                    // A file that is still being written; the next change event retries.
+                    _error.WriteLine("error: " + ex.Message);
+                    exit = 1;
+                }
+            }
+        }
+        finally
+        {
+            foreach (var watcher in watchers)
+            {
+                watcher.Dispose();
+            }
+        }
     }
 
     private sealed record Job(string Contract, string Output, GenerationConfiguration Configuration, OpenApiLoadOptions LoadOptions);
@@ -271,6 +377,8 @@ internal sealed class CliApp
                 ExternalReferences = configuration.ExternalReferences,
                 ReferenceRoot = configuration.ReferenceRoot is { } root ? Path.GetFullPath(Path.Combine(baseDirectory, root)) : null,
                 SeverityOverrides = options.SeverityOverrides,
+                Overlays = ReadOverlays(configuration.Overlays.Select(o => Path.GetFullPath(Path.Combine(baseDirectory, o)))
+                    .Concat(line.Values("--overlay").Select(o => Path.GetFullPath(Path.Combine(_directory, o))))),
             };
             jobs.Add(new Job(contract, output, configuration with { Options = options }, loadOptions));
         }
@@ -387,7 +495,9 @@ internal sealed class CliApp
                 }
             }
 
-            targets.AddRange(line.Positional.Select(c => (ContractPath(_directory, c), options, (OpenApiLoadOptions?)null)));
+            var overlays = ReadOverlays(line.Values("--overlay").Select(o => Path.GetFullPath(Path.Combine(_directory, o))));
+            var loadOptions = overlays.Count == 0 ? null : new OpenApiLoadOptions { Overlays = overlays };
+            targets.AddRange(line.Positional.Select(c => (ContractPath(_directory, c), options, loadOptions)));
         }
 
         var exit = 0;
@@ -679,15 +789,20 @@ internal sealed class CliApp
 
         Usage:
           api-gen generate [<contract>] [--config <blazorapi.json>] [--output <dir>] [--namespace <ns>]
-                           [--client-name <name>] [--option key=value]... [--dry-run] [--check] [--strict] [--quiet]
-          api-gen validate [<contract>...] [--config <blazorapi.json>] [--strict] [--format text|json] [--option key=value]...
+                           [--client-name <name>] [--option key=value]... [--overlay <file>]... [--dry-run] [--check]
+                           [--strict] [--quiet] [--watch]
+          api-gen validate [<contract>...] [--config <blazorapi.json>] [--strict] [--format text|json]
+                           [--option key=value]... [--overlay <file>]...
           api-gen diff <previous> <current> [--format text|markdown|json] [--fail-on breaking|potentially-breaking|non-breaking|none]
                        [--ignore <kind>[,<kind>...]] [--report <file>]
           api-gen inspect <contract> [--format text|json]
 
+        --overlay applies an OpenAPI Overlay (1.0-1.2) to the contract before it is read; repeatable, applied in order
+                  after the configuration's "overlays".
         generate  Writes the generated files (stale files from the previous run are removed). Without arguments it reads
                   blazorapi.json in the current directory, which may list several contracts under "contracts".
-                  --dry-run lists the changes without writing; --check fails when the output is out of date (for CI).
+                  --dry-run lists the changes without writing; --check fails when the output is out of date (for CI);
+                  --watch regenerates whenever a contract, overlay or configuration file changes (Ctrl+C stops).
         validate  Loads, validates and plans generation, reporting every diagnostic. Fails on errors.
         diff      Reports changes between two versions of a contract and fails on breaking changes (by default).
         inspect   Summarizes operations, types, pagination and security.

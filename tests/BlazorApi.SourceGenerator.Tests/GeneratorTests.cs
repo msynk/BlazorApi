@@ -47,6 +47,43 @@ public class GeneratorTests
     }
 
     [Fact]
+    public void Applies_overlays_from_metadata()
+    {
+        const string overlay = """
+            overlay: 1.1.0
+            info: { title: Rename, version: '1' }
+            actions:
+              - target: $.paths['/health'].get
+                update: { operationId: ping }
+              - target: $.paths['/store/inventory']
+                remove: true
+            """;
+        var compilation = Compilation("namespace Consumer; public static class Usage { }");
+        var overlayFile = new TestAdditionalFile(Contract("fixes.overlay.yaml"), overlay, new Dictionary<string, string> { ["BlazorApiKind"] = "Overlay" });
+        var driver = Driver(ContractFile("petstore.yaml", new() { ["BlazorApiOverlays"] = "fixes.overlay.yaml" }), overlayFile);
+
+        driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out var output, out var generatorDiagnostics);
+
+        Assert.Empty(generatorDiagnostics.Where(d => d.Severity >= DiagnosticSeverity.Warning));
+        var client = driver.GetRunResult().Results.Single().GeneratedSources.Single(s => s.HintName.EndsWith("PetstoreClient.g.cs", StringComparison.Ordinal)).SourceText.ToString();
+        Assert.Contains("PingAsync", client, StringComparison.Ordinal);
+        Assert.DoesNotContain("GetHealthAsync", client, StringComparison.Ordinal);
+        Assert.DoesNotContain("GetInventoryAsync", client, StringComparison.Ordinal);
+        Assert.Empty(output.GetDiagnostics().Where(d => d.Severity == DiagnosticSeverity.Error));
+    }
+
+    [Fact]
+    public void Missing_overlays_are_reported()
+    {
+        var compilation = Compilation("namespace Consumer; public static class Usage { }");
+        var driver = Driver(ContractFile("petstore.yaml", new() { ["BlazorApiOverlays"] = "missing.yaml" }));
+
+        driver.RunGeneratorsAndUpdateCompilation(compilation, out _, out var generatorDiagnostics);
+
+        Assert.Contains(generatorDiagnostics, d => d.Id == "BAPI5003" && d.GetMessage(System.Globalization.CultureInfo.InvariantCulture).Contains("missing.yaml", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void Json_context_option_is_reported_and_ignored()
     {
         var compilation = Compilation("namespace Consumer; public static class Usage { }");

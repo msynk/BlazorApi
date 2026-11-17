@@ -21,6 +21,34 @@
         }
       }
     },
+    "/search": {
+      "query": {
+        "operationId": "searchDocuments",
+        "parameters": [
+          {
+            "name": "filter",
+            "in": "querystring",
+            "content": {
+              "application/x-www-form-urlencoded": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "text": { "type": "string" },
+                    "limit": { "type": "integer", "format": "int32" }
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Matches",
+            "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Document" } } } }
+          }
+        }
+      }
+    },
     "/events": {
       "get": {
         "operationId": "streamEvents",
@@ -63,6 +91,16 @@
       }
     },
     "/documents/{id}": {
+      "additionalOperations": {
+        "COPY": {
+          "operationId": "copyDocument",
+          "parameters": [
+            { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } },
+            { "name": "Destination", "in": "header", "required": true, "schema": { "type": "string" } }
+          ],
+          "responses": { "204": { "description": "Copied" } }
+        }
+      },
       "get": {
         "operationId": "getDocument",
         "parameters": [

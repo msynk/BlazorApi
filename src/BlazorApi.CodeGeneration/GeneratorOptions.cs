@@ -65,6 +65,16 @@ public enum TimeType
     TimeOnly,
 }
 
+/// <summary>The C# type used for <c>format: duration</c> (ISO 8601 durations such as <c>PT1H30M</c>).</summary>
+public enum DurationType
+{
+    /// <summary><see cref="string"/> (the default, lossless: years and months are kept).</summary>
+    String,
+
+    /// <summary><see cref="System.TimeSpan"/>, read and written as ISO 8601 (years and months are rejected).</summary>
+    TimeSpan,
+}
+
 /// <summary>The C# collection types used for arrays and maps.</summary>
 public enum CollectionStyle
 {
@@ -147,6 +157,9 @@ public sealed record GeneratorOptions
 
     /// <summary>The type for times. Default: <see cref="TimeType.String"/>.</summary>
     public TimeType TimeType { get; init; } = TimeType.String;
+
+    /// <summary>The type for durations. Default: <see cref="DurationType.String"/>.</summary>
+    public DurationType DurationType { get; init; } = DurationType.String;
 
     /// <summary>The collection types. Default: read-only interfaces.</summary>
     public CollectionStyle Collections { get; init; } = CollectionStyle.ReadOnly;

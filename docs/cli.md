@@ -14,8 +14,10 @@ From a clone of the repository: `dotnet run --project src/BlazorApi.Cli -f net10
 
 ```
 api-gen generate [<contract>] [--config <blazorapi.json>] [--output <dir>] [--namespace <ns>]
-                 [--client-name <name>] [--option key=value]... [--dry-run] [--check] [--strict] [--quiet]
-api-gen validate [<contract>...] [--config <blazorapi.json>] [--strict] [--format text|json] [--option key=value]...
+                 [--client-name <name>] [--option key=value]... [--overlay <file>]... [--dry-run] [--check]
+                 [--strict] [--quiet] [--watch]
+api-gen validate [<contract>...] [--config <blazorapi.json>] [--strict] [--format text|json]
+                 [--option key=value]... [--overlay <file>]...
 api-gen diff <previous> <current> [--format text|markdown|json] [--fail-on <level>] [--ignore <kind>[,<kind>...]]
              [--report <file>]
 api-gen inspect <contract> [--format text|json]
@@ -57,6 +59,8 @@ api-gen generate --config build/api.json
 | `--output` | Output directory. Default: the configuration's `output`, else `Generated` (relative to the configuration file, or to the current directory without one). |
 | `--namespace`, `--client-name` | Override the namespace and client name. Default namespace: the contract file name in PascalCase. |
 | `--option key=value` | Any [option](configuration.md#options); repeatable; `;` separates several pairs in one value. |
+| `--overlay` | An [overlay](overlays.md) applied to the contract before it is read; repeatable, applied after the configuration's `overlays`. |
+| `--watch` | After generating, regenerate whenever a JSON or YAML file changes in the directories of the contracts, configuration, overlays and reference roots, until Ctrl+C. Errors are printed and watching continues. Not combinable with `--check` or `--dry-run`. |
 | `--strict` | Warnings are errors. |
 | `--dry-run` | List the changes (`create`, `update`, `delete`) without writing. |
 | `--check` | Like `--dry-run`, and exit with `1` when anything would change. |

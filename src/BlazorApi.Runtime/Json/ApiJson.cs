@@ -38,6 +38,7 @@ public static class ApiJson
         NumberHandling = JsonNumberHandling.Strict,
         DefaultIgnoreCondition = JsonIgnoreCondition.Never,
         ReadCommentHandling = JsonCommentHandling.Disallow,
+        Converters = { new ApiDurationJsonConverter() },
     };
 
     [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("Trimming", "IL2026",

@@ -123,7 +123,10 @@ public static class ApiModelBuilder
             var operation = new ApiOperation(source)
             {
                 NameHint = nameHint,
-                Method = source.Method.ToUpperInvariant(),
+                // Fixed-field methods are upper-cased; additionalOperations (OpenAPI 3.2) keep the method as written.
+                Method = source.Method is "get" or "put" or "post" or "delete" or "options" or "head" or "patch" or "trace" or "query"
+                    ? source.Method.ToUpperInvariant()
+                    : source.Method,
                 Path = path,
                 Summary = source.Summary ?? pathItem.Summary,
                 Description = source.Description ?? pathItem.Description,
@@ -193,6 +196,16 @@ public static class ApiModelBuilder
                     continue; // The specification requires these to be ignored (reported by validation).
                 }
 
+                if (location == ParameterLocation.QueryString)
+                {
+                    if (BuildQueryString(parameter, nameHint) is { } queryString)
+                    {
+                        result.Add(queryString);
+                    }
+
+                    continue;
+                }
+
                 result.Add(BuildParameter(parameter, location, nameHint));
             }
 
@@ -242,6 +255,36 @@ public static class ApiModelBuilder
                 CheckParameterSerialization(parameter, source);
             }
 
+            return parameter;
+        }
+
+        /// <summary>
+        /// An OpenAPI 3.2 <c>in: querystring</c> parameter. A form-encoded query string is an object whose properties
+        /// are the query fields, which is exactly an exploded <c>form</c> query parameter; other media types have no
+        /// supported serialization and the parameter is skipped (BAPI4008).
+        /// </summary>
+        private ApiParameter? BuildQueryString(OpenApiParameter source, string[] nameHint)
+        {
+            var content = source.Content.Count > 0 ? source.Content.Entries[0] : default;
+            var mediaType = content.Key?.Split(';')[0].Trim().ToLowerInvariant();
+            if (mediaType != "application/x-www-form-urlencoded" || content.Value.Schema is not { } schema)
+            {
+                _diagnostics.Report(DiagnosticDescriptors.UnsupportedParameterSerialization, source.Location, source.Pointer, source.Name,
+                    $"a 'querystring' parameter is supported with 'application/x-www-form-urlencoded' content only (found '{content.Key ?? "no content"}'); it is not generated");
+                return null;
+            }
+
+            var type = Map(schema, [.. nameHint, source.Name]);
+            var parameter = new ApiParameter(source, source.Name, ParameterLocation.Query, type)
+            {
+                Required = source.Required,
+                Deprecated = source.Deprecated,
+                Description = source.Description,
+                Style = ApiParameterStyle.Form,
+                Explode = true,
+                Constraints = ApiConstraints.From(schema.Resolved),
+            };
+            CheckParameterSerialization(parameter, source);
             return parameter;
         }
 

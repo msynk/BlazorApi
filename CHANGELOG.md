@@ -57,6 +57,16 @@ target .NET Standard 2.0.
 - **CLI**: contracts can be http(s) URLs (same-origin references are downloaded); `validate` reads `blazorapi.json`
   and `--config`.
 
+- **Overlays**: OpenAPI Overlay 1.0-1.2 (`update`, `copy`, `remove`, reusable actions) with an RFC 9535 JSONPath
+  implementation (`JsonPath`), from `OpenApiLoadOptions.Overlays`, the `overlays` configuration key, `--overlay`, and
+  the `Overlays` metadata or `OpenApiOverlay` items; diagnostics BAPI7001-7005.
+- **OpenAPI 3.2**: `additionalOperations` (custom HTTP methods) and form-encoded `querystring` parameters.
+- **Durations**: `durationType=timeSpan` maps `format: duration` to `TimeSpan` (ISO 8601 via `ApiDuration` and
+  `ApiDurationJsonConverter`, registered by `ApiJson.CreateOptions`).
+- **CLI**: `generate --watch` regenerates on contract, overlay and configuration changes.
+- **Blazor**: `ApiStreamView<TItem>` renders streamed responses and asynchronous sequences (page walkers) as they
+  arrive, with optional paging ("load more").
+
 ### Fixed
 
 - Exceptions of resilience pipelines (Polly timeouts, open circuits, rate limiters) escaped `XxxResultAsync`; they
