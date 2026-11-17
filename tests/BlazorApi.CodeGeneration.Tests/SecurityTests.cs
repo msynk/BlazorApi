@@ -45,7 +45,7 @@ public class SecurityTests
             "          default: 1",
             "          enum: [1, 1e2]");
 
-        var result = GeneratedCode.GenerateYaml(yaml, new GeneratorOptions { Namespace = "Hostile", GenerateQueries = true, GenerateMocks = true });
+        var result = GeneratedCode.GenerateYaml(yaml, new GeneratorOptions { Namespace = "Hostile", GenerateMocks = true });
         var assembly = GeneratedCode.Compile(result);
 
         Assert.DoesNotContain(assembly.GetTypes(), t => t.Name.StartsWith("Injected", StringComparison.Ordinal));

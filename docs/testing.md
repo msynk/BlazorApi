@@ -7,7 +7,7 @@ BlazorApi supports three levels of testing without a running server:
    configured HTTP responses.
 3. **Contract compatibility checks** fail a test or a build when a contract change breaks clients.
 
-The runtime pieces are in `Msynk.BlazorApi.Testing` (namespace `BlazorApi.Testing`). It is framework-agnostic:
+The runtime pieces are in `BlazorApi.Testing` (namespace `BlazorApi.Testing`). It is framework-agnostic:
 verification failures throw `ApiMockVerificationException`, which any test framework reports.
 
 ## Generated mocks
@@ -17,11 +17,11 @@ implementing the client interface) and, once per contract, `{Api}Fixtures` in th
 
 ```xml
 <OpenApiContract Include="Contracts/petstore.yaml" Options="GenerateMocks=true" />
-<PackageReference Include="Msynk.BlazorApi.Testing" Version="0.1.0-preview" />
+<PackageReference Include="BlazorApi.Testing" Version="0.1.0-preview" />
 ```
 
 Mocks are generated next to the client, in the same project, so that project must reference
-`Msynk.BlazorApi.Testing`. If the client lives in production code, either accept that reference, generate the
+`BlazorApi.Testing`. If the client lives in production code, either accept that reference, generate the
 client in a separate library that tests reference, or test at the HTTP level with `MockApiHandler`, which needs no
 generated code. `samples/Petstore.Tests` generates its own copy of the client with mocks.
 
@@ -124,7 +124,7 @@ services.AddPetstoreClient()
 ## Contract compatibility tests
 
 Compare the current contract with the last published one in a test (or use `api-gen diff` in CI, see
-[CLI](cli.md#diff)). This uses the engine package `Msynk.BlazorApi.OpenApi`:
+[CLI](cli.md#diff)). This uses the engine package `BlazorApi.OpenApi`:
 
 ```csharp
 static ApiModel Load(string path)

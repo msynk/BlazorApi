@@ -31,8 +31,6 @@ jobs:
             8.0.x
             10.0.x
 
-      # BlazorApi.DotNetQuery depends on Msynk.DotNetQuery, which is not published on nuget.org yet. Add its feed
-      # here (dotnet nuget add source ...) until it is.
       - name: Restore
         run: dotnet restore BlazorApi.slnx
 

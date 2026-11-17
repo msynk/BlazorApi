@@ -1,10 +1,10 @@
 # CLI: api-gen
 
-`api-gen` (package `Msynk.BlazorApi.Cli`, a .NET tool for .NET 8 and later) generates clients into files, validates
+`api-gen` (package `BlazorApi.Cli`, a .NET tool for .NET 8 and later) generates clients into files, validates
 contracts, reports breaking changes and summarizes contracts.
 
 ```shell
-dotnet tool install --global Msynk.BlazorApi.Cli --version 0.1.0-preview   # from your package feed
+dotnet tool install --global BlazorApi.Cli --version 0.1.0-preview   # from your package feed
 api-gen --help
 ```
 
@@ -35,7 +35,7 @@ CI systems and editors can link them.
 
 ```shell
 api-gen generate Contracts/petstore.yaml --output src/Api/Generated --namespace MyApp.Petstore
-api-gen generate --option GenerateQueries=true --option "Grouping=tag"
+api-gen generate --option GenerateMocks=true --option "Grouping=tag"
 api-gen generate                       # reads ./blazorapi.json
 api-gen generate --config build/api.json
 ```
@@ -156,7 +156,7 @@ jobs:
         with:
           dotnet-version: '10.0.x'
       - name: Install api-gen
-        run: dotnet tool install --global Msynk.BlazorApi.Cli --version 0.1.0-preview
+        run: dotnet tool install --global BlazorApi.Cli --version 0.1.0-preview
       - name: Validate the contract
         run: api-gen validate contracts/petstore.yaml --strict
       - name: Generated code is up to date   # reads blazorapi.json in the repository root

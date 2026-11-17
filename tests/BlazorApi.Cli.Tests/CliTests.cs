@@ -82,7 +82,7 @@ public sealed class CliTests : IDisposable
         File.WriteAllText(Path.Combine(_directory, "blazorapi.json"), """
             {
               "contracts": [
-                { "contract": "petstore.yaml", "output": "gen/pets", "namespace": "Pets", "generateQueries": true },
+                { "contract": "petstore.yaml", "output": "gen/pets", "namespace": "Pets", "generateMocks": true },
                 { "contract": "features-3.1.json", "output": "gen/features", "namespace": "Features", "diagnostics": { "BAPI4002": "none" } }
               ]
             }
@@ -91,7 +91,7 @@ public sealed class CliTests : IDisposable
         var (exit, _, error) = Run("generate");
 
         Assert.True(exit == 0, error);
-        Assert.True(File.Exists(Path.Combine(_directory, "gen", "pets", "PetstoreQueries.g.cs")));
+        Assert.True(File.Exists(Path.Combine(_directory, "gen", "pets", "PetstoreClientMock.g.cs")));
         Assert.True(File.Exists(Path.Combine(_directory, "gen", "features", "Models", "Shape.g.cs")));
     }
 
@@ -100,7 +100,7 @@ public sealed class CliTests : IDisposable
     {
         File.WriteAllText(Path.Combine(_directory, "blazorapi.json"), """
             {
-              "generateQueries": true,
+              "generateMocks": true,
               "contracts": [ { "contract": "petstore.yaml", "output": "gen", "namespace": "Pets" } ]
             }
             """);
@@ -108,7 +108,7 @@ public sealed class CliTests : IDisposable
         var (exit, _, error) = Run("generate");
 
         Assert.True(exit == 0, error);
-        Assert.True(File.Exists(Path.Combine(_directory, "gen", "PetstoreQueries.g.cs")));
+        Assert.True(File.Exists(Path.Combine(_directory, "gen", "PetstoreClientMock.g.cs")));
     }
 
     [Fact]

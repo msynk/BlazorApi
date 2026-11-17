@@ -1,7 +1,7 @@
 # Authentication
 
 Authentication is done by `DelegatingHandler`s in the client's `HttpClient` pipeline. The runtime
-(`Msynk.BlazorApi.Runtime`, namespace `BlazorApi.Runtime.Security`) provides the handlers; extension methods on
+(`BlazorApi.Runtime`, namespace `BlazorApi.Runtime.Security`) provides the handlers; extension methods on
 `IHttpClientBuilder` (namespace `Microsoft.Extensions.DependencyInjection`) add them to a generated client.
 
 ## Scheme-aware handlers

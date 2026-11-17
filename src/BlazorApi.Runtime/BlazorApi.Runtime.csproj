@@ -4,7 +4,7 @@
        JSON helpers, authentication handlers and dependency injection. It never references the generation engine. -->
   <PropertyGroup>
     <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
-    <PackageId>Msynk.BlazorApi.Runtime</PackageId>
+    <PackageId>BlazorApi.Runtime</PackageId>
     <Description>Runtime for BlazorApi-generated OpenAPI clients: HTTP execution, OpenAPI parameter serialization, typed results and errors, authentication handlers and HttpClientFactory integration.</Description>
     <RootNamespace>BlazorApi.Runtime</RootNamespace>
     <IsAotCompatible>true</IsAotCompatible>

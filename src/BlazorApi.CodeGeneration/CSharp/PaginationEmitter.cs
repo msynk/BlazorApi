@@ -21,7 +21,7 @@ internal sealed class PaginationEmitter
     }
 
     /// <summary>Describes how to walk the pages of one method; null when the method cannot be paged safely.</summary>
-    internal sealed class Walk
+    private sealed class Walk
     {
         public Walk(ClientEmitter.Method method, ApiPagination pagination, ClientEmitter.Parameter parameter)
         {
@@ -54,7 +54,7 @@ internal sealed class PaginationEmitter
         public string Start { get; set; } = "null";
     }
 
-    public Walk? Analyze(ClientEmitter.Method method)
+    private Walk? Analyze(ClientEmitter.Method method)
     {
         if (method.Operation.Operation.Pagination is not { } pagination || method.ValueType is null || method.IsFile)
         {

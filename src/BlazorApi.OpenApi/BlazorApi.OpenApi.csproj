@@ -5,7 +5,7 @@
        netstandard2.0 so the Roslyn source generator can compile it in, and it knows nothing about C# generation. -->
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
-    <PackageId>Msynk.BlazorApi.OpenApi</PackageId>
+    <PackageId>BlazorApi.OpenApi</PackageId>
     <Description>Dependency-free OpenAPI 3.0/3.1 processing engine: JSON and YAML loading, reference resolution, semantic validation and a normalized API model.</Description>
     <RootNamespace>BlazorApi.OpenApi</RootNamespace>
   </PropertyGroup>

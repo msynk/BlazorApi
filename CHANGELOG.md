@@ -5,8 +5,8 @@ All notable changes to this project are documented in this file. The format foll
 
 ## [0.1.0-preview] - Unreleased
 
-First preview. Packages: `Msynk.BlazorApi.OpenApi`, `.CodeGeneration`, `.Runtime`, `.SourceGenerator`, `.Cli`,
-`.DotNetQuery`, `.Testing`, `.Blazor`. Libraries target .NET 8 and .NET 10; the engine and the source generator
+First preview. Packages: `BlazorApi.OpenApi`, `.CodeGeneration`, `.Runtime`, `.SourceGenerator`, `.Cli`,
+`.Testing`, `.Blazor`. Libraries target .NET 8 and .NET 10; the engine and the source generator
 target .NET Standard 2.0.
 
 ### Added
@@ -28,9 +28,6 @@ target .NET Standard 2.0.
   credentials handlers, with `AddBearerToken`, `AddApiKey` and `AddBasicAuthentication`.
 - **Pagination**: detection of cursor, page, offset and `Link` header pagination, `x-pagination`, generated page and
   item walkers.
-- **dotnet-query integration** (`GenerateQueries`): hierarchical query keys, query definitions, mutations with
-  invalidation from configuration, `x-invalidates` or path relationships, infinite queries, transient-only retry
-  defaults (`ApiQueryDefaults`).
 - **Testing** (`GenerateMocks`): generated client mocks on `ApiMock`, model fixtures, `MockApiHandler` with request
   recording and verification.
 - **Source generator**: `OpenApiContract` and `OpenApiReference` MSBuild items with `Namespace`, `ClientName`,
@@ -45,9 +42,8 @@ target .NET Standard 2.0.
 
 ### Known limitations
 
-- `Msynk.DotNetQuery` 0.8.0, required by `Msynk.BlazorApi.DotNetQuery`, is not on nuget.org; no BlazorApi package
-  has been published yet.
-- The source generator package does not declare its dependency on `Msynk.BlazorApi.Runtime`.
+- No BlazorApi package has been published yet.
+- The source generator package does not declare its dependency on `BlazorApi.Runtime`.
 - Trimmed and native AOT applications must supply a `JsonSerializerContext` for the generated types.
 - Polymorphic responses typed as an intermediate class are not dispatched to its subtypes; only the first success
   body of an operation is typed; `format: time` and `duration` map to `string` by default.

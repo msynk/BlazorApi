@@ -10,7 +10,7 @@ public class CompilationTests
     [InlineData("external/main.yaml")]
     public void Generated_code_compiles_without_warnings(string contract)
     {
-        var result = GeneratedCode.Generate(contract, new GeneratorOptions { Namespace = "Generated", GenerateQueries = true, GenerateMocks = true });
+        var result = GeneratedCode.Generate(contract, new GeneratorOptions { Namespace = "Generated", GenerateMocks = true });
 
         if (Environment.GetEnvironmentVariable("BLAZORAPI_DUMP") is { Length: > 0 } dump)
         {

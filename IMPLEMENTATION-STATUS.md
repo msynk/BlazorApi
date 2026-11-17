@@ -20,15 +20,15 @@ scoped to be reviewable on its own; the working tree has not been committed or s
 | M11 | Dependency injection (`IHttpClientFactory`) | Done |
 | M12 | Typed errors (`ApiResult`, `ApiError`, `ApiException` family) | Done |
 | M13 | Authentication (bearer, refresh, API key, Basic, client credentials) | Done (Blazor integration: see M23) |
-| M14 | Query definitions and keys | Done |
-| M15 | Query runtime integration (dotnet-query adapter `BlazorApi.DotNetQuery`) | Done |
-| M16 | Mutation generation and invalidation (path relationships, `x-invalidates`, options) | Done |
-| M17 | Pagination (cursor, page, offset, Link header, `x-pagination`), page walkers, infinite queries | Done |
+| M14 | Query definitions and keys | Removed (see decision 14) |
+| M15 | Query runtime integration (dotnet-query adapter `BlazorApi.DotNetQuery`) | Removed (see decision 14) |
+| M16 | Mutation generation and invalidation (path relationships, `x-invalidates`, options) | Removed (see decision 14) |
+| M17 | Pagination (cursor, page, offset, Link header, `x-pagination`), page walkers | Done |
 | M18 | Mocking (`BlazorApi.Testing`: generated mocks, `MockApiHandler`) and fixtures | Done |
 | M19 | Incremental source generator (`BlazorApi.SourceGenerator`) | Done |
 | M20 | CLI (`api-gen generate/validate/diff/inspect`), JSON configuration, MSBuild items | Done |
 | M21 | Contract compatibility analysis (`ContractComparer`) with policies and reports | Done |
-| M22 | Advanced generation features | Partly: operation/tag filters, unused-model pruning, multi-contract projects, `x-pagination`, `x-invalidates`, `x-enum-varnames`; custom templates deferred |
+| M22 | Advanced generation features | Partly: operation/tag filters, unused-model pruning, multi-contract projects, `x-pagination`, `x-enum-varnames`; custom templates deferred |
 | M23 | Blazor integration (`BlazorApi.Blazor`: `ApiResultView`, `ApiErrorView`, `ApiValidationErrors`; auth registration helpers `AddBearerToken`/`AddApiKey`/`AddBasicAuthentication` in `BlazorApi.Runtime`) | Done |
 | M24 | Documentation, samples, benchmarks, CI workflow, packaging | Done (not published) |
 
@@ -44,6 +44,7 @@ scoped to be reviewable on its own; the working tree has not been committed or s
 | 2026-11-09 | BenchmarkDotNet ShortRun (see docs/performance.md) | recorded |
 | 2026-11-09 | After documentation-review fixes: 440 tests (net8.0 + net10.0) + 5 sample tests | all passed |
 | 2026-11-09 | samples/Petstore.Tests (5); Petstore.BlazorApp run and checked over HTTP (pages, 401, 404, API key); Petstore.ConsoleClient run against it | passed |
+| 2026-11-17 | After removing the dotnet-query integration: full suite (net8.0 + net10.0) + 5 sample tests | all passed |
 
 ## Architectural decisions
 
@@ -54,7 +55,7 @@ scoped to be reviewable on its own; the working tree has not been committed or s
    lossless numbers, and hard limits for untrusted input (document size, nesting depth, YAML alias expansion).
 2. **Layering.** `Syntax` (JSON/YAML to `DocNode`) -> `Document` (typed OpenAPI model, `OpenApiReader`) ->
    `References` (`OpenApiWorkspace`) -> `Validation` -> API model (`ApiModelBuilder`, pagination detection) ->
-   generation plan -> emitters (models, clients, pagination, queries, mocks). Runtime packages never reference the
+   generation plan -> emitters (models, clients, pagination, mocks). Runtime packages never reference the
    engine.
 3. **Version normalization while reading.** OpenAPI 3.0 `nullable: true` becomes the `Null` type flag, 3.0 boolean
    `exclusiveMinimum`/`exclusiveMaximum` become the 3.1 numeric form, so later stages handle one model. 3.2 documents
@@ -91,10 +92,10 @@ scoped to be reviewable on its own; the working tree has not been committed or s
     with `BlazorApiKind` metadata); referenced documents are `OpenApiReference` items. Each contract has its own
     pipeline that depends only on its text, options and the reference files, so C# edits and other contracts never
     re-run it.
-14. **Query integration targets dotnet-query, it does not re-implement caching.** Generated `{Api}Queries` classes
-    hold hierarchical keys (`All` > operation prefix > arguments), `QueryDefinition<T>` factories, mutation options
-    with `Invalidates` derived from path relationships (ancestor/same/descendant paths) unless configured, and
-    `InfiniteQuery` factories for paginated operations. `ApiQueryDefaults` retries only transient failures.
+14. **No query/caching integration.** The dotnet-query integration (`GenerateQueries`, the `invalidations` setting,
+    `x-invalidates`, the `BlazorApi.DotNetQuery` package) was removed: it depended on `Msynk.DotNetQuery`, which is
+    not published. Generated clients, `ApiResult` and the `IAsyncEnumerable` page walkers work with any caching
+    library.
 15. **Compatibility is judged from the client's side.** Changes are classified with request/response direction:
     widening a request type is safe, widening a response type breaks clients; new response enum values are
     potentially breaking because generated enums are strict.
@@ -103,10 +104,6 @@ scoped to be reviewable on its own; the working tree has not been committed or s
 
 ## Known limitations (current)
 
-- **`Msynk.DotNetQuery` is not on nuget.org.** `BlazorApi.DotNetQuery` references version 0.8.0, which restores here
-  only from the local NuGet cache. Publish dotnet-query (or add its feed) before building elsewhere or packing.
-  The dotnet-query Blazor adapter is not available as a package, so the Blazor sample subscribes to query state
-  itself instead of using its `<Query>` component.
 - Polymorphic deserialization dispatches from the hierarchy root. A response typed as an intermediate concrete
   class (for example `Dog` with a `Puppy` subtype) is read as that class, not the subtype.
 - Only the first success response body is typed per operation (BAPI6001 warns when others differ).
@@ -114,12 +111,9 @@ scoped to be reviewable on its own; the working tree has not been committed or s
 - Generated JSON uses reflection-based System.Text.Json metadata by default. Trimmed/native AOT apps must supply a
   `JsonSerializerContext` for the generated types through `ApiClientOptions.JsonSerializerOptions`; the source
   generator cannot emit one because generators cannot see each other's output.
-- Query keys include every operation argument, including header parameters.
-- Invalidation is prefix-based (all argument combinations of a query), not per-argument.
-- Infinite queries for Link-header pagination keep the next-page value in a weak table keyed by page instance.
-- The source generator package does not yet declare its dependency on `Msynk.BlazorApi.Runtime`; consumers add it.
+- The source generator package does not yet declare its dependency on `BlazorApi.Runtime`; consumers add it.
 - Generated mocks are emitted into the project that generates them (with `GenerateMocks=true`), which must then
-  reference `Msynk.BlazorApi.Testing`; generate mocks in the test project.
+  reference `BlazorApi.Testing`; generate mocks in the test project.
 - `api-gen validate` does not read `blazorapi.json` (it takes `--option` and `--strict`).
 
 - YAML: explicit (`?`) and non-scalar mapping keys, anchors on implicit keys, recursive aliases and multi-document
@@ -152,5 +146,4 @@ scoped to be reviewable on its own; the working tree has not been committed or s
   contracts (`tests/Contracts`) and a synthetic 500-schema contract in the benchmarks only.
 - Generating a `JsonSerializerContext` for trimmed/AOT applications (possible from the CLI output; not from the
   source generator).
-- Per-argument query invalidation and optimistic-update helpers beyond dotnet-query's own `OptimisticUpdates`.
 - Publishing: no packages are pushed; versions are `0.1.0-preview`.

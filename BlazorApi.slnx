@@ -3,7 +3,6 @@
     <Project Path="src/BlazorApi.OpenApi/BlazorApi.OpenApi.csproj" />
     <Project Path="src/BlazorApi.CodeGeneration/BlazorApi.CodeGeneration.csproj" />
     <Project Path="src/BlazorApi.Runtime/BlazorApi.Runtime.csproj" />
-    <Project Path="src/BlazorApi.DotNetQuery/BlazorApi.DotNetQuery.csproj" />
     <Project Path="src/BlazorApi.Testing/BlazorApi.Testing.csproj" />
     <Project Path="src/BlazorApi.Blazor/BlazorApi.Blazor.csproj" />
     <Project Path="src/BlazorApi.SourceGenerator/BlazorApi.SourceGenerator.csproj" />

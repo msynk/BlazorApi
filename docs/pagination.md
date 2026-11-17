@@ -85,11 +85,6 @@ Walkers are not generated when they could not stop safely: cursor style without 
 without items, "has more" or total pages, and offset style without items. Required paging parameters also disable
 them.
 
-## Infinite queries
-
-With `GenerateQueries=true`, the same operations get an `{Operation}Infinite` factory that returns a dotnet-query
-`InfiniteQuery<TPageParam, TPage>` using the same next-page rules. See [Queries](queries.md#infinite-queries).
-
 ## Link headers
 
 `ApiLinkHeader` (namespace `BlazorApi.Runtime.Http`) reads RFC 8288 `Link` headers from any result, here for a

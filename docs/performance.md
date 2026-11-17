@@ -4,7 +4,8 @@
 
 Measured with BenchmarkDotNet 0.15.8 (ShortRun job), .NET 10, Windows 11. "Large" is a synthetic contract with 500
 schemas of 12 properties each (strings, numbers, enums, arrays, maps, nullable types, references) and 500 operations.
-Memory is the managed allocation per operation.
+Memory is the managed allocation per operation. The two generation benchmarks were recorded while the generator
+still emitted the (since removed) query integration, so current runs do somewhat less work.
 
 | Benchmark | What it measures | Mean | Allocated |
 |---|---|---|---|
@@ -12,8 +13,8 @@ Memory is the managed allocation per operation.
 | `ParsePetstoreJson` | JSON parsing of the same document | 15.5 us | 97 KB |
 | `LoadLargeContract` | parse, resolve references and validate the large contract | 42.6 ms | 32.8 MB |
 | `BuildLargeModel` | build the API model of the large contract | 8.2 ms | 10 MB |
-| `GenerateLargeClient` | model, plan and emit the large client, including queries | 31.8 ms | 70.5 MB |
-| `GeneratePetstoreClient` | full generation of the Petstore client with queries and mocks | 0.56 ms | 1.66 MB |
+| `GenerateLargeClient` | model, plan and emit the large client | 31.8 ms | 70.5 MB |
+| `GeneratePetstoreClient` | full generation of the Petstore client with mocks | 0.56 ms | 1.66 MB |
 | `GetPolymorphicPet` | generated client call reading a polymorphic `Pet`, in-memory handler | 1.63 us | 3.7 KB |
 | `ListPetsWithParameters` | generated client call with query, array and enum parameters reading a 1000-item page | 0.97 ms | 919 KB |
 

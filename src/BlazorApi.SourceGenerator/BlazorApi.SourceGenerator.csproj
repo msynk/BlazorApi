@@ -7,8 +7,8 @@
        excluded: contracts arrive as MSBuild AdditionalFiles. Roslyn 4.8 is the compiler of the .NET 8 SDK. -->
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
-    <PackageId>Msynk.BlazorApi.SourceGenerator</PackageId>
-    <Description>Generates typed OpenAPI clients, models, queries and mocks at build time from contracts added with &lt;OpenApiContract Include="..." /&gt;.</Description>
+    <PackageId>BlazorApi.SourceGenerator</PackageId>
+    <Description>Generates typed OpenAPI clients, models and mocks at build time from contracts added with &lt;OpenApiContract Include="..." /&gt;.</Description>
     <RootNamespace>BlazorApi.SourceGenerator</RootNamespace>
     <IsRoslynComponent>true</IsRoslynComponent>
     <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
@@ -34,7 +34,7 @@
     <Compile Include="..\BlazorApi.CodeGeneration\**\*.cs" Exclude="..\BlazorApi.CodeGeneration\obj\**;..\BlazorApi.CodeGeneration\bin\**" LinkBase="Engine\CodeGeneration" />
   </ItemGroup>
 
-  <!-- Package layout: the analyzer and the MSBuild integration. Consumers also reference Msynk.BlazorApi.Runtime,
+  <!-- Package layout: the analyzer and the MSBuild integration. Consumers also reference BlazorApi.Runtime,
        which the generated code uses (see docs/source-generator.md). -->
   <ItemGroup>
     <None Include="$(OutputPath)$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />

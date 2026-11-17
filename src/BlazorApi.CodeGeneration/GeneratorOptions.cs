@@ -150,17 +150,6 @@ public sealed record GeneratorOptions
     /// <summary>Whether to generate <c>IServiceCollection</c> registration methods (default: true).</summary>
     public bool GenerateDependencyInjection { get; init; } = true;
 
-    /// <summary>Whether to generate dotnet-query query and mutation definitions (default: false).</summary>
-    public bool GenerateQueries { get; init; }
-
-    /// <summary>
-    /// Query invalidations of mutations, by operationId: each mutation invalidates the listed query operations after
-    /// it settles. Mutations not listed here (or in an <c>x-invalidates</c> extension) invalidate the queries whose path
-    /// is an ancestor or descendant of the mutation's path.
-    /// </summary>
-    public IReadOnlyDictionary<string, IReadOnlyList<string>> Invalidations { get; init; } =
-        new Dictionary<string, IReadOnlyList<string>>();
-
     /// <summary>Whether to generate mock clients and test data builders (default: false).</summary>
     public bool GenerateMocks { get; init; }
 

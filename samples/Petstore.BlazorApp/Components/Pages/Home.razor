@@ -1,37 +1,32 @@
 @page "/"
-@implements IDisposable
-@inject IQueryClient Queries
 @inject IPetstoreClient Api
 
 <h1>Pets</h1>
 
-@* An infinite query: pages are cached by dotnet-query and the generated definition follows the API's cursors. *@
-@if (_pets?.CurrentState is { } state)
+@* Cursor pagination with the generated client: each page carries the cursor of the next one. *@
+@if (_listError is { } error)
 {
-    @if (state.Error is { } error)
-    {
-        <ApiErrorView Exception="error" OnRetry="() => _pets.RefetchAsync()" />
-    }
-    else if (state.Data is null)
-    {
-        <p aria-busy="true">Loading...</p>
-    }
-    else
-    {
-        <ul>
-            @foreach (var pet in state.Data.Pages.SelectMany(page => page.Items))
-            {
-                <li>
-                    <a href="pets/@pet.Id">@pet.Name</a>
-                    (@pet.Kind@(pet is Cat { Indoor: true } ? ", indoor" : string.Empty))
-                </li>
-            }
-        </ul>
-
-        @if (_pets.HasNextPage)
+    <ApiErrorView Error="error" OnRetry="ReloadAsync" />
+}
+else if (_pets is null)
+{
+    <p aria-busy="true">Loading...</p>
+}
+else
+{
+    <ul>
+        @foreach (var pet in _pets)
         {
-            <button type="button" disabled="@state.IsFetchingNextPage" @onclick="() => _pets.FetchNextPageAsync()">Load more</button>
+            <li>
+                <a href="pets/@pet.Id">@pet.Name</a>
+                (@pet.Kind@(pet is Cat { Indoor: true } ? ", indoor" : string.Empty))
+            </li>
         }
+    </ul>
+
+    @if (_nextCursor is not null)
+    {
+        <button type="button" disabled="@_loading" @onclick="LoadMoreAsync">Load more</button>
     }
 }
 
@@ -57,50 +52,63 @@
     </label>
     <ValidationMessage For="() => _new.Kind" />
 
-    <button type="submit" disabled="@(_create?.CurrentState.IsPending == true)">Add</button>
+    <button type="submit" disabled="@_creating">Add</button>
 </EditForm>
 
 @code {
-    private InfiniteQuery<string?, PetPage>? _pets;
-    private Mutation<NewPet, Pet>? _create;
+    private const int PageSize = 5;
+
+    private List<Pet>? _pets;
+    private string? _nextCursor;
+    private bool _loading;
+    private ApiError? _listError;
     private NewPet _new = NewModel();
     private ApiError? _createError;
+    private bool _creating;
 
-    protected override async Task OnInitializedAsync()
+    protected override Task OnInitializedAsync() => ReloadAsync();
+
+    private Task ReloadAsync()
     {
-        _pets = PetstoreQueries.ListPetsInfinite(Queries, Api, limit: 5);
-        _pets.StateChanged += OnStateChanged;
+        _pets = null;
+        _nextCursor = null;
+        return LoadPageAsync(cursor: null);
+    }
 
-        // Creating a pet invalidates every listPets query (the generated mutation options say so), so the list
-        // above refreshes on its own.
-        _create = PetstoreQueries.CreatePet(Queries, Api);
-        await _pets.FetchAsync();
+    private Task LoadMoreAsync() => LoadPageAsync(_nextCursor);
+
+    private async Task LoadPageAsync(string? cursor)
+    {
+        _loading = true;
+        _listError = null;
+        var result = await Api.ListPetsResultAsync(limit: PageSize, cursor: cursor);
+        _loading = false;
+        if (result.Error is { } error)
+        {
+            _listError = error;
+            return;
+        }
+
+        (_pets ??= []).AddRange(result.Value!.Items);
+        _nextCursor = result.Value.NextCursor;
     }
 
     private async Task CreateAsync()
     {
         _createError = null;
-        try
+        _creating = true;
+        var result = await Api.CreatePetResultAsync(_new);
+        _creating = false;
+        if (result.Error is { } error)
         {
-            await _create!.MutateAsync(_new);
-            _new = NewModel();
+            _createError = error;
+            return;
         }
-        catch (ApiException ex)
-        {
-            _createError = ex.Error;
-        }
+
+        // Start the list over so the new pet shows up.
+        _new = NewModel();
+        await ReloadAsync();
     }
 
     private static NewPet NewModel() => new() { Name = string.Empty, Kind = "dog" };
-
-    private void OnStateChanged(InfiniteQueryState<string?, PetPage> state) => InvokeAsync(StateHasChanged);
-
-    public void Dispose()
-    {
-        if (_pets is not null)
-        {
-            _pets.StateChanged -= OnStateChanged;
-            _pets.Dispose();
-        }
-    }
 }

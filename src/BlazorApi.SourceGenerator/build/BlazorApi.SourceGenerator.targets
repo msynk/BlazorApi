@@ -2,7 +2,7 @@
 
   <!--
     Usage:
-      <OpenApiContract Include="Contracts/petstore.yaml" Namespace="MyApp.Petstore" Options="GenerateQueries=true" />
+      <OpenApiContract Include="Contracts/petstore.yaml" Namespace="MyApp.Petstore" Options="GenerateMocks=true" />
       <OpenApiReference Include="Contracts/shared/**/*.yaml" />   (documents referenced with $ref)
     Optional metadata: Namespace, ClientName, Options (key=value;...), Config (a blazorapi.json file, also an AdditionalFile).
   -->

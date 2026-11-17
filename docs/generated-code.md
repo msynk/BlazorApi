@@ -14,15 +14,14 @@ Generated/
   PetstoreClient.g.cs                            IPetstoreClient and PetstoreClient
   PetstoreClientServiceCollectionExtensions.g.cs AddPetstoreClient (generateDependencyInjection)
   PetstoreClientPagination.g.cs                  page walkers, when operations are paginated
-  PetstoreQueries.g.cs                           dotnet-query integration (generateQueries)
   PetstoreClientMock.g.cs                        test double (generateMocks)
   Models/Pet.g.cs                                one file per model, enum or union
   Models/PetstoreFixtures.g.cs                   test data builders (generateMocks)
 ```
 
 With `grouping=tag`, each client (`PetsClient`, `StoreClient`, and the default client for untagged operations) gets
-its own client, registration, pagination, query and mock files. Clients, interfaces, models and the query,
-pagination and fixture classes are `partial`, so you can add members in your own files. Output is deterministic: the
+its own client, registration, pagination and mock files. Clients, interfaces, models and the pagination and
+fixture classes are `partial`, so you can add members in your own files. Output is deterministic: the
 same contract and options always produce the same bytes.
 
 ## Clients

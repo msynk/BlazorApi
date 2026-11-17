@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <Import Project="..\..\src\BlazorApi.SourceGenerator\build\Msynk.BlazorApi.SourceGenerator.props" />
+  <Import Project="..\..\src\BlazorApi.SourceGenerator\build\BlazorApi.SourceGenerator.props" />
 
   <!-- Testing without a server: generated mocks and fixtures (GenerateMocks=true), the MockApiHandler for full HTTP
        stack tests, and a contract compatibility check against the last published contract. -->
@@ -31,6 +31,6 @@
     <None Include="..\Contracts\**\*.yaml" LinkBase="Contracts" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
-  <Import Project="..\..\src\BlazorApi.SourceGenerator\build\Msynk.BlazorApi.SourceGenerator.targets" />
+  <Import Project="..\..\src\BlazorApi.SourceGenerator\build\BlazorApi.SourceGenerator.targets" />
 
 </Project>

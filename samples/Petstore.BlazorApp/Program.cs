@@ -7,9 +7,6 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 builder.Services.AddSingleton<PetStore>();
 
-// dotnet-query holds the cache; the generated PetstoreQueries supply keys, definitions and mutations.
-builder.Services.AddDotNetQuery(options => options.DefaultStaleTime = TimeSpan.FromSeconds(30));
-
 // The generated client, registered with IHttpClientFactory. Each handler applies only to the operations whose
 // security requirements name its scheme: health stays anonymous, inventory gets the API key, pets get the token.
 builder.Services

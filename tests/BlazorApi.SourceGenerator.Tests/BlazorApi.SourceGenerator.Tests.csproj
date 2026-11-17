@@ -23,7 +23,6 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\BlazorApi.SourceGenerator\BlazorApi.SourceGenerator.csproj" />
     <ProjectReference Include="..\..\src\BlazorApi.Runtime\BlazorApi.Runtime.csproj" />
-    <ProjectReference Include="..\..\src\BlazorApi.DotNetQuery\BlazorApi.DotNetQuery.csproj" />
   </ItemGroup>
 
   <ItemGroup>

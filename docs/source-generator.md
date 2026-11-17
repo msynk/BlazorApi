@@ -1,22 +1,21 @@
 # Source generator
 
-`Msynk.BlazorApi.SourceGenerator` is a Roslyn incremental generator. It generates clients while you build and while
+`BlazorApi.SourceGenerator` is a Roslyn incremental generator. It generates clients while you build and while
 the IDE analyzes your code, from contracts declared as MSBuild items. It needs the .NET 8 SDK or later.
 
 ## Package references
 
 ```xml
 <ItemGroup>
-  <PackageReference Include="Msynk.BlazorApi.SourceGenerator" Version="0.1.0-preview" PrivateAssets="all" />
-  <PackageReference Include="Msynk.BlazorApi.Runtime" Version="0.1.0-preview" />
+  <PackageReference Include="BlazorApi.SourceGenerator" Version="0.1.0-preview" PrivateAssets="all" />
+  <PackageReference Include="BlazorApi.Runtime" Version="0.1.0-preview" />
 </ItemGroup>
 ```
 
 The generator package contains only the analyzer (with the OpenAPI engine compiled in, so it loads no other
-assemblies) and the MSBuild files `build/Msynk.BlazorApi.SourceGenerator.props` and `.targets`. It does not declare
-a dependency on `Msynk.BlazorApi.Runtime`; reference the runtime yourself, otherwise the generated code does not
-compile (`CS0246` for `BlazorApi.Runtime`). Add `Msynk.BlazorApi.DotNetQuery` for `GenerateQueries=true` and
-`Msynk.BlazorApi.Testing` for `GenerateMocks=true`.
+assemblies) and the MSBuild files `build/BlazorApi.SourceGenerator.props` and `.targets`. It does not declare
+a dependency on `BlazorApi.Runtime`; reference the runtime yourself, otherwise the generated code does not
+compile (`CS0246` for `BlazorApi.Runtime`). Add `BlazorApi.Testing` for `GenerateMocks=true`.
 
 ## Items and metadata
 
@@ -25,7 +24,7 @@ compile (`CS0246` for `BlazorApi.Runtime`). Add `Msynk.BlazorApi.DotNetQuery` fo
   <OpenApiContract Include="Contracts/petstore.yaml"
                    Namespace="MyApp.Petstore"
                    ClientName="PetstoreApi"
-                   Options="GenerateQueries=true;Collections=mutable"
+                   Options="GenerateMocks=true;Collections=mutable"
                    Config="Contracts/blazorapi.json" />
   <OpenApiReference Include="Contracts/shared/**/*.yaml" />
 </ItemGroup>
@@ -44,7 +43,7 @@ The targets turn these items into `AdditionalFiles` with a `BlazorApiKind` metad
 `Config`); other AdditionalFiles are ignored. Precedence: defaults, then `Config`, then `Namespace`/`ClientName`,
 then `Options`.
 
-Things that only the JSON form can set: `invalidations`, `diagnostics` severities and `references` (`policy`, and
+Things that only the JSON form can set: `diagnostics` severities and `references` (`policy`, and
 `root` relative to the configuration file). With a `contracts` array, the entry whose `contract` names this contract
 applies on top of the top-level keys; `output` is not used.
 

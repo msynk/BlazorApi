@@ -29,7 +29,6 @@ Keys are case-insensitive. Enum values are case-insensitive and ignore `-` and `
 | `useRequiredMembers` | `true` | Required properties use the C# `required` modifier (also enforced by System.Text.Json when reading). |
 | `generateInterfaces` | `true` | Generate `I{Client}` interfaces. |
 | `generateDependencyInjection` | `true` | Generate `Add{Client}` registration methods. |
-| `generateQueries` | `false` | Generate dotnet-query keys, definitions and mutations ([Queries](queries.md)). |
 | `generateMocks` | `false` | Generate client mocks and model fixtures ([Testing](testing.md)). |
 | `generateDataAnnotations` | `true` | Add `System.ComponentModel.DataAnnotations` attributes for schema constraints. |
 | `generateDocumentation` | `true` | Generate XML documentation comments. |
@@ -46,7 +45,7 @@ generator uses `$(RootNamespace).` followed by that name.
 A filter value that matches no operation reports BAPI6003; filters that select nothing report BAPI6004. Unknown keys
 report BAPI5002 and are ignored; invalid values report BAPI5001.
 
-Two settings exist only in the JSON form: `invalidations` and `diagnostics` (severity overrides).
+One setting exists only in the JSON form: `diagnostics` (severity overrides).
 
 ## key=value syntax
 
@@ -54,11 +53,11 @@ Pairs are separated by `;`. List values use `,` (MSBuild uses `;` as its own sep
 
 ```xml
 <OpenApiContract Include="Contracts/petstore.yaml"
-                 Options="GenerateQueries=true;Collections=mutable;IncludeTags=pets,store" />
+                 Options="GenerateMocks=true;Collections=mutable;IncludeTags=pets,store" />
 ```
 
 ```shell
-api-gen generate petstore.yaml --option GenerateQueries=true --option "dateType=string;strict=true"
+api-gen generate petstore.yaml --option GenerateMocks=true --option "dateType=string;strict=true"
 ```
 
 `--option` can be repeated; later values win.
@@ -71,11 +70,10 @@ api-gen generate petstore.yaml --option GenerateQueries=true --option "dateType=
   "output": "Generated",
   "namespace": "MyApp.Petstore",
   "grouping": "tag",
-  "generateQueries": true,
+  "generateMocks": true,
   "references": { "policy": "localFiles", "root": "Contracts" },
   "include": { "tags": ["pets", "store"] },
   "exclude": { "operations": ["deletePet"] },
-  "invalidations": { "placeOrder": ["getInventory"] },
   "diagnostics": { "BAPI1008": "none", "BAPI4007": "warning" }
 }
 ```
@@ -89,7 +87,6 @@ api-gen generate petstore.yaml --option GenerateQueries=true --option "dateType=
 | `references.root` | Directory referenced files must be inside, relative to the configuration file. Default: the contract's directory. |
 | `include.operations`, `include.tags` | Arrays; same as `includeOperations`, `includeTags`. |
 | `exclude.operations`, `exclude.tags` | Arrays; same as `excludeOperations`, `excludeTags`. |
-| `invalidations` | Object mapping a mutation operationId to the query operationIds it invalidates ([Queries](queries.md#invalidation)). |
 | `diagnostics` | Object mapping diagnostic ids to `none` (also `hidden`, `suppress`), `info` (also `suggestion`), `warning` or `error` ([Diagnostics](diagnostics.md)). |
 | any option name | Any option from the table above, as a string, number or boolean. |
 
@@ -105,7 +102,7 @@ relative to the configuration file; the top-level keys are defaults for every en
 ```json
 {
   "contracts": [
-    { "contract": "petstore.yaml", "output": "gen/pets", "namespace": "Pets", "generateQueries": true },
+    { "contract": "petstore.yaml", "output": "gen/pets", "namespace": "Pets", "generateMocks": true },
     { "contract": "billing.json", "output": "gen/billing", "namespace": "Billing", "diagnostics": { "BAPI4002": "none" } }
   ]
 }
@@ -130,7 +127,7 @@ using BlazorApi.OpenApi.Diagnostics;
 var options = new GeneratorOptions
 {
     Namespace = "MyApp.Petstore",
-    GenerateQueries = true,
+    GenerateMocks = true,
     SeverityOverrides = new Dictionary<string, DiagnosticSeverity?> { ["BAPI1008"] = null },  // null suppresses
 };
 

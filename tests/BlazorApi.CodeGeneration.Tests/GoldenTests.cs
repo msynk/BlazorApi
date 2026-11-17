@@ -13,7 +13,7 @@ public class GoldenTests
 
     internal static GeneratorOptions OptionsFor(string name) => name switch
     {
-        "petstore" => new GeneratorOptions { Namespace = "Petstore.Client", GenerateQueries = true, GenerateMocks = true },
+        "petstore" => new GeneratorOptions { Namespace = "Petstore.Client", GenerateMocks = true },
         "features" => new GeneratorOptions { Namespace = "Features.Client" },
         _ => throw new ArgumentOutOfRangeException(nameof(name)),
     };

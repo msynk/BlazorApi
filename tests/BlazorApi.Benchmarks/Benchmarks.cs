@@ -69,10 +69,10 @@ public class EngineBenchmarks
     public ApiModel BuildLargeModel() => ApiModelBuilder.Build(_loaded.Document!, new DiagnosticBag());
 
     [Benchmark]
-    public GenerationResult GenerateLargeClient() => ApiClientGenerator.Generate(_loaded, new GeneratorOptions { Namespace = "Large", GenerateQueries = true });
+    public GenerationResult GenerateLargeClient() => ApiClientGenerator.Generate(_loaded, new GeneratorOptions { Namespace = "Large" });
 
     [Benchmark]
-    public GenerationResult GeneratePetstoreClient() => ApiClientGenerator.Generate(_petstoreYaml, "petstore.yaml", new GeneratorOptions { Namespace = "Petstore", GenerateQueries = true, GenerateMocks = true });
+    public GenerationResult GeneratePetstoreClient() => ApiClientGenerator.Generate(_petstoreYaml, "petstore.yaml", new GeneratorOptions { Namespace = "Petstore", GenerateMocks = true });
 }
 
 [MemoryDiagnoser]

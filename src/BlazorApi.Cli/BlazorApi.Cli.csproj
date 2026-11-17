@@ -4,7 +4,7 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
-    <PackageId>Msynk.BlazorApi.Cli</PackageId>
+    <PackageId>BlazorApi.Cli</PackageId>
     <Description>api-gen: generates typed C# clients from OpenAPI contracts, validates contracts and detects breaking changes.</Description>
     <RootNamespace>BlazorApi.Cli</RootNamespace>
     <AssemblyName>api-gen</AssemblyName>

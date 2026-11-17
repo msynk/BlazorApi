@@ -81,11 +81,6 @@ public static class ApiClientGenerator
             {
                 files.Add(pages);
             }
-
-            if (options.GenerateQueries)
-            {
-                files.Add(new QueryEmitter(plan, clients, pagination).Emit(client));
-            }
         }
 
         if (options.GenerateMocks)

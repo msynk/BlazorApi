@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <Import Project="..\..\src\BlazorApi.SourceGenerator\build\Msynk.BlazorApi.SourceGenerator.props" />
+  <Import Project="..\..\src\BlazorApi.SourceGenerator\build\BlazorApi.SourceGenerator.props" />
 
   <!-- The basic typed client: generated at build time from ../Contracts/petstore.yaml, used without dependency
        injection. Run samples/Petstore.BlazorApp first; it hosts the API. -->
@@ -18,6 +18,6 @@
     <OpenApiContract Include="..\Contracts\petstore.yaml" Namespace="Petstore.ConsoleClient.Api" />
   </ItemGroup>
 
-  <Import Project="..\..\src\BlazorApi.SourceGenerator\build\Msynk.BlazorApi.SourceGenerator.targets" />
+  <Import Project="..\..\src\BlazorApi.SourceGenerator\build\BlazorApi.SourceGenerator.targets" />
 
 </Project>

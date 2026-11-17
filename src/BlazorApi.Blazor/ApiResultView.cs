@@ -7,7 +7,7 @@ namespace BlazorApi.Blazor;
 /// <summary>
 /// Loads a value with a generated <c>...ResultAsync</c> method and renders the loading, success or error state. It
 /// reloads when <see cref="Key"/> changes and cancels a pending load when it changes again or the component is
-/// disposed. For caching, deduplication and background refetching use the generated dotnet-query definitions instead.
+/// disposed. It does not cache: every load calls the API.
 /// </summary>
 /// <typeparam name="TValue">The response body type.</typeparam>
 public sealed class ApiResultView<TValue> : ComponentBase, IDisposable

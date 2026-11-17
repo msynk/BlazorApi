@@ -4,7 +4,7 @@
        EditForm, and authentication registration helpers. Optional: core libraries never depend on Blazor. -->
   <PropertyGroup>
     <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
-    <PackageId>Msynk.BlazorApi.Blazor</PackageId>
+    <PackageId>BlazorApi.Blazor</PackageId>
     <Description>Blazor components for BlazorApi-generated clients: loading/success/error views, problem details display and server validation errors in EditForm.</Description>
     <RootNamespace>BlazorApi.Blazor</RootNamespace>
     <IsAotCompatible>true</IsAotCompatible>

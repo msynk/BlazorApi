@@ -5,17 +5,17 @@
 ```
                  build time                                   run time
   +-------------------------------------+        +-----------------------------------+
-  | Msynk.BlazorApi.SourceGenerator     |        | your application                  |
-  | Msynk.BlazorApi.Cli (api-gen)       |        |   generated client and models     |
+  | BlazorApi.SourceGenerator           |        | your application                  |
+  | BlazorApi.Cli (api-gen)             |        |   generated client and models     |
   +------------------+------------------+        +-----------------+-----------------+
                      |                                             |
   +------------------v------------------+        +-----------------v-----------------+
-  | Msynk.BlazorApi.CodeGeneration      |        | Msynk.BlazorApi.Runtime           |
+  | BlazorApi.CodeGeneration            |        | BlazorApi.Runtime                 |
   |   options, naming, plan, emitters   |        |   HTTP, results, errors, JSON,    |
   +------------------+------------------+        |   authentication, DI              |
-                     |                           +--+-------------+-------------+----+
-  +------------------v------------------+           |             |             |
-  | Msynk.BlazorApi.OpenApi             |      .DotNetQuery    .Testing      .Blazor
+                     |                           +--------+-----------------+--------+
+  +------------------v------------------+                 |                 |
+  | BlazorApi.OpenApi                   |              .Testing          .Blazor
   |   syntax, document, references,     |
   |   validation, API model,            |
   |   compatibility                     |
@@ -27,8 +27,8 @@
 - **Hosts**: the CLI references the engine; the source generator compiles the engine's sources into its own
   assembly (minus the file I/O code), so the analyzer loads nothing else.
 - **Runtime** (`BlazorApi.Runtime`, net8.0/net10.0): everything generated code calls. It never references the engine.
-- **Integrations**: `BlazorApi.DotNetQuery` (retry defaults; the cache stays in dotnet-query), `BlazorApi.Testing`
-  (mock base class, `MockApiHandler`) and `BlazorApi.Blazor` (components). Each depends only on the runtime.
+- **Integrations**: `BlazorApi.Testing` (mock base class, `MockApiHandler`) and `BlazorApi.Blazor` (components).
+  Each depends only on the runtime.
 
 ## Data flow
 
@@ -52,7 +52,7 @@ text --SyntaxParser--> DocNode --OpenApiReader--> OpenApiDocument --OpenApiWorks
    (BAPI4xxx). `ContractComparer` works on this model.
 6. **Plan.** The planner applies `GeneratorOptions`: selects operations and types, groups clients, decides unions
    versus hierarchies, and allocates unique C# names.
-7. **Emitters.** Model, client, pagination, query and mock emitters write C# through an escaping `CodeWriter`,
+7. **Emitters.** Model, client, pagination and mock emitters write C# through an escaping `CodeWriter`,
    producing `GeneratedFile`s sorted by path. `ApiClientGenerator.Generate` is the single entry point for both hosts.
 
 Diagnostics from every stage go into one `DiagnosticBag`, which applies severity overrides and sorts them by
@@ -91,7 +91,6 @@ GetPetAsync -> GetPetResultAsync -> ApiRequestBuilder (path, query, headers, bod
 11. **Golden files are compiled and executed.** `tests/Golden` holds generated output that the code generation tests
     compare and the integration tests compile and run against recorded HTTP exchanges.
 12. **Per-contract incremental pipelines** in the source generator, depending only on the contract's inputs.
-13. **Query integration targets dotnet-query** instead of re-implementing caching.
-14. **Compatibility is judged from the client's side**, with request/response direction.
+13. **Compatibility is judged from the client's side**, with request/response direction.
 
 Deferred work and known limitations are tracked in `IMPLEMENTATION-STATUS.md`.

@@ -117,20 +117,6 @@ public static class GeneratorOptionsReader
                     }
 
                     break;
-                case "invalidations":
-                    if (property.Value is ObjectNode invalidations)
-                    {
-                        options = options with
-                        {
-                            Invalidations = invalidations.Properties.ToDictionary(p => p.Name, p => List(p, diagnostics), StringComparer.Ordinal),
-                        };
-                    }
-                    else
-                    {
-                        Invalid(property, diagnostics, "expected an object mapping mutation operationIds to arrays of query operationIds");
-                    }
-
-                    break;
                 case "diagnostics":
                     if (property.Value is ObjectNode severities)
                     {
@@ -244,7 +230,6 @@ public static class GeneratorOptionsReader
             case "userequiredmembers": return options with { UseRequiredMembers = Bool(options.UseRequiredMembers) };
             case "generateinterfaces": return options with { GenerateInterfaces = Bool(options.GenerateInterfaces) };
             case "generatedependencyinjection": return options with { GenerateDependencyInjection = Bool(options.GenerateDependencyInjection) };
-            case "generatequeries": return options with { GenerateQueries = Bool(options.GenerateQueries) };
             case "generatemocks": return options with { GenerateMocks = Bool(options.GenerateMocks) };
             case "generatedataannotations": return options with { GenerateDataAnnotations = Bool(options.GenerateDataAnnotations) };
             case "generatedocumentation": return options with { GenerateDocumentation = Bool(options.GenerateDocumentation) };

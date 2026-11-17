@@ -1,7 +1,7 @@
 # Blazor
 
 Generated clients work in Blazor Server, Blazor WebAssembly and Blazor Web Apps like in any .NET app. The optional
-package `Msynk.BlazorApi.Blazor` adds components for the common UI states. Add the namespaces to `_Imports.razor`:
+package `BlazorApi.Blazor` adds components for the common UI states. Add the namespaces to `_Imports.razor`:
 
 ```razor
 @using BlazorApi.Blazor
@@ -33,8 +33,7 @@ when `Key` changes and cancels a pending load when the key changes again or the 
 | `KeepPreviousValue` | Keep showing the previous value while reloading. |
 | `Result`, `IsLoading`, `ReloadAsync()` | The latest result, the loading flag, and a manual reload (use `@ref`). |
 
-`ApiResultView` does not cache. For caching, deduplication and background refetching use the generated dotnet-query
-definitions ([Queries](queries.md)).
+`ApiResultView` does not cache: every load calls the API.
 
 ## ApiErrorView
 
@@ -43,7 +42,7 @@ from problem details, and an optional retry button. It renders nothing when ther
 
 ```razor
 <ApiErrorView Error="_error" />
-<ApiErrorView Exception="state.Error" OnRetry="() => query.RefetchAsync()" RetryText="Reload" CssClass="alert" />
+<ApiErrorView Exception="_exception" OnRetry="LoadAsync" RetryText="Reload" CssClass="alert" />
 ```
 
 The title and detail come from `ApiValidation.Describe(error)`: problem details `title`/`detail`, else the JSON
@@ -108,18 +107,16 @@ API under `/v1` and consumes it through the client generated from `samples/Contr
 dotnet run --project samples/Petstore.BlazorApp     # http://localhost:5080
 ```
 
-It needs `Msynk.DotNetQuery` to restore ([Troubleshooting](troubleshooting.md#msynkdotnetquery-cannot-be-restored)).
-
-- `Program.cs` registers dotnet-query (`AddDotNetQuery`), the generated client with `AddPetstoreClient`, a bearer
+- `Program.cs` registers the generated client with `AddPetstoreClient`, a bearer
   token for the `bearerAuth` scheme and an API key for `apiKey`. `/health` stays anonymous because the contract says
   `security: []`.
-- `Pages/Home.razor`: an infinite query (`PetstoreQueries.ListPetsInfinite`) with "Load more"; a create form with
-  `DataAnnotationsValidator`, `ApiValidationErrors` and the `CreatePet` mutation, which invalidates the list.
+- `Pages/Home.razor`: cursor pagination with `ListPetsResultAsync` and "Load more"; a create form with
+  `DataAnnotationsValidator`, `ApiValidationErrors` and `CreatePetResultAsync`, after which the list reloads.
   Submitting an empty name or the "Parrot" kind shows the server's 422 problem details on the fields.
 - `Pages/PetDetails.razor`: `ApiResultView` around `GetPetResultAsync` (a missing pet shows the API's 404 body), a
-  JSON merge-patch update (an empty tag sends `"tag": null`), and delete with cache invalidation.
-- `Pages/Inventory.razor`: a cached query watched with `Queries.Watch(...)` and refreshed by invalidating
-  `PetstoreQueries.Keys.GetInventoryPrefix`; the API key is added only to this operation.
+  JSON merge-patch update (an empty tag sends `"tag": null`), and delete.
+- `Pages/Inventory.razor`: `ApiResultView` around `GetInventoryResultAsync`, refreshed with `ReloadAsync()` and
+  `KeepPreviousValue`; the API key is added only to this operation.
 - `Api/PetstoreEndpoints.cs`: the in-memory API, which uses the generated models for its own JSON.
 
 `samples/Petstore.ConsoleClient` calls the same API without dependency injection (start the Blazor app first), and

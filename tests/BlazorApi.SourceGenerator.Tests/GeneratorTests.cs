@@ -50,7 +50,7 @@ public class GeneratorTests
     public void Generates_compilable_sources_for_a_contract()
     {
         var compilation = Compilation("namespace Consumer; public static class Usage { public static System.Type T => typeof(Consumer.Petstore.PetstoreClient); }");
-        var driver = Driver(ContractFile("petstore.yaml", new() { ["BlazorApiOptions"] = "GenerateQueries=true" }));
+        var driver = Driver(ContractFile("petstore.yaml", new() { ["BlazorApiOptions"] = "GenerateInterfaces=true" }));
 
         driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out var output, out var generatorDiagnostics);
 
@@ -60,7 +60,7 @@ public class GeneratorTests
         var hints = driver.GetRunResult().Results.Single().GeneratedSources.Select(s => s.HintName).ToList();
         Assert.Contains("petstore_yaml.Models.Pet.g.cs", hints);
         Assert.Contains("petstore_yaml.PetstoreClient.g.cs", hints);
-        Assert.Contains("petstore_yaml.PetstoreQueries.g.cs", hints);
+        Assert.Contains("petstore_yaml.PetstoreClientPagination.g.cs", hints);
     }
 
     [Fact]
@@ -112,7 +112,7 @@ public class GeneratorTests
               "references": { "root": "." },
               "contracts": [
                 { "contract": "other.yaml", "namespace": "Wrong" },
-                { "contract": "main.yaml", "namespace": "From.Config", "generateQueries": true }
+                { "contract": "main.yaml", "namespace": "From.Config", "generateMocks": true }
               ]
             }
             """, new Dictionary<string, string> { ["BlazorApiKind"] = "Config" });
@@ -125,7 +125,7 @@ public class GeneratorTests
         Assert.Empty(driver.GetRunResult().Diagnostics);
         var sources = driver.GetRunResult().Results.Single().GeneratedSources;
         Assert.Contains("namespace From.Config;", sources.Single(s => s.HintName == "main_yaml.Models.Error.g.cs").SourceText.ToString(), StringComparison.Ordinal);
-        Assert.Contains(sources, s => s.HintName == "main_yaml.ExternalReferencesQueries.g.cs");
+        Assert.Contains(sources, s => s.HintName == "main_yaml.ExternalReferencesClientMock.g.cs");
     }
 
     [Fact]

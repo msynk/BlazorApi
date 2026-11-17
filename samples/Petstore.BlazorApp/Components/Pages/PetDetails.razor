@@ -1,6 +1,5 @@
 @page "/pets/{PetId:long}"
 @inject IPetstoreClient Api
-@inject IQueryClient Queries
 @inject NavigationManager Navigation
 
 @* ApiResultView loads with the generated ...ResultAsync method and renders loading, success and error states; a
@@ -49,7 +48,6 @@
         _error = result.Error;
         if (result.IsSuccess)
         {
-            await Queries.InvalidateQueriesAsync(PetstoreQueries.All);
             await _view!.ReloadAsync();
         }
     }
@@ -62,7 +60,6 @@
         _error = result.Error;
         if (result.IsSuccess)
         {
-            await Queries.InvalidateQueriesAsync(PetstoreQueries.All);
             Navigation.NavigateTo("");
         }
     }

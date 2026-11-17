@@ -26,27 +26,27 @@ Add the folder as a package source (for example in `nuget.config`) and reference
 
 ```xml
 <ItemGroup>
-  <PackageReference Include="Msynk.BlazorApi.SourceGenerator" Version="0.1.0-preview" PrivateAssets="all" />
-  <PackageReference Include="Msynk.BlazorApi.Runtime" Version="0.1.0-preview" />
+  <PackageReference Include="BlazorApi.SourceGenerator" Version="0.1.0-preview" PrivateAssets="all" />
+  <PackageReference Include="BlazorApi.Runtime" Version="0.1.0-preview" />
 </ItemGroup>
 ```
 
 The source generator package contains only the analyzer and its MSBuild files. The generated code needs
-`Msynk.BlazorApi.Runtime`, so always reference it as well (the generator package does not declare the dependency).
+`BlazorApi.Runtime`, so always reference it as well (the generator package does not declare the dependency).
 
 **Project references.** This is what the samples in `samples/` do: import the generator's MSBuild files and reference
 the projects.
 
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
-  <Import Project="..\BlazorApi\src\BlazorApi.SourceGenerator\build\Msynk.BlazorApi.SourceGenerator.props" />
+  <Import Project="..\BlazorApi\src\BlazorApi.SourceGenerator\build\BlazorApi.SourceGenerator.props" />
   <!-- ... -->
   <ItemGroup>
     <ProjectReference Include="..\BlazorApi\src\BlazorApi.SourceGenerator\BlazorApi.SourceGenerator.csproj"
                       OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\BlazorApi\src\BlazorApi.Runtime\BlazorApi.Runtime.csproj" />
   </ItemGroup>
-  <Import Project="..\BlazorApi\src\BlazorApi.SourceGenerator\build\Msynk.BlazorApi.SourceGenerator.targets" />
+  <Import Project="..\BlazorApi\src\BlazorApi.SourceGenerator\build\BlazorApi.SourceGenerator.targets" />
 </Project>
 ```
 
@@ -124,7 +124,7 @@ errors.
 When generated code should be checked in (code review, other build systems, inspection), use the `api-gen` tool:
 
 ```shell
-dotnet tool install --global Msynk.BlazorApi.Cli --version 0.1.0-preview --add-source ./artifacts
+dotnet tool install --global BlazorApi.Cli --version 0.1.0-preview --add-source ./artifacts
 api-gen generate Contracts/petstore.yaml --output Generated --namespace MyApp.Petstore
 ```
 
@@ -134,18 +134,15 @@ Or describe the generation in `blazorapi.json` and run `api-gen generate` withou
 {
   "contract": "Contracts/petstore.yaml",
   "output": "Generated",
-  "namespace": "MyApp.Petstore",
-  "generateQueries": true
+  "namespace": "MyApp.Petstore"
 }
 ```
 
-The project then references only `Msynk.BlazorApi.Runtime` (plus `Msynk.BlazorApi.DotNetQuery` when queries are
-generated). See [CLI](cli.md).
+The project then references only `BlazorApi.Runtime`. See [CLI](cli.md).
 
 ## Next steps
 
 - [Authentication](authentication.md): tokens, API keys, Blazor WebAssembly.
-- [Queries](queries.md): caching with dotnet-query (`GenerateQueries=true`).
 - [Blazor](blazor.md): result and error components, server validation in `EditForm`.
 - [Testing](testing.md): generated mocks, fixtures and `MockApiHandler` (`GenerateMocks=true`).
 - [Troubleshooting](troubleshooting.md) if the build reports `BAPI` diagnostics.

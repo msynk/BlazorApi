@@ -3,8 +3,8 @@
 ## Nothing is generated
 
 - Check that the contract is an `OpenApiContract` item (not `None` or `Content`) and that the generator's MSBuild
-  files are imported: they are with the `Msynk.BlazorApi.SourceGenerator` package; with a project reference, import
-  `Msynk.BlazorApi.SourceGenerator.props` and `.targets` yourself, as the samples do.
+  files are imported: they are with the `BlazorApi.SourceGenerator` package; with a project reference, import
+  `BlazorApi.SourceGenerator.props` and `.targets` yourself, as the samples do.
 - Look for `BAPI` errors in the build output. When loading or validation reports an error, nothing is generated for
   that contract. Run `api-gen validate <contract>` for a quick report.
 - BAPI6004 means the include/exclude filters selected no operation; BAPI6003 names a filter value that matches
@@ -13,8 +13,8 @@
 
 ## CS0246: the type or namespace 'BlazorApi' could not be found
 
-The generated code uses `Msynk.BlazorApi.Runtime`, which the generator package does not bring in. Add a reference to
-it. Generated query code also needs `Msynk.BlazorApi.DotNetQuery`, and generated mocks need `Msynk.BlazorApi.Testing`.
+The generated code uses `BlazorApi.Runtime`, which the generator package does not bring in. Add a reference to
+it. Generated mocks also need `BlazorApi.Testing`.
 
 ## Generated code does not update
 
@@ -49,19 +49,12 @@ with the contract's `Config` metadata), and add the referenced files as `OpenApi
 - BAPI5002: a misspelled option name (keys are the `GeneratorOptions` property names, case-insensitive).
 - BAPI5001: an invalid value, for example `Grouping=sideways`, or a namespace that is not a valid C# namespace.
 - BAPI5003 with the source generator: the `Config` file was not found; use a path relative to the project file.
-- `invalidations` and `diagnostics` cannot be set with `key=value` pairs; use a JSON configuration.
+- `diagnostics` cannot be set with `key=value` pairs; use a JSON configuration.
 
 ## BAPI9001
 
 The source generator failed internally. The message names the exception. Please open an issue with the contract (or
 a reduced version) that triggers it. As a workaround, generate with the CLI.
-
-## Msynk.DotNetQuery cannot be restored
-
-`Msynk.BlazorApi.DotNetQuery` depends on `Msynk.DotNetQuery` 0.8.0, which is not on nuget.org yet, so restore fails
-with NU1101 or NU1102. Build dotnet-query from its repository (`dotnet pack`) and add the output folder as a package
-source in `nuget.config`, or use the feed that hosts it. Projects that do not use `GenerateQueries` do not need it.
-The same applies to building `samples/Petstore.BlazorApp` and the full solution.
 
 ## Trimming and native AOT
 
@@ -125,6 +118,5 @@ contract (`{Client}.DefaultBaseAddress`). The base path is kept: with `https://h
 - Only the first success body is typed (BAPI6001); other success statuses succeed with a default `Value`.
 - A response typed as an intermediate class of a hierarchy is read as that class, not its subtypes.
 - `format: time` and `format: duration` are `string` unless `TimeType=timeOnly` (time only).
-- Query keys include header parameters, so a different request id creates a new cache entry.
 - Generated mocks answer 501 for operations without a setup.
 - `api-gen diff` exits with `1` on breaking changes by default; use `--fail-on none` to only report.

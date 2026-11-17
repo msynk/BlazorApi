@@ -2,11 +2,11 @@
 
   <!-- The BlazorApi source generator's MSBuild integration. In an application using the NuGet package these imports
        come from the package; inside this repository the project and its build files are referenced directly. -->
-  <Import Project="..\..\src\BlazorApi.SourceGenerator\build\Msynk.BlazorApi.SourceGenerator.props" />
+  <Import Project="..\..\src\BlazorApi.SourceGenerator\build\BlazorApi.SourceGenerator.props" />
 
   <!-- A Blazor Web App that hosts a small in-memory Petstore API (the contract in ../Contracts) and consumes it through
-       the generated client: authentication, dotnet-query queries, mutations with invalidation, infinite pagination,
-       server validation errors in EditForm and error display. -->
+       the generated client: authentication, cursor pagination, ApiResultView loading states, server validation errors
+       in EditForm and error display. -->
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <RootNamespace>Petstore.BlazorApp</RootNamespace>
@@ -15,14 +15,13 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\BlazorApi.SourceGenerator\BlazorApi.SourceGenerator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\..\src\BlazorApi.Runtime\BlazorApi.Runtime.csproj" />
-    <ProjectReference Include="..\..\src\BlazorApi.DotNetQuery\BlazorApi.DotNetQuery.csproj" />
     <ProjectReference Include="..\..\src\BlazorApi.Blazor\BlazorApi.Blazor.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <OpenApiContract Include="..\Contracts\petstore.yaml" Namespace="Petstore.BlazorApp.Api" Options="GenerateQueries=true" />
+    <OpenApiContract Include="..\Contracts\petstore.yaml" Namespace="Petstore.BlazorApp.Api" />
   </ItemGroup>
 
-  <Import Project="..\..\src\BlazorApi.SourceGenerator\build\Msynk.BlazorApi.SourceGenerator.targets" />
+  <Import Project="..\..\src\BlazorApi.SourceGenerator\build\BlazorApi.SourceGenerator.targets" />
 
 </Project>
