@@ -367,4 +367,174 @@ public class ClientFeatureTests
         Assert.Equal("\"PT2M\"", JsonSerializer.Serialize(TimeSpan.FromMinutes(2), ApiJson.CreateOptions()));
         Assert.Equal(TimeSpan.FromMinutes(2), JsonSerializer.Deserialize<TimeSpan?>("\"PT2M\"", ApiJson.CreateOptions()));
     }
+
+    [Fact]
+    public async Task Other_success_bodies_and_declared_headers_are_typed()
+    {
+        var handler = new RecordingHandler()
+            .Respond(request =>
+            {
+                var response = new HttpResponseMessage(HttpStatusCode.Accepted)
+                {
+                    Content = new StringContent("""{"percent":40,"stage":"running"}""", Encoding.UTF8, "application/json"),
+                };
+                response.Headers.TryAddWithoutValidation("Retry-After", "5");
+                response.Headers.ETag = new System.Net.Http.Headers.EntityTagHeaderValue("\"v7\"");
+                return Task.FromResult(response);
+            })
+            .Respond(HttpStatusCode.OK, """{"id":"d1","title":"T","summary":null}""");
+        var client = new Features31Client(new HttpClient(handler));
+
+        var pending = await client.GetDocumentResultAsync("d1");
+        var done = await client.GetDocumentResultAsync("d1");
+
+        Assert.True(pending.IsSuccess);
+        Assert.Equal(202, pending.StatusCode);
+        Assert.Null(pending.Value);
+        Assert.True(pending.TryGetContent<Progress>(out var progress));
+        Assert.Equal(40, progress.Percent);
+        var headers = GetDocumentResponseHeaders.From(pending);
+        Assert.Equal(5, headers.RetryAfter);
+        Assert.Equal("\"v7\"", headers.ETag);
+        Assert.Equal("d1", done.Value!.Id);
+        Assert.Same(done.Value, done.Content);
+        Assert.Null(GetDocumentResponseHeaders.From(done).RetryAfter);
+    }
+
+    [Fact]
+    public void Header_values_parse_leniently()
+    {
+        var headers = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Date"] = ["Sun, 06 Nov 1994 08:49:37 GMT"],
+            ["X-Ids"] = ["a, b", "c"],
+            ["X-Count"] = ["many"],
+            ["Location"] = ["/pets/42"],
+        };
+
+        Assert.Equal(new DateTimeOffset(1994, 11, 6, 8, 49, 37, TimeSpan.Zero), Runtime.Http.ApiHeaderValues.DateTimeOffset(headers, "date"));
+        Assert.Equal(["a", "b", "c"], Runtime.Http.ApiHeaderValues.List(headers, "X-Ids"));
+        Assert.Null(Runtime.Http.ApiHeaderValues.Int64(headers, "X-Count"));
+        Assert.Null(Runtime.Http.ApiHeaderValues.String(headers, "Missing"));
+        Assert.Equal("/pets/42", Runtime.Http.ApiHeaderValues.Uri(headers, "Location")!.OriginalString);
+    }
+
+    private sealed class ProgressLog : IProgress<ApiTransferProgress>
+    {
+        public List<ApiTransferProgress> Reports { get; } = [];
+
+        public void Report(ApiTransferProgress value)
+        {
+            lock (Reports)
+            {
+                Reports.Add(value);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task Uploads_and_downloads_report_progress()
+    {
+        var bytes = new byte[200_000];
+        new Random(1).NextBytes(bytes);
+        var handler = new RecordingHandler()
+            .Respond(HttpStatusCode.OK, """{"url":"https://x/p.png","size":200000}""")
+            .Respond(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(bytes) { Headers = { ContentLength = bytes.Length } } }));
+        var client = new PetstoreClient(new HttpClient(handler));
+        var upload = new ProgressLog();
+        var download = new ProgressLog();
+
+        await client.UploadPetPhotoAsync(1, new FileContent(new MemoryStream(bytes), "p.png", "image/png") { Progress = upload });
+        await using var photo = await client.DownloadPetPhotoAsync(1);
+        var received = await photo.ReadAllBytesAsync(download);
+
+        Assert.Equal(bytes, received);
+        Assert.Equal(new ApiTransferProgress(0, bytes.Length), upload.Reports[0]);
+        Assert.Equal(new ApiTransferProgress(bytes.Length, bytes.Length), upload.Reports[^1]);
+        Assert.True(upload.Reports.Count > 2);
+        Assert.Equal(1d, download.Reports[^1].Fraction);
+        Assert.Equal(bytes.Length, download.Reports[^1].Transferred);
+    }
+
+    /// <summary>A body that delivers its bytes, then fails like a dropped connection.</summary>
+    private sealed class BreakingStream(byte[] data) : MemoryStream(data)
+    {
+        public override int Read(byte[] buffer, int offset, int count)
+        {
+            var read = base.Read(buffer, offset, count);
+            return read > 0 ? read : throw new IOException("connection reset");
+        }
+
+        public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            var read = await base.ReadAsync(buffer, cancellationToken);
+            return read > 0 ? read : throw new IOException("connection reset");
+        }
+
+        public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken) =>
+            ReadAsync(buffer.AsMemory(offset, count), cancellationToken).AsTask();
+    }
+
+    [Fact]
+    public async Task Event_streams_reconnect_with_the_last_event_id()
+    {
+        const string first = """
+            retry: 0
+            id: 1
+            data: {"percent":10,"stage":"running"}
+
+            id: 2
+            data: {"percent":20,"stage":"running"}
+
+
+            """;
+        const string second = """
+            id: 3
+            data: {"percent":100,"stage":"done"}
+
+
+            """;
+        var handler = new RecordingHandler()
+            .Respond(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StreamContent(new BreakingStream(Encoding.UTF8.GetBytes(first))) { Headers = { { "Content-Type", "text/event-stream" } } },
+            }))
+            .Respond(HttpStatusCode.OK, second, "text/event-stream");
+        var client = new Features31Client(new HttpClient(handler));
+
+        var events = new List<ServerSentEvent<Progress>>();
+        await foreach (var e in ApiEventSource.Reconnecting<Progress>((lastEventId, ct) => client
+            .WithOptions(o => { if (lastEventId is not null) o.DefaultHeaders["Last-Event-ID"] = lastEventId; })
+            .StreamEventsResultAsync(ct)))
+        {
+            events.Add(e);
+        }
+
+        Assert.Equal(["1", "2", "3"], events.Select(e => e.Id));
+        Assert.False(handler.Requests[0].Headers.ContainsKey("Last-Event-ID"));
+        Assert.Equal("2", handler.Requests[1].Headers["Last-Event-ID"]);
+        Assert.Equal(Stage.Done, events[^1].GetValue().Stage);
+    }
+
+    [Fact]
+    public async Task Event_streams_stop_reconnecting_after_the_limit_or_on_http_errors()
+    {
+        var handler = new RecordingHandler()
+            .Respond(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StreamContent(new BreakingStream(Encoding.UTF8.GetBytes("retry: 0" + "\n\n"))) { Headers = { { "Content-Type", "text/event-stream" } } },
+            }))
+            .Respond(HttpStatusCode.Forbidden, "{}");
+        var client = new Features31Client(new HttpClient(handler));
+
+        var ex = await Assert.ThrowsAsync<ApiException>(async () =>
+        {
+            await foreach (var _ in ApiEventSource.Reconnecting<Progress>((_, ct) => client.StreamEventsResultAsync(ct), new ApiReconnectOptions { MaxReconnects = 3, DefaultRetry = TimeSpan.Zero }))
+            {
+            }
+        });
+
+        Assert.Equal(403, ex.StatusCode);
+        Assert.Equal(2, handler.Requests.Count);
+    }
 }

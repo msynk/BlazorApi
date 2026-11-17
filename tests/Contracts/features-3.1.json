@@ -110,6 +110,14 @@
           "200": {
             "description": "Document",
             "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Document" } } }
+          },
+          "202": {
+            "description": "Still being processed",
+            "headers": {
+              "Retry-After": { "schema": { "type": "integer" } },
+              "ETag": { "required": true, "schema": { "type": "string" } }
+            },
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Progress" } } }
           }
         }
       }

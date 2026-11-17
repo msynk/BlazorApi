@@ -32,6 +32,26 @@ public sealed class ApiResponseHandler<T>
         return this;
     }
 
+    /// <summary>
+    /// Declares a success status whose body has another type than <typeparamref name="T"/> (an operation that answers
+    /// 200 with one schema and 202 with another). The body is read into <see cref="ApiResult.Content"/>; the result's
+    /// value stays the default.
+    /// </summary>
+    public ApiResponseHandler<T> SuccessAs<TContent>(string status, ApiBodyReader<TContent> reader)
+    {
+        if (reader is null)
+        {
+            throw new ArgumentNullException(nameof(reader));
+        }
+
+        _entries.Add(new Entry(status, isSuccess: true, null, null, ownsResponse: false)
+        {
+            ContentReader = async (response, options, cancellationToken) => await reader(response, options, cancellationToken).ConfigureAwait(false),
+            ContentType = typeof(TContent),
+        });
+        return this;
+    }
+
     /// <summary>Declares an error status (<c>404</c>, <c>4XX</c> or <c>default</c>) and how its body is read.</summary>
     public ApiResponseHandler<T> Error(string status, ApiErrorReader? reader = null)
     {
@@ -103,5 +123,10 @@ public sealed class ApiResponseHandler<T>
         public ApiErrorReader? ErrorReader { get; }
 
         public bool OwnsResponse { get; }
+
+        /// <summary>Reads a success body of another type than <typeparamref name="T"/> (see <see cref="SuccessAs{TContent}"/>).</summary>
+        public Func<HttpResponseMessage, JsonSerializerOptions, CancellationToken, ValueTask<object?>>? ContentReader { get; init; }
+
+        public Type? ContentType { get; init; }
     }
 }

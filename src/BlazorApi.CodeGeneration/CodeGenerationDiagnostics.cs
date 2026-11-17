@@ -22,7 +22,7 @@ public static class CodeGenerationDiagnostics
 
     /// <summary>Only one success response body type can be returned.</summary>
     public static readonly DiagnosticDescriptor MultipleSuccessTypes = new(
-        "BAPI6001", "Multiple success body types", "{0} declares different success bodies; '{1}' ({2}) is returned and the others are not read", DiagnosticSeverity.Warning, Generation);
+        "BAPI6001", "Multiple success body types", "{0} declares different success bodies; '{1}' ({2}) is the result value and {3}", DiagnosticSeverity.Info, Generation);
 
     /// <summary>Only one request body media type is used.</summary>
     public static readonly DiagnosticDescriptor RequestMediaTypesIgnored = new(

@@ -13,7 +13,8 @@ namespace BlazorApi.Runtime.Diagnostics;
 /// </summary>
 /// <remarks>
 /// Spans are named after the operation id and carry the attributes <c>http.request.method</c>,
-/// <c>url.template</c>, <c>blazorapi.operation.id</c>, <c>http.response.status_code</c> and, on failure,
+/// <c>url.template</c>, <c>blazorapi.operation.id</c>, <c>http.response.status_code</c>, <c>blazorapi.deprecated</c>
+/// (when the response carries <c>Deprecation</c> or <c>Sunset</c>) and, on failure,
 /// <c>error.type</c> (the status code, or <c>network</c>, <c>timeout</c>, <c>deserialization</c>, or the exception
 /// type). The histogram <c>blazorapi.client.operation.duration</c> (seconds) has the same attributes. URLs and
 /// parameter values are never recorded, so credentials and personal data in them do not leak into telemetry.
@@ -67,6 +68,12 @@ public static class ApiTelemetry
         public void Complete(ApiResult result)
         {
             var errorType = result.Error is { } error ? ErrorType(error) : null;
+            if (_activity is not null && (result.Headers.ContainsKey("Deprecation") || result.Headers.ContainsKey("Sunset")))
+            {
+                // RFC 9745 / RFC 8594: the server announced that this operation is deprecated or will be removed.
+                _activity.SetTag("blazorapi.deprecated", true);
+            }
+
             Finish(result.StatusCode == 0 ? null : result.StatusCode, errorType, result.Error?.Message);
         }
 

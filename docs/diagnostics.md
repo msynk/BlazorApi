@@ -71,7 +71,7 @@ handled in a degraded way. Info never fails anything.
 | BAPI5001 | Error | Invalid option value (unknown enum value, invalid namespace or client name, malformed `key=value`). |
 | BAPI5002 | Warning | Unknown option; it is ignored. |
 | BAPI5003 | Error | Invalid configuration (not a JSON object, no `contract`, `Config` file not found). |
-| BAPI6001 | Warning | An operation declares different success bodies; only the first is returned. |
+| BAPI6001 | Info | An operation declares different success bodies; the first is the result value, the others are read into `ApiResult.Content` (JSON and text). |
 | BAPI6002 | Info | An operation accepts several request media types; one is used. |
 | BAPI6003 | Warning | An include/exclude filter matches no operation or tag. |
 | BAPI6004 | Warning | No operations were selected for generation. |

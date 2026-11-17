@@ -121,6 +121,11 @@ services.AddPetstoreClient()
     .ConfigurePrimaryHttpMessageHandler(() => handler);
 ```
 
+## Mock server
+
+`api-gen mock <contract>` serves examples over HTTP (see [CLI](cli.md#mock)) for UI development and end-to-end tests
+of a front-end; generated mocks and `MockApiHandler` remain the tools for unit tests.
+
 ## Contract compatibility tests
 
 Compare the current contract with the last published one in a test (or use `api-gen diff` in CI, see

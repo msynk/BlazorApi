@@ -239,6 +239,7 @@ public static class GeneratorOptionsReader
             case "userequiredmembers": return options with { UseRequiredMembers = Bool(options.UseRequiredMembers) };
             case "generateinterfaces": return options with { GenerateInterfaces = Bool(options.GenerateInterfaces) };
             case "generatedependencyinjection": return options with { GenerateDependencyInjection = Bool(options.GenerateDependencyInjection) };
+            case "generateresponseheaders": return options with { GenerateResponseHeaders = Bool(options.GenerateResponseHeaders) };
             case "generatemocks": return options with { GenerateMocks = Bool(options.GenerateMocks) };
             case "generatedataannotations": return options with { GenerateDataAnnotations = Bool(options.GenerateDataAnnotations) };
             case "generatedocumentation": return options with { GenerateDocumentation = Bool(options.GenerateDocumentation) };

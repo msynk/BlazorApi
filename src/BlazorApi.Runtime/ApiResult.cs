@@ -128,6 +128,26 @@ public class ApiResult
     /// <summary>The error, when the call failed.</summary>
     public ApiError? Error { get; }
 
+    /// <summary>
+    /// The success body as read: the value (<see cref="ApiResult{T}.Value"/>) for the operation's main success
+    /// response, or the body of another success response whose schema differs (for example a 202 job status next to a
+    /// 200 resource). <see langword="null"/> for failures and responses without a body.
+    /// </summary>
+    public object? Content { get; internal init; }
+
+    /// <summary>Gets <see cref="Content"/> as <typeparamref name="TContent"/>.</summary>
+    public bool TryGetContent<TContent>([NotNullWhen(true)] out TContent? content)
+    {
+        if (Content is TContent typed)
+        {
+            content = typed;
+            return true;
+        }
+
+        content = default;
+        return false;
+    }
+
     /// <summary>Throws the corresponding <see cref="ApiException"/> when the call failed.</summary>
     public void EnsureSuccess()
     {
@@ -170,8 +190,8 @@ public sealed class ApiResult<T> : ApiResult
         return _value!;
     }
 
-    internal static ApiResult<T> Success(HttpStatusCode status, IReadOnlyDictionary<string, IReadOnlyList<string>> headers, T? value) =>
-        new((int)status, headers, value, null);
+    internal static ApiResult<T> Success(HttpStatusCode status, IReadOnlyDictionary<string, IReadOnlyList<string>> headers, T? value, object? content) =>
+        new((int)status, headers, value, null) { Content = content };
 
     internal static new ApiResult<T> Failure(ApiError error) =>
         new(error.StatusCode ?? 0, error.Headers, default, error);
@@ -182,7 +202,14 @@ public static class ApiResults
 {
     /// <summary>A success with a value.</summary>
     public static ApiResult<T> Success<T>(T value, int statusCode = 200, IReadOnlyDictionary<string, IReadOnlyList<string>>? headers = null) =>
-        new(statusCode, headers ?? ApiHeaders.Empty, value, null);
+        new(statusCode, headers ?? ApiHeaders.Empty, value, null) { Content = value };
+
+    /// <summary>
+    /// A success whose body has another type than the operation's main success body (see
+    /// <see cref="ApiResult.Content"/>), for example <c>ApiResults.SuccessWithContent&lt;Pet&gt;(job, 202)</c>.
+    /// </summary>
+    public static ApiResult<T> SuccessWithContent<T>(object content, int statusCode, IReadOnlyDictionary<string, IReadOnlyList<string>>? headers = null) =>
+        new(statusCode, headers ?? ApiHeaders.Empty, default, null) { Content = content };
 
     /// <summary>A success without a body.</summary>
     public static ApiResult NoContent(int statusCode = 204, IReadOnlyDictionary<string, IReadOnlyList<string>>? headers = null) =>

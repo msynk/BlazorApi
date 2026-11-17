@@ -303,9 +303,23 @@ internal sealed class ClientEmitter
                 }
                 else
                 {
-                    method.HandlerLines.Add($".Success({status})");
+                    // Another success body: read into ApiResult.Content (JSON and text); binary and streamed bodies
+                    // would hold the response open and are not read.
+                    var other = content.Kind switch
+                    {
+                        ApiBodyKind.Json => _plan.CSharpType(content.Type ?? new ApiPrimitiveType(ApiPrimitiveKind.Any), nullable: false),
+                        ApiBodyKind.Text or ApiBodyKind.Other => "string",
+                        _ => null,
+                    };
+                    method.HandlerLines.Add(other switch
+                    {
+                        null => $".Success({status})",
+                        "string" => $".SuccessAs<string>({status}, {Http}.ApiBody.ReadText)",
+                        _ => $".SuccessAs<{other}>({status}, {Http}.ApiBody.ReadJson<{other}>)",
+                    });
                     _plan.Diagnostics.Report(CodeGenerationDiagnostics.MultipleSuccessTypes, operation.Location, operation.Source.Pointer,
-                        operation.ToString(), primary!.StatusCode, primaryContent!.MediaType);
+                        operation.ToString(), primary!.StatusCode, primaryContent!.MediaType,
+                        other is null ? $"the {response.StatusCode} body ({content.MediaType}) is not read" : $"the {response.StatusCode} body is in ApiResult.Content as {other}");
                 }
             }
             else

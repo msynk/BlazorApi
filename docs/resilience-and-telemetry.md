@@ -40,6 +40,25 @@ circuit, rate limiter) an `ApiErrorKind.Network` error, so `XxxResultAsync` does
 handler retries POST as well; call `DisableForUnsafeHttpMethods()` on its retry options to keep requests without
 idempotency keys from being sent twice.
 
+## Logging
+
+`AddApiLogging()` adds an `ApiLoggingHandler` that logs each request of a generated client under the category
+`BlazorApi`, with the operation's semantics instead of its URL:
+
+```csharp
+builder.Services.AddPetstoreClient().AddApiRetries().AddApiLogging();
+```
+
+| Event | Level | Message |
+|---|---|---|
+| 1 `ApiOperationCompleted` | Debug | `getPet (GET /pets/{petId}) responded 200 in 12.3 ms` |
+| 2 `ApiOperationErrorStatus` | Information | the same, for 4xx and 5xx statuses |
+| 3 `ApiOperationFailed` | Warning | no response (connection failure), with the exception |
+| 4 `ApiOperationDeprecated` | Warning | once per operation, when a response carries `Deprecation` (RFC 9745) or `Sunset` (RFC 8594), with deprecation/sunset `Link`s |
+
+Only path templates are logged, never URLs, query strings, headers or bodies. Added after `AddApiRetries`, it logs
+every attempt; added before, one entry per call. `IHttpClientFactory` keeps logging raw requests at its own categories.
+
 ## Telemetry
 
 Generated clients are instrumented with an `ActivitySource` and a `Meter`, both named `BlazorApi`
@@ -56,6 +75,7 @@ builder.Services.AddOpenTelemetry()
   each request it took.
 - **Metric**: the histogram `blazorapi.client.operation.duration` (seconds), from the call to the result, including
   retries and reading the body.
+- **Deprecation**: spans of responses with `Deprecation` or `Sunset` headers get `blazorapi.deprecated = true`.
 - **Attributes** (spans and metric): `http.request.method`, `url.template` (the path template, such as
   `/pets/{petId}`), `blazorapi.operation.id`, `http.response.status_code` when a response arrived, and on failure
   `error.type`: the status code (`404`), `network`, `timeout`, `deserialization`, `cancelled` or an exception type.

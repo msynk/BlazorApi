@@ -346,7 +346,8 @@ public partial class Features31Client : IFeatures31Client
     private static readonly global::System.Collections.Generic.IReadOnlyList<global::BlazorApi.Runtime.Http.ApiSecurityRequirement> CopyDocumentSecurity = global::System.Array.Empty<global::BlazorApi.Runtime.Http.ApiSecurityRequirement>();
 
     private static readonly global::BlazorApi.Runtime.Http.ApiResponseHandler<Document> GetDocumentResponses = new global::BlazorApi.Runtime.Http.ApiResponseHandler<Document>()
-        .Success("200", global::BlazorApi.Runtime.Http.ApiBody.ReadJson<Document>);
+        .Success("200", global::BlazorApi.Runtime.Http.ApiBody.ReadJson<Document>)
+        .SuccessAs<Progress>("202", global::BlazorApi.Runtime.Http.ApiBody.ReadJson<Progress>);
 
     private static readonly global::System.Collections.Generic.IReadOnlyList<global::BlazorApi.Runtime.Http.ApiSecurityRequirement> GetDocumentSecurity = global::System.Array.Empty<global::BlazorApi.Runtime.Http.ApiSecurityRequirement>();
 }

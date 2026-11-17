@@ -31,6 +31,7 @@ scoped to be reviewable on its own; the working tree has not been committed or s
 | M22 | Advanced generation features | Partly: operation/tag filters, unused-model pruning, multi-contract projects, `x-pagination`, `x-enum-varnames`; custom templates deferred |
 | M23 | Blazor integration (`BlazorApi.Blazor`: `ApiResultView`, `ApiErrorView`, `ApiValidationErrors`; auth registration helpers `AddBearerToken`/`AddApiKey`/`AddBasicAuthentication` in `BlazorApi.Runtime`) | Done |
 | M24 | Documentation, demo, benchmarks, CI workflow, packaging | Done (not published) |
+| M27 | Other success bodies (`ApiResult.Content`), typed response headers, transfer progress, reconnecting SSE, operation logging with deprecation warnings, `api-gen mock` with example synthesis | Done |
 | M26 | Overlays (1.0-1.2, RFC 9535 JSONPath), OpenAPI 3.2 `additionalOperations` and `querystring`, `durationType=timeSpan`, `generate --watch`, Blazor `ApiStreamView` | Done |
 | M25 | Gap closure after an ecosystem survey (see below): streaming, per-call options, servers, retries, telemetry, forward-compatible enums, JSON context, CLI URLs | Done |
 
@@ -47,6 +48,7 @@ scoped to be reviewable on its own; the working tree has not been committed or s
 | 2026-11-09 | After documentation-review fixes: 440 tests (net8.0 + net10.0) + 5 demo tests | all passed |
 | 2026-11-09 | demo/BlazorApi.Demo.Tests (5); BlazorApi.Demo.BlazorApp run and checked over HTTP (pages, 401, 404, API key); BlazorApi.Demo.ConsoleClient run against it | passed |
 | 2026-11-17 | After removing the dotnet-query integration: full suite (net8.0 + net10.0) + 5 demo tests | all passed |
+| 2026-11-17 | M27, Release build: OpenApi 199, CodeGeneration 13, Integration 74 (alternate bodies, headers, progress, reconnection, logging), SourceGenerator 14, Cli 24 (mock server), Blazor 11, per framework (net8.0, net10.0); demo 5 | all passed |
 | 2026-11-17 | M26, Release build: OpenApi 197 (JSONPath RFC 9535 examples, overlays, 3.2), CodeGeneration 13, Integration 68, SourceGenerator 14, Cli 23 (overlays, watch), Blazor 11 (stream view), per framework (net8.0, net10.0); demo 5 | all passed |
 | 2026-11-17 | M25 gap closure: full suite (net8.0 + net10.0): OpenApi 142, CodeGeneration 11, Integration 50, SourceGenerator 12, Cli 21, Blazor 8, demo 5; `dotnet pack` of the source generator checked for the `BlazorApi.Runtime` dependency | all passed |
 | 2026-11-17 | BlazorApi.Demo.BlazorApp rework: every contract operation served; browser end-to-end run in Chrome (list, filter, pagination, create with 422, merge patch, PUT, photo upload/download, order with 409, delete, inventory, 8 playground scenarios, not-found, mobile width, light and dark); full suite + 5 demo tests; console client against the app | all passed |
@@ -131,22 +133,28 @@ scoped to be reviewable on its own; the working tree has not been committed or s
     to .NET regular expressions with a time limit) to keep it dependency-free. Overlay errors stop loading.
 25. **3.2 query strings reuse object query parameters.** A form-encoded `querystring` is exactly an exploded `form`
     object parameter, so the model converts it instead of adding a parameter kind to every later stage.
+26. **Other success bodies are untyped content, not a union.** `ApiResult<T>` keeps one value type, so existing
+    signatures and mocks stay; other bodies are read into `Content` and recovered with `TryGetContent<T>`.
+27. **The mock server is a socket server.** `api-gen mock` speaks HTTP/1.1 over `TcpListener` (one request per
+    connection, IPv4 and IPv6 loopback), so it needs no ASP.NET Core dependency, URL reservation or elevation.
 
 ## Known limitations (current)
 
 - Polymorphic deserialization dispatches from the hierarchy root. A response typed as an intermediate concrete
   class (for example `Dog` with a `Puppy` subtype) is read as that class, not the subtype.
-- Only the first success response body is typed per operation (BAPI6001 warns when others differ).
+- Only the first success response body is the typed value; other JSON/text success bodies are untyped `object`s in
+  `ApiResult.Content` (binary and streamed alternatives are not read).
+- Server-sent event `retry:` fields are applied with the next event (the parser ignores `retry` in blocks without
+  data); `ApiEventSource` falls back to `DefaultRetry`.
+- `api-gen mock` does not validate requests and serves one example per response (no stateful behavior).
 - `format: time` and `format: duration` map to `string` by default (lossless); `timeType=timeOnly` and
   `durationType=timeSpan` are opt-in.
 - Overlays change the root document only, not documents it references with `$ref`.
 - Generated JSON uses reflection-based System.Text.Json metadata by default. The CLI generates a
   `JsonSerializerContext` with `generateJsonContext=true`; with the source generator, trimmed/native AOT apps must
   supply one (generators cannot see each other's output).
-- Streams have no automatic reconnection (`Last-Event-ID`); `ServerSentEvent.Id` and `Retry` are exposed for callers
-  that reconnect.
-- No typed response headers, `ETag`/conditional-request helpers or upload/download progress callbacks (headers are
-  available through `ApiResult.Headers` and per-call headers through `WithOptions`).
+- No automatic conditional requests (`If-None-Match` caching); `ETag` is typed by the response-headers classes and
+  `If-Match` is sent with `WithOptions` or a declared header parameter.
 - Generated mocks are emitted into the project that generates them (with `GenerateMocks=true`), which must then
   reference `BlazorApi.Testing`; generate mocks in the test project.
 
@@ -195,10 +203,16 @@ Overlay 1.1, RFC 9457, RFC 9110 `Retry-After`, the Idempotency-Key draft, OpenTe
 | OpenAPI 3.2 `additionalOperations` and `querystring` ignored or rejected | Microsoft.OpenApi v3 | Supported (M26) |
 | `format: duration` only as `string` | KI, OG | `durationType=timeSpan` (M26) |
 | No watch mode | HA, OR | `api-gen generate --watch` (M26) |
+| Only the first success body readable | OC, OGN, OF | `ApiResult.Content` (M27) |
+| No typed response headers | ST (`withResponse`), RF, OC | `{Operation}ResponseHeaders` (M27) |
+| No upload/download progress | rare elsewhere | `ApiTransferProgress` (M27) |
+| No SSE reconnection | FE | `ApiEventSource.Reconnecting` (M27) |
+| No operation logging or deprecation surfacing | MER logging, KI | `ApiLoggingHandler`, `blazorapi.deprecated` (M27) |
+| No mock server | Prism, Microcks, OR (MSW), SE | `api-gen mock` (M27) |
 | No UI for streams or infinite lists | HA/OR query integrations (front-end analogue) | Blazor `ApiStreamView` (M26) |
 
 Considered and not done (see Known limitations and Deferred features): several typed success responses per
-operation, typed response headers and ETag helpers, upload/download progress, SSE reconnection,
+operation as a generated union, automatic conditional requests,
 custom templates and hooks, a mock server, OAuth authorization-code/device flows (delegated to identity libraries such
 as Microsoft.Identity.Web, MSAL or Blazor's `IAccessTokenProvider`), MCP server generation.
 
@@ -213,4 +227,4 @@ as Microsoft.Identity.Web, MSAL or Blazor's `IAccessTokenProvider`), MCP server 
 - Generating a `JsonSerializerContext` for trimmed/AOT applications (possible from the CLI output; not from the
   source generator).
 - Publishing: no packages are pushed; versions are `0.1.0-preview`.
-- Several typed success bodies per operation (a generated result union) and typed response headers.
+- Several typed success bodies per operation as a generated result union (they are untyped in `ApiResult.Content`).

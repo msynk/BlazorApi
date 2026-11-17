@@ -92,8 +92,32 @@ private static readonly ApiResponseHandler<Pet> GetPetResponses = new ApiRespons
 - JSON bodies are read with System.Text.Json from the response stream; `text/*` as `string`; binary bodies as a
   `FileResponse` that streams the content (dispose it to release the connection; `ReadAllBytesAsync` buffers it).
 - Success responses without a body (204, 205, 304, `HEAD`, or `Content-Length: 0`) succeed with a default `Value`.
-- Only the first success body type is returned; other success statuses with a different body are not read
-  (BAPI6001).
+- The first success body type is the result value. Other success statuses with a different JSON or text body
+  (a 202 job status next to a 200 resource) are read into `ApiResult.Content` with a default `Value` (BAPI6001, info):
+
+  ```csharp
+  var result = await api.GetDocumentResultAsync(id);
+  if (result.TryGetContent<Progress>(out var progress)) { /* 202: still processing */ }
+  else if (result.IsSuccess) { Document document = result.Value!; }
+  ```
+
+  `Content` is the value itself for the main success body. Binary and streamed alternative bodies are not read.
+  `ApiResults.SuccessWithContent<T>(content, 202)` creates such results in tests.
+
+## Response headers
+
+Operations that declare response headers get a `{Operation}ResponseHeaders` class (in `{Client}ResponseHeaders.g.cs`)
+with one typed, nullable property per header (`ETag`, `Location` as `Uri`, `Retry-After` as `long`, `X-Rate-Limit-*`,
+dates from HTTP-dates, enums, comma-separated lists) plus `Headers` with every header:
+
+```csharp
+var result = await api.CreatePetResultAsync(newPet);
+var headers = CreatePetResponseHeaders.From(result);     // also From(ApiError) and new(dictionary)
+Uri? location = headers.Location;
+```
+
+Absent or malformed headers are `null`; reading headers never fails a call. `ApiHeaderValues` has the parsers.
+`generateResponseHeaders=false` turns the classes off.
 
 ## Errors
 
@@ -130,6 +154,23 @@ catch (ApiException ex) when (ex.Content is ProblemDetails problem)
 }
 catch (ApiTimeoutException) { /* ApiClientOptions.Timeout or HttpClient.Timeout elapsed */ }
 ```
+
+## Upload and download progress
+
+`FileContent.Progress` receives `ApiTransferProgress` (bytes transferred, total when known, `Fraction`) while a file is
+sent; `FileResponse.CopyToAsync(destination, progress)` and `ReadAllBytesAsync(progress)` report it while a download is
+read:
+
+```csharp
+var progress = new Progress<ApiTransferProgress>(p => _percent = p.Fraction ?? 0);
+await api.UploadPetPhotoAsync(id, new FileContent(stream, "photo.png", "image/png") { Progress = progress });
+
+await using var photo = await api.DownloadPetPhotoAsync(id);
+await photo.CopyToAsync(file, progress);
+```
+
+Seekable streams report a total and are rewound when a request is sent again (retries, authentication). In Blazor
+WebAssembly the browser sends request bodies, so upload progress reflects handing the body to the browser.
 
 ## Per-call options
 
@@ -181,6 +222,22 @@ await foreach (ServerSentEvent<Completion> e in events)
   `ApiDeserializationException` (an item does not match its type). `ApiClientOptions.Timeout` covers only the time to
   the response headers; cancel the enumeration with a token (`WithCancellation`) to bound it.
 - `ApiStream.From(items)` creates streams for mocks and tests; `ServerSentEvent<T>.FromValue(value)` creates events.
+
+### Reconnecting event streams
+
+`ApiEventSource.Reconnecting` reopens a server-sent event stream when the connection breaks, after the server's
+`retry:` delay (3 s by default), sending the id of the last event received so the server can resume:
+
+```csharp
+var events = ApiEventSource.Reconnecting<Notification>((lastEventId, ct) => api
+    .WithOptions(o => { if (lastEventId is not null) o.DefaultHeaders["Last-Event-ID"] = lastEventId; })
+    .StreamNotificationsResultAsync(ct));
+await foreach (var e in events) { /* ... */ }
+```
+
+`ApiReconnectOptions` sets `MaxReconnects` (5 consecutive failures), `DefaultRetry`, and `ReconnectWhenEnded` (false: a
+stream that ends normally, such as a generated answer, is not replayed). HTTP error responses end the sequence with
+their `ApiException`; a 204 ends it quietly. The sequence works with `ApiStreamView`'s `Items`.
 
 ## ApiClientOptions
 

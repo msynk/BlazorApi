@@ -163,6 +163,7 @@ public sealed class ApiRequestBuilder
         }
 
         request.Options.Set(ApiRequestOptionKeys.OperationId, OperationId);
+        request.Options.Set(ApiRequestOptionKeys.PathTemplate, _pathTemplate);
         if (Security is not null)
         {
             request.Options.Set(ApiRequestOptionKeys.Security, Security);
@@ -177,6 +178,9 @@ public static class ApiRequestOptionKeys
 {
     /// <summary>The operation identifier.</summary>
     public static readonly HttpRequestOptionsKey<string> OperationId = new("BlazorApi.OperationId");
+
+    /// <summary>The path template (<c>/pets/{petId}</c>), for logging and metrics without parameter values.</summary>
+    public static readonly HttpRequestOptionsKey<string> PathTemplate = new("BlazorApi.PathTemplate");
 
     /// <summary>
     /// The operation's security requirements (alternatives). Authentication handlers apply only when their scheme is

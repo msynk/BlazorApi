@@ -21,6 +21,7 @@ api-gen validate [<contract>...] [--config <blazorapi.json>] [--strict] [--forma
 api-gen diff <previous> <current> [--format text|markdown|json] [--fail-on <level>] [--ignore <kind>[,<kind>...]]
              [--report <file>]
 api-gen inspect <contract> [--format text|json]
+api-gen mock <contract> [--port 4010] [--host localhost] [--overlay <file>]...
 api-gen --version | --help
 ```
 
@@ -156,6 +157,28 @@ Operations (11)
 
 `--format json` prints `{"title", "version", "operations": [{"method", "path", "operationId", "pagination"}],
 "types": [{"name", "kind"}]}`.
+
+## mock
+
+Serves the contract over HTTP for front-end development before (or without) the real API:
+
+```shell
+api-gen mock Contracts/petstore.yaml            # http://localhost:4010/
+api-gen mock https://api.example.com/openapi.yaml --port 5080
+```
+
+- Each operation answers with its first success response: the named, `example` or first `examples` value of the
+  media type, otherwise a value synthesized from the schema (declared `example`/`default`/`enum` values, formats,
+  bounds, the first variant of unions, the first subtype of discriminated hierarchies with its discriminator).
+- `Prefer: code=404` picks another declared response (also `4XX`/`default`); `Prefer: example=name` picks a named
+  example. Undeclared codes answer 422.
+- Paths match with or without the base path of the first server (`/v1/pets/1` and `/pets/1`); unknown paths answer
+  404 and other methods 405, as problem details.
+- Server-sent events answer three events, JSON sequences three lines, binary bodies a few bytes; required response
+  headers get placeholder values.
+- CORS is open (`Access-Control-Allow-Origin: *`, preflights answered), so a Blazor WebAssembly app on another port
+  can call it: `options.BaseAddress = new Uri("http://localhost:4010/")`.
+- Each request is printed (`GET /pets/42 -> 200 (getPet)`). Request bodies are not validated. Ctrl+C stops it.
 
 ## GitHub Actions
 

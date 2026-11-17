@@ -32,6 +32,7 @@ Keys are case-insensitive. Enum values are case-insensitive and ignore `-` and `
 | `useRequiredMembers` | `true` | Required properties use the C# `required` modifier (also enforced by System.Text.Json when reading). |
 | `generateInterfaces` | `true` | Generate `I{Client}` interfaces. |
 | `generateDependencyInjection` | `true` | Generate `Add{Client}` registration methods. |
+| `generateResponseHeaders` | `true` | Generate `{Operation}ResponseHeaders` classes for declared response headers. |
 | `generateMocks` | `false` | Generate client mocks and model fixtures ([Testing](testing.md)). |
 | `generateDataAnnotations` | `true` | Add `System.ComponentModel.DataAnnotations` attributes for schema constraints. |
 | `generateDocumentation` | `true` | Generate XML documentation comments. |

@@ -111,6 +111,7 @@ internal sealed class CliApp
                 "validate" => Validate(line),
                 "diff" => Diff(line),
                 "inspect" => Inspect(line),
+                "mock" => Mock(line),
                 _ => Usage($"Unknown command '{line.Command}'."),
             };
         }
@@ -587,6 +588,77 @@ internal sealed class CliApp
         return ApiModelBuilder.Build(loaded.Document, new DiagnosticBag());
     }
 
+    // ------------------------------------------------------------------ mock
+
+    /// <summary>Raised with the bound address once the mock server listens (tests use port 0).</summary>
+    internal Action<System.Net.IPEndPoint>? MockStarted { get; init; }
+
+    private int Mock(CommandLine line)
+    {
+        if (line.Positional.Count != 1)
+        {
+            return Usage("mock needs a contract path.");
+        }
+
+        var portText = line.Value("--port") ?? "4010";
+        if (!int.TryParse(portText, NumberStyles.None, CultureInfo.InvariantCulture, out var port) || port > 65535)
+        {
+            return Usage($"'{portText}' is not a valid port.");
+        }
+
+        var overlays = ReadOverlays(line.Values("--overlay").Select(o => Path.GetFullPath(Path.Combine(_directory, o))));
+        var loaded = Load(ContractPath(_directory, line.Positional[0]), new OpenApiLoadOptions { Overlays = overlays });
+        Print(loaded.Diagnostics.Where(d => d.IsError), quiet: false);
+        if (loaded.Document is null || loaded.HasErrors)
+        {
+            return 1;
+        }
+
+        var model = ApiModelBuilder.Build(loaded.Document, new DiagnosticBag());
+        var host = line.Value("--host") ?? "localhost";
+        var address = host == "localhost" ? System.Net.IPAddress.Loopback
+            : System.Net.IPAddress.TryParse(host, out var parsed) ? parsed : null;
+        if (address is null)
+        {
+            return Usage($"'{host}' is not 'localhost' or an IP address.");
+        }
+
+        var listener = new System.Net.Sockets.TcpListener(address, port);
+        try
+        {
+            listener.Start();
+        }
+        catch (System.Net.Sockets.SocketException ex)
+        {
+            _error.WriteLine($"error: cannot listen on {host}:{port}: {ex.Message}");
+            return 1;
+        }
+
+        var endpoint = (System.Net.IPEndPoint)listener.LocalEndpoint;
+        var listeners = new List<System.Net.Sockets.TcpListener> { listener };
+        if (host == "localhost" && System.Net.Sockets.Socket.OSSupportsIPv6)
+        {
+            // 'localhost' resolves to ::1 first on many systems; answer there too instead of letting clients time out.
+            var v6 = new System.Net.Sockets.TcpListener(System.Net.IPAddress.IPv6Loopback, endpoint.Port);
+            try
+            {
+                v6.Start();
+                listeners.Add(v6);
+            }
+            catch (System.Net.Sockets.SocketException)
+            {
+                // IPv6 loopback unavailable or the port is taken there: IPv4 only.
+            }
+        }
+
+        _out.WriteLine($"Mocking {model.Title} ({model.Operations.Count} operations) on http://{(host == "localhost" ? "localhost" : endpoint.Address.ToString())}:{endpoint.Port}/ (Ctrl+C to stop).");
+        _out.WriteLine("Choose a response with the header 'Prefer: code=404' or 'Prefer: example=<name>'.");
+        MockStarted?.Invoke(endpoint);
+        var server = new MockServer(model, _out);
+        Task.WhenAll(listeners.Select(l => server.RunAsync(l, Cancellation))).GetAwaiter().GetResult();
+        return 0;
+    }
+
     // ------------------------------------------------------------------ inspect
 
     private int Inspect(CommandLine line)
@@ -796,6 +868,7 @@ internal sealed class CliApp
           api-gen diff <previous> <current> [--format text|markdown|json] [--fail-on breaking|potentially-breaking|non-breaking|none]
                        [--ignore <kind>[,<kind>...]] [--report <file>]
           api-gen inspect <contract> [--format text|json]
+          api-gen mock <contract> [--port 4010] [--host localhost] [--overlay <file>]...
 
         --overlay applies an OpenAPI Overlay (1.0-1.2) to the contract before it is read; repeatable, applied in order
                   after the configuration's "overlays".
@@ -806,6 +879,8 @@ internal sealed class CliApp
         validate  Loads, validates and plans generation, reporting every diagnostic. Fails on errors.
         diff      Reports changes between two versions of a contract and fails on breaking changes (by default).
         inspect   Summarizes operations, types, pagination and security.
+        mock      Serves the contract's examples (or values synthesized from schemas) over HTTP with open CORS, for
+                  front-end development; 'Prefer: code=404' or 'Prefer: example=name' choose the response.
 
         Exit codes: 0 success, 1 failure, 2 usage error.
         """;

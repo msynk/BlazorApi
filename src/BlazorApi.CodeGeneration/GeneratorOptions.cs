@@ -185,6 +185,12 @@ public sealed record GeneratorOptions
     /// </summary>
     public bool GenerateJsonContext { get; init; }
 
+    /// <summary>
+    /// Whether to generate <c>{Operation}ResponseHeaders</c> classes that read the response headers operations declare
+    /// as typed values (default: true).
+    /// </summary>
+    public bool GenerateResponseHeaders { get; init; } = true;
+
     /// <summary>Whether to generate client interfaces (default: true).</summary>
     public bool GenerateInterfaces { get; init; } = true;
 

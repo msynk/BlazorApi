@@ -147,7 +147,9 @@ String enums and integer enums become C# enums with a generated converter (`PetS
   `*+json`), `multipart/*`, `application/x-www-form-urlencoded`, `text/*`, binary. Inline multipart and form schemas
   become method parameters. XML bodies are exchanged as strings (BAPI4004); other media types (`image/png`,
   `application/octet-stream`, ...) as binary content (`FileContent` in requests, `FileResponse` in responses).
-- Only the first success response body is typed; other success responses with a different body report BAPI6001.
+- The first success response body is the typed value; other success responses with a different JSON or text body
+  are read into `ApiResult.Content` (BAPI6001, info). Declared response headers are typed by
+  `{Operation}ResponseHeaders` ([Generated code](generated-code.md#response-headers)).
 - Servers declared on an operation or its path item override the document's servers for that operation (an absolute
   URL becomes the operation's base address; a relative one replaces the path prefix). The document's servers are
   listed in `{Client}.Servers` ([Generated code](generated-code.md#servers)).

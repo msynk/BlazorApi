@@ -85,6 +85,18 @@ public static class ApiClientGenerator
             }
         }
 
+        if (options.GenerateResponseHeaders)
+        {
+            var headers = new HeadersEmitter(plan, clients);
+            foreach (var client in plan.Clients)
+            {
+                if (headers.Emit(client) is { } file)
+                {
+                    files.Add(file);
+                }
+            }
+        }
+
         if (options.GenerateMocks)
         {
             var mocks = new MockEmitter(plan, clients);

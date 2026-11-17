@@ -141,7 +141,7 @@ circuit, a rate limiter, a timeout strategy) are results like any other failure:
 
 ## Other behaviors that surprise
 
-- Only the first success body is typed (BAPI6001); other success statuses succeed with a default `Value`.
+- Only the first success body is the typed `Value` (BAPI6001); other success bodies are in `ApiResult.Content`.
 - A response typed as an intermediate class of a hierarchy is read as that class, not its subtypes.
 - `format: time` and `format: duration` are `string` unless `TimeType=timeOnly` (time only).
 - Generated mocks answer 501 for operations without a setup.

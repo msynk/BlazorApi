@@ -385,4 +385,50 @@ public sealed class CliTests : IDisposable
             await Task.Delay(50, cancellationToken);
         }
     }
+
+    [Fact]
+    public async Task Mock_serves_examples_and_preferred_statuses()
+    {
+        using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+        var started = new TaskCompletionSource<System.Net.IPEndPoint>();
+        var output = new StringWriter();
+        var app = new CliApp(TextWriter.Synchronized(output), TextWriter.Synchronized(new StringWriter()), _directory)
+        {
+            Cancellation = cancellation.Token,
+            MockStarted = started.SetResult,
+        };
+        var run = Task.Run(() => app.Run(["mock", "petstore.yaml", "--port", "0"]));
+        var endpoint = await started.Task.WaitAsync(cancellation.Token);
+        using var http = new HttpClient { BaseAddress = new Uri($"http://localhost:{endpoint.Port}/") };
+
+        var pet = await http.GetAsync("v1/pets/42", cancellation.Token);
+        var petJson = System.Text.Json.JsonDocument.Parse(await pet.Content.ReadAsStringAsync(cancellation.Token)).RootElement;
+        using var notFoundRequest = new HttpRequestMessage(HttpMethod.Get, "pets/42") { Headers = { { "Prefer", "code=404" } } };
+        var notFound = await http.SendAsync(notFoundRequest, cancellation.Token);
+        var created = await http.PostAsync("pets", new StringContent("""{"name":"Rex","kind":"dog"}""", System.Text.Encoding.UTF8, "application/json"), cancellation.Token);
+        var deleted = await http.DeleteAsync("pets/1", cancellation.Token);
+        var unknown = await http.GetAsync("nothing/here", cancellation.Token);
+        var wrongMethod = await http.PatchAsync("store/inventory", null, cancellation.Token);
+        using var preflight = new HttpRequestMessage(HttpMethod.Options, "pets") { Headers = { { "Access-Control-Request-Method", "POST" }, { "Origin", "https://app.example.com" } } };
+        var cors = await http.SendAsync(preflight, cancellation.Token);
+        var health = await http.GetAsync("health", cancellation.Token);
+        var photo = await http.GetAsync("pets/1/photo", cancellation.Token);
+        await cancellation.CancelAsync();
+
+        Assert.Equal(System.Net.HttpStatusCode.OK, pet.StatusCode);
+        Assert.Contains(petJson.GetProperty("kind").GetString(), new[] { "dog", "cat" });
+        Assert.Equal(System.Text.Json.JsonValueKind.String, petJson.GetProperty("name").ValueKind);
+        Assert.Equal(System.Net.HttpStatusCode.NotFound, notFound.StatusCode);
+        Assert.Equal(System.Net.HttpStatusCode.Created, created.StatusCode);
+        Assert.Equal(System.Net.HttpStatusCode.NoContent, deleted.StatusCode);
+        Assert.Equal(System.Net.HttpStatusCode.NotFound, unknown.StatusCode);
+        Assert.Equal("application/problem+json", unknown.Content.Headers.ContentType!.MediaType);
+        Assert.Equal(System.Net.HttpStatusCode.MethodNotAllowed, wrongMethod.StatusCode);
+        Assert.Equal(System.Net.HttpStatusCode.NoContent, cors.StatusCode);
+        Assert.Equal("*", cors.Headers.GetValues("Access-Control-Allow-Origin").Single());
+        Assert.Equal("text/plain", health.Content.Headers.ContentType!.MediaType);
+        Assert.Equal("image/png", photo.Content.Headers.ContentType!.MediaType);
+        Assert.Equal(0, await run);
+        Assert.Contains("GET /v1/pets/42 -> 200 (getPet)", output.ToString(), StringComparison.Ordinal);
+    }
 }

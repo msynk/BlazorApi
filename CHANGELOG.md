@@ -67,6 +67,18 @@ target .NET Standard 2.0.
 - **Blazor**: `ApiStreamView<TItem>` renders streamed responses and asynchronous sequences (page walkers) as they
   arrive, with optional paging ("load more").
 
+- **Responses**: other success bodies are read into `ApiResult.Content` (`TryGetContent`, `ApiResults.SuccessWithContent`,
+  `ApiResponseHandler.SuccessAs`); BAPI6001 is now info. Typed `{Operation}ResponseHeaders` classes
+  (`generateResponseHeaders`) with `ApiHeaderValues` parsers.
+- **Transfers**: `FileContent.Progress`, `FileResponse.CopyToAsync(destination, progress)` and
+  `ReadAllBytesAsync(progress)` report `ApiTransferProgress`.
+- **Server-sent events**: `ApiEventSource.Reconnecting` reopens broken streams with `Last-Event-ID` and the server's
+  `retry` delay.
+- **Logging**: `AddApiLogging()` / `ApiLoggingHandler` log operations by template and warn once about `Deprecation` and
+  `Sunset` headers; spans get `blazorapi.deprecated`.
+- **Mock server**: `api-gen mock` serves examples (or values synthesized by `OpenApiExamples`) with `Prefer` response
+  selection and open CORS.
+
 ### Fixed
 
 - Exceptions of resilience pipelines (Polly timeouts, open circuits, rate limiters) escaped `XxxResultAsync`; they
@@ -81,5 +93,6 @@ target .NET Standard 2.0.
 - Trimmed and native AOT applications that use the source generator (not the CLI) must supply a
   `JsonSerializerContext` for the generated types.
 - Polymorphic responses typed as an intermediate class are not dispatched to its subtypes; only the first success
-  body of an operation is typed; `format: time` and `duration` map to `string` by default.
+  body of an operation is the typed value (others are in `ApiResult.Content`); `format: time` and `duration` map to
+  `string` by default.
 - See `IMPLEMENTATION-STATUS.md` for the complete list.

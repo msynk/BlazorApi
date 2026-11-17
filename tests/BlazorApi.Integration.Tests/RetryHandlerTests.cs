@@ -151,4 +151,55 @@ public class RetryHandlerTests
 
         Assert.Equal(2, handler.Requests.Count);
     }
+
+    private sealed class ListLogger : Microsoft.Extensions.Logging.ILogger
+    {
+        public List<(Microsoft.Extensions.Logging.LogLevel Level, string Message)> Entries { get; } = [];
+
+        public IDisposable? BeginScope<TState>(TState state)
+            where TState : notnull => null;
+
+        public bool IsEnabled(Microsoft.Extensions.Logging.LogLevel logLevel) => true;
+
+        public void Log<TState>(Microsoft.Extensions.Logging.LogLevel logLevel, Microsoft.Extensions.Logging.EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter) =>
+            Entries.Add((logLevel, formatter(state, exception)));
+    }
+
+    [Fact]
+    public async Task Logging_records_operations_without_urls_and_warns_about_deprecation_once()
+    {
+        var logger = new ListLogger();
+        var handler = new RecordingHandler()
+            .Respond(HttpStatusCode.OK, DogJson)
+            .Respond(request =>
+            {
+                var response = new HttpResponseMessage(HttpStatusCode.NotFound) { Content = new StringContent("{}") };
+                response.Headers.TryAddWithoutValidation("Deprecation", "@1700000000");
+                response.Headers.TryAddWithoutValidation("Sunset", "Sun, 01 Jun 2031 00:00:00 GMT");
+                response.Headers.TryAddWithoutValidation("Link", "<https://docs.example.com/v2>; rel=\"deprecation\"");
+                return Task.FromResult(response);
+            })
+            .Respond(request =>
+            {
+                var response = new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(DogJson, Encoding.UTF8, "application/json") };
+                response.Headers.TryAddWithoutValidation("Deprecation", "@1700000000");
+                return Task.FromResult(response);
+            })
+            .Respond(_ => throw new HttpRequestException("reset"));
+        var client = new PetstoreClient(new HttpClient(new ApiLoggingHandler(logger) { InnerHandler = handler }));
+
+        await client.GetPetResultAsync(42);
+        await client.GetPetResultAsync(4242);
+        await client.GetPetResultAsync(424242);
+        await client.GetPetResultAsync(1);
+
+        var messages = logger.Entries.Select(e => e.Message).ToList();
+        Assert.Contains(logger.Entries, e => e.Level == Microsoft.Extensions.Logging.LogLevel.Debug && e.Message.StartsWith("getPet (GET /pets/{petId}) responded 200", StringComparison.Ordinal));
+        Assert.Contains(logger.Entries, e => e.Level == Microsoft.Extensions.Logging.LogLevel.Information && e.Message.Contains("responded 404", StringComparison.Ordinal));
+        var deprecated = Assert.Single(logger.Entries, e => e.Message.Contains("deprecated", StringComparison.Ordinal));
+        Assert.Contains("Sunset: Sun, 01 Jun 2031", deprecated.Message, StringComparison.Ordinal);
+        Assert.Contains("see https://docs.example.com/v2", deprecated.Message, StringComparison.Ordinal);
+        Assert.Contains(logger.Entries, e => e.Level == Microsoft.Extensions.Logging.LogLevel.Warning && e.Message.Contains("failed after", StringComparison.Ordinal));
+        Assert.DoesNotContain(messages, m => m.Contains("4242", StringComparison.Ordinal) || m.Contains("api.example.com", StringComparison.Ordinal));
+    }
 }

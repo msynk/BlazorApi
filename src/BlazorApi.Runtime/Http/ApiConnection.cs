@@ -132,6 +132,28 @@ public sealed class ApiConnection
             {
                 var headers = ApiHeaders.From(response);
                 T? value = default;
+                if (entry.ContentReader is { } contentReader && HasBody(builder, response))
+                {
+                    stage = "reading the response body";
+                    try
+                    {
+                        var content = await contentReader(response, JsonOptions, token).ConfigureAwait(false);
+                        return ApiResult<T>.Success(response.StatusCode, headers, default, content);
+                    }
+                    catch (Exception ex) when (ex is JsonException or NotSupportedException or FormatException or InvalidOperationException)
+                    {
+                        return ApiResult<T>.Failure(new ApiError(ApiErrorKind.Deserialization,
+                            $"The {status} response of '{builder.OperationId}' could not be read as {entry.ContentType?.Name}: {ex.Message}")
+                        {
+                            StatusCode = status,
+                            ReasonPhrase = response.ReasonPhrase,
+                            Headers = headers,
+                            Exception = ex,
+                            OperationId = builder.OperationId,
+                        });
+                    }
+                }
+
                 if (entry.SuccessReader is { } reader && HasBody(builder, response))
                 {
                     stage = "reading the response body";
@@ -155,7 +177,7 @@ public sealed class ApiConnection
                     disposeResponse = !entry.OwnsResponse;
                 }
 
-                return ApiResult<T>.Success(response.StatusCode, headers, value);
+                return ApiResult<T>.Success(response.StatusCode, headers, value, value);
             }
 
             stage = "reading the error response body";

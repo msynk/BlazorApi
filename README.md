@@ -19,7 +19,10 @@ stable `BAPIxxxx` diagnostics with file, line and JSON pointer, and produces det
   `oneOf`/`anyOf` unions.
 - Clients with two methods per operation: `XxxAsync` (returns the value, throws `ApiException`) and
   `XxxResultAsync` (returns `ApiResult<T>`, never throws for API failures).
-- Typed error bodies per status code, RFC 9457 problem details, distinct network/timeout/deserialization errors.
+- Typed error bodies per status code, RFC 9457 problem details, distinct network/timeout/deserialization errors;
+  other success bodies (`ApiResult.Content`) and typed response headers (`{Operation}ResponseHeaders`).
+- Upload/download progress, reconnecting server-sent event streams (`ApiEventSource`), operation logging with
+  `Deprecation`/`Sunset` warnings.
 - Streamed responses: server-sent events and JSON Lines/NDJSON/`json-seq` as `IAsyncEnumerable` (`ApiStream<T>`),
   rendered incrementally by the Blazor `ApiStreamView`.
 - Per-call options (`WithOptions`), document and operation-level servers with variables (`Servers`).
@@ -30,8 +33,8 @@ stable `BAPIxxxx` diagnostics with file, line and JSON pointer, and produces det
   client credentials).
 - Pagination detection (cursor, page, offset, `Link` header, `x-pagination`) with `IAsyncEnumerable` page and item
   walkers.
-- Generated mocks and fixtures, an HTTP-level `MockApiHandler`, and contract compatibility analysis
-  (`api-gen diff`).
+- Generated mocks and fixtures, an HTTP-level `MockApiHandler`, a contract-driven mock server (`api-gen mock`), and
+  contract compatibility analysis (`api-gen diff`).
 - Blazor components for loading/error states, streamed and paged lists, and server-side validation errors in `EditForm`.
 
 ## Packages
@@ -42,7 +45,7 @@ stable `BAPIxxxx` diagnostics with file, line and JSON pointer, and produces det
 | `BlazorApi.CodeGeneration` | C# code generation from the API model (used by the CLI and the source generator). |
 | `BlazorApi.Runtime` | Runtime for generated clients: HTTP execution, results and errors, JSON, authentication, DI. |
 | `BlazorApi.SourceGenerator` | Roslyn source generator; generates clients at build time from `<OpenApiContract>` items. |
-| `BlazorApi.Cli` | The `api-gen` .NET tool: `generate`, `validate`, `diff`, `inspect`. |
+| `BlazorApi.Cli` | The `api-gen` .NET tool: `generate`, `validate`, `diff`, `inspect`, `mock`. |
 | `BlazorApi.Testing` | Base class of generated mocks, `MockApiHandler`, request recording and verification. |
 | `BlazorApi.Blazor` | `ApiResultView`, `ApiStreamView`, `ApiErrorView`, `ApiValidationErrors` components. |
 
