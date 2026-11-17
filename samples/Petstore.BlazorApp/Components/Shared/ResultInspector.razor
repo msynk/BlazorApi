@@ -1,0 +1,78 @@
+@using System.Text.Json
+@using BlazorApi.Runtime.Json
+
+@* Shows everything an ApiResult carries: status, headers, the typed value as JSON, or the ApiError. *@
+@if (Result is { } result)
+{
+    <div class="stack">
+        <dl class="kv">
+            <dt>IsSuccess</dt>
+            <dd><span class="badge @(result.IsSuccess ? "badge-available" : "badge-danger") plain">@result.IsSuccess.ToString().ToLowerInvariant()</span></dd>
+            <dt>StatusCode</dt>
+            <dd>@result.StatusCode</dd>
+            @if (ValueType is not null && result.IsSuccess)
+            {
+                <dt>Value</dt>
+                <dd>@ValueType</dd>
+            }
+            @if (result.Error is { } error)
+            {
+                <dt>Error.Kind</dt>
+                <dd>ApiErrorKind.@error.Kind</dd>
+                <dt>Error.Message</dt>
+                <dd>@error.Message</dd>
+                <dt>Error.Content</dt>
+                <dd>@(error.Content?.GetType().Name ?? "null")</dd>
+                <dt>Error.OperationId</dt>
+                <dd>@error.OperationId</dd>
+            }
+            @foreach (var header in result.Headers.Where(h => ShownHeaders.Contains(h.Key, StringComparer.OrdinalIgnoreCase)))
+            {
+                <dt>Headers["@header.Key"]</dt>
+                <dd>@string.Join(", ", header.Value)</dd>
+            }
+        </dl>
+        @if (Json is not null)
+        {
+            <CodeBlock Code="@Json" Language="json" Title="@(result.IsSuccess ? "result.Value (serialized)" : "result.Error.Body")" Compact="true" MaxHeight="300px" />
+        }
+    </div>
+}
+
+@code {
+    private static readonly JsonSerializerOptions Options = new(ApiJson.CreateOptions()) { WriteIndented = true };
+    private static readonly string[] ShownHeaders = ["Content-Type", "X-Total-Count", "Content-Length"];
+
+    [Parameter]
+    public ApiResult? Result { get; set; }
+
+    /// <summary>The value of a successful <c>ApiResult&lt;T&gt;</c>, to show as JSON.</summary>
+    [Parameter]
+    public object? Value { get; set; }
+
+    private string? ValueType => Value?.GetType() is { } type ? ContractExplorer.Simplify(Format(type)) : null;
+
+    private string? Json => Result switch
+    {
+        { IsSuccess: true } when Value is not null => JsonSerializer.Serialize(Value, Value.GetType(), Options),
+        { Error.Body: { Length: > 0 } body } => Pretty(body),
+        _ => null,
+    };
+
+    private static string Pretty(string body)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(body);
+            return JsonSerializer.Serialize(document.RootElement, Options);
+        }
+        catch (JsonException)
+        {
+            return body;
+        }
+    }
+
+    private static string Format(Type type) => type.IsGenericType
+        ? $"{type.Name[..type.Name.IndexOf('`')]}<{string.Join(", ", type.GetGenericArguments().Select(Format))}>"
+        : type.Name;
+}

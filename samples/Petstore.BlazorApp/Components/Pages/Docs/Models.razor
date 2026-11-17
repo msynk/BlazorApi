@@ -1,0 +1,202 @@
+@page "/docs/models"
+@using System.Text.Json
+@using BlazorApi.Runtime.Json
+@inject ContractExplorer Explorer
+
+<DocPage Href="docs/models" Title="Models"
+         Lead="Every schema becomes a C# type that follows the contract: required members, nullability, enums with their wire values, polymorphic hierarchies, merge-patch semantics and validation attributes. Everything on this page is read from the compiled models."
+         Contents="@([("classes", "Classes"), ("polymorphism", "Polymorphism"), ("enums", "Enums"), ("merge-patch", "Merge patch"), ("other", "Dates, maps, read-only")])">
+
+    <section id="classes">
+        <h2>Classes and properties</h2>
+        <p>
+            <code>required</code> in the schema becomes the C# <code>required</code> modifier (also enforced when reading
+            JSON); optional properties are nullable; constraints become DataAnnotations. Pick a model:
+        </p>
+        <div class="segmented" role="group" aria-label="Model">
+            @foreach (var type in Types)
+            {
+                <button type="button" class="@(_type == type ? "active" : null)" @onclick="() => _type = type">@type.Name</button>
+            }
+        </div>
+        <div class="table-scroll">
+            <table class="api-table">
+                <thead><tr><th>JSON</th><th>C# property</th><th>Type</th><th>Attributes</th></tr></thead>
+                <tbody>
+                    @foreach (var property in ModelInspector.Describe(_type))
+                    {
+                        <tr>
+                            <td><code>@property.JsonName</code></td>
+                            <td style="white-space: nowrap">
+                                @if (property.Required)
+                                {
+                                    <span class="tk-k mono" style="color: var(--primary)">required </span>
+                                }
+                                <span class="mono">@property.Name</span>
+                                @if (!property.DeclaredHere)
+                                {
+                                    <span class="hint"> (from @_type.BaseType!.Name)</span>
+                                }
+                            </td>
+                            <td class="mono small">@property.Type</td>
+                            <td class="mono small">@string.Join(" ", property.Attributes)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <p>The source: <a href="@($"code?file={Uri.EscapeDataString($"Models/{_type.Name}.g.cs")}")">Models/@(_type.Name).g.cs</a>.</p>
+    </section>
+
+    <section id="polymorphism">
+        <h2>Polymorphism</h2>
+        <p>
+            <code>Pet</code> has a discriminator (<code>kind</code>) mapping to <code>Dog</code> and <code>Cat</code>. The
+            generator makes <code>Pet</code> abstract, writes a <code>PetJsonConverter</code> that picks the subtype, and adds
+            <code>UnrecognizedPet</code> for values this client does not know, so a new kind on the server never breaks old
+            clients.
+        </p>
+        <LiveExample Title="Deserialize JSON as Pet, then write it back">
+            <div class="live-controls">
+                @foreach (var (label, json) in Samples)
+                {
+                    <button type="button" class="btn btn-sm" @onclick="() => { _json = json; Parse(); }">@label</button>
+                }
+            </div>
+            <textarea class="contract-editor" style="min-height: 150px" @bind="_json" @bind:after="Parse" spellcheck="false" aria-label="JSON"></textarea>
+            @if (_parseError is not null)
+            {
+                <div class="outcome fail">
+                    <span class="outcome-title"><Icon Name="alert" /> JsonException</span>
+                    <span class="small">@_parseError</span>
+                </div>
+            }
+            else if (_parsed is { } pet)
+            {
+                <div class="outcome ok">
+                    <span class="outcome-title"><Icon Name="check" /> JsonSerializer.Deserialize&lt;Pet&gt; returned a @pet.GetType().Name</span>
+                    <span class="small mono">@PetCard.Describe(pet)@(pet is UnrecognizedPet u && u.AdditionalProperties is { Count: > 0 } extra ? $" · AdditionalProperties: {string.Join(", ", extra.Keys)}" : null)</span>
+                </div>
+                <CodeBlock Language="json" Title="JsonSerializer.Serialize(pet)" Compact="true" Code="@_written" />
+            }
+        </LiveExample>
+        <CodeBlock Language="csharp" Code="@PolymorphismCode" />
+    </section>
+
+    <section id="enums">
+        <h2>Enums</h2>
+        <p>
+            String enums become C# enums with a generated converter that maps each member to its exact wire value,
+            whatever the naming convention of the contract:
+        </p>
+        <div class="table-scroll">
+            <table class="api-table">
+                <thead><tr><th>C#</th><th>Wire value</th><th>Round trip</th></tr></thead>
+                <tbody>
+                    @foreach (var status in Enum.GetValues<PetStatus>())
+                    {
+                        var wire = PetStatusJsonConverter.ToWireValue(status);
+                        <tr>
+                            <td><code>PetStatus.@status</code></td>
+                            <td><code>"@wire"</code></td>
+                            <td class="mono small">TryParse("@wire") → @(PetStatusJsonConverter.TryParse(wire, out var parsed) ? parsed.ToString() : "false")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <p>
+            Unknown values in a response fail deserialization (<code>ApiErrorKind.Deserialization</code>) rather than
+            silently becoming a default. Query parameters use the wire value too (<code>?status=available</code>).
+        </p>
+    </section>
+
+    <section id="merge-patch">
+        <h2>Merge patch and Optional&lt;T&gt;</h2>
+        <p>
+            In an <code>application/merge-patch+json</code> body, “absent” (leave it alone) and <code>null</code> (clear it)
+            mean different things. Nullable properties of such bodies are <code>Optional&lt;T&gt;</code>:
+        </p>
+        <div class="table-scroll">
+            <table class="api-table">
+                <thead><tr><th>C#</th><th>JSON sent</th></tr></thead>
+                <tbody>
+                    @foreach (var (snippet, patch) in Patches)
+                    {
+                        <tr><td><code>@snippet</code></td><td><code>@ApiJson.Serialize(patch, Json)</code></td></tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <p>The <a href="pets/1">pet details page</a> has an editor that previews the body as you change it.</p>
+    </section>
+
+    <section id="other">
+        <h2>Dates, maps and read-only properties</h2>
+        <ul>
+            <li><code>format: date</code> is <code>DateOnly</code> and <code>format: date-time</code> is <code>DateTimeOffset</code> (configurable).</li>
+            <li><code>additionalProperties</code> objects are dictionaries: <code>Pet.Attributes</code> is <code>IReadOnlyDictionary&lt;string, string&gt;</code>, and <code>getInventory</code> returns <code>IReadOnlyDictionary&lt;string, int&gt;</code>.</li>
+            <li><code>readOnly</code> properties (<code>id</code>, <code>createdAt</code>) are nullable and omitted from requests when null.</li>
+            <li><code>format: binary</code> responses are a streaming <code>FileResponse</code>; multipart file fields take a <code>FileContent</code>.</li>
+            <li>Models, clients and interfaces are <code>partial</code>: add members in your own files.</li>
+        </ul>
+    </section>
+</DocPage>
+
+@code {
+    private static readonly JsonSerializerOptions Json = ApiJson.CreateOptions();
+    private static readonly JsonSerializerOptions Indented = new(ApiJson.CreateOptions()) { WriteIndented = true };
+    private static readonly Type[] Types = [typeof(Pet), typeof(Dog), typeof(Cat), typeof(NewPet), typeof(PetPatch), typeof(Order), typeof(Owner)];
+
+    private static readonly (string Label, string Json)[] Samples =
+    [
+        ("A dog", """{ "kind": "dog", "id": 1, "name": "Rex", "status": "available", "barkVolume": 7.5 }"""),
+        ("A cat", """{ "kind": "cat", "id": 2, "name": "Luna", "indoor": true, "birthDate": "2024-03-01" }"""),
+        ("An unknown kind", """{ "kind": "fish", "id": 3, "name": "Nemo", "finCount": 4 }"""),
+        ("Missing a required property", """{ "kind": "dog", "id": 4 }"""),
+        ("An unknown enum value", """{ "kind": "dog", "id": 5, "name": "Max", "status": "lost" }"""),
+    ];
+
+    private static readonly (string Code, PetPatch Patch)[] Patches =
+    [
+        ("new PetPatch()", new PetPatch()),
+        ("new PetPatch { Tag = \"shy\" }", new PetPatch { Tag = "shy" }),
+        ("new PetPatch { Tag = null }", new PetPatch { Tag = (string?)null }),
+        ("new PetPatch { Name = \"Rex\" }", new PetPatch { Name = "Rex" }),
+    ];
+
+    private Type _type = typeof(Pet);
+    private string _json = Samples[0].Json;
+    private Pet? _parsed;
+    private string? _written;
+    private string? _parseError;
+
+    protected override void OnInitialized() => Parse();
+
+    private void Parse()
+    {
+        try
+        {
+            _parsed = JsonSerializer.Deserialize<Pet>(_json, Json);
+            _written = _parsed is null ? "null" : JsonSerializer.Serialize(_parsed, Indented);
+            _parseError = null;
+        }
+        catch (JsonException ex)
+        {
+            _parsed = null;
+            _parseError = ex.Message;
+        }
+    }
+
+    private const string PolymorphismCode = """
+        ApiResult<Pet> result = await Api.GetPetResultAsync(id);
+        string description = result.Value switch
+        {
+            Dog dog => $"a dog, bark volume {dog.BarkVolume}",
+            Cat { Indoor: true } => "an indoor cat",
+            Cat => "an outdoor cat",
+            UnrecognizedPet other => $"a {other.Kind} (new on the server)",
+            _ => "nothing",
+        };
+        """;
+}

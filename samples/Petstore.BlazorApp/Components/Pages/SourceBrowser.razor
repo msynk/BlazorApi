@@ -1,0 +1,80 @@
+@page "/source"
+@page "/source/{*Path}"
+@inject SampleSources Sources
+
+<PageTitle>@(File?.Name ?? "Source") · Source · Petstore</PageTitle>
+
+<div class="page-header">
+    <div>
+        <h1>Source browser</h1>
+        <p class="lead">
+            Every file of the samples, embedded in this app at build time: the Blazor app you are using, the shared
+            contract, the console client and the test project. Nothing here is a copy that can drift from the code.
+        </p>
+    </div>
+</div>
+
+<div class="browser">
+    <nav class="card file-tree" aria-label="Files">
+        @foreach (var group in Sources.Files.GroupBy(f => f.Folder))
+        {
+            <div class="folder"><Icon Name="folder" /> @group.Key</div>
+            @foreach (var file in group)
+            {
+                <a href="@SourceLink.Href(file.Path)" class="@(file.Path.Equals(File?.Path, StringComparison.OrdinalIgnoreCase) ? "active" : null)" title="@file.Path">@file.Name</a>
+            }
+        }
+    </nav>
+
+    <div class="stack" style="min-width: 0">
+        @if (File is { } current)
+        {
+            if (Describe(current.Path) is { } description)
+            {
+                <Callout Kind="info">@description</Callout>
+            }
+            <CodeBlock Language="@current.Language" Title="@current.Path" LineNumbers="true" MaxHeight="78vh" Code="@Sources.Get(current.Path)" />
+        }
+        else
+        {
+            <div class="card">
+                <div class="empty">
+                    <span class="emoji" aria-hidden="true">📄</span>
+                    <h2>No such file</h2>
+                    <p><code>@Path</code> is not one of the embedded sample files.</p>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private const string DefaultFile = "Petstore.BlazorApp/Program.cs";
+
+    [Parameter]
+    public string? Path { get; set; }
+
+    private SampleFile? File => Sources.Files.FirstOrDefault(f => f.Path.Equals(string.IsNullOrEmpty(Path) ? DefaultFile : Path, StringComparison.OrdinalIgnoreCase));
+
+    private static string? Describe(string path) => path switch
+    {
+        "Petstore.BlazorApp/Program.cs" => "Registers the generated client with its authentication handlers, hosts the in-memory API and maps the Razor components.",
+        "Petstore.BlazorApp/Petstore.BlazorApp.csproj" => "The OpenApiContract item that drives the source generator, and the item group that embeds these files.",
+        "Petstore.BlazorApp/Api/PetstoreEndpoints.cs" => "The in-memory API: every operation of the contract, using the generated models for its own JSON.",
+        "Petstore.BlazorApp/Services/ApiActivityLog.cs" => "The DelegatingHandler behind the API traffic panel; it runs after the authentication handlers.",
+        "Petstore.BlazorApp/Services/DemoClients.cs" => "Generated clients built by hand with other HttpClients and options, for the error playground.",
+        "Petstore.BlazorApp/Services/ContractExplorer.cs" => "Runs ApiClientGenerator at runtime for the Contract & code page.",
+        "Petstore.BlazorApp/Components/Pages/PetList.razor" => "Cursor pagination, a typed status filter and the X-Total-Count header.",
+        "Petstore.BlazorApp/Components/Pages/PetDetails.razor" => "ApiResultView with custom templates, PUT with a polymorphic body, a form-encoded order and the deprecated delete.",
+        "Petstore.BlazorApp/Components/Pets/NewPetForm.razor" => "EditForm with DataAnnotationsValidator and ApiValidationErrors for server-side 422 errors.",
+        "Petstore.BlazorApp/Components/Pets/PetPatchEditor.razor" => "A JSON merge patch with Optional<string?> and a live preview of the body.",
+        "Petstore.BlazorApp/Components/Pets/PetPhotoCard.razor" => "A multipart upload with FileContent and a binary download with FileResponse.",
+        "Petstore.BlazorApp/Components/Pages/Inventory.razor" => "ApiResultView over a dictionary response, authenticated with an API key.",
+        "Petstore.BlazorApp/Components/Pages/Playground.razor" => "Every failure kind, with the ApiError each produces.",
+        "Contracts/petstore.yaml" => "The OpenAPI contract every sample generates its client from.",
+        "Contracts/baseline/petstore.yaml" => "The last published contract; the test project checks that changes since then are not breaking.",
+        "Petstore.ConsoleClient/Program.cs" => "The generated client without dependency injection: a BearerTokenHandler chained by hand.",
+        "Petstore.Tests/AdoptionServiceTests.cs" => "Generated mocks and fixtures, MockApiHandler and the contract compatibility test.",
+        _ => null,
+    };
+}

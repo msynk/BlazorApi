@@ -1,0 +1,148 @@
+@page "/docs/errors"
+@using BlazorApi.OpenApi.Model
+@inject ContractExplorer Explorer
+
+<DocPage Href="docs/errors" Title="Handling errors"
+         Lead="A failed call is described by one type, ApiError, whatever went wrong: an HTTP error status, a network failure, a timeout or a body that could not be read. Error bodies are typed by the contract."
+         Contents="@([("kinds", "Error kinds"), ("api-error", "ApiError"), ("typed", "Typed error bodies"), ("exceptions", "Exceptions"), ("ui", "In the UI")])">
+
+    <Callout Kind="tip" Title="See every case live">
+        The <a href="playground">error playground</a> runs each failure below against this app's API and shows the
+        <code>ApiError</code> it produces.
+    </Callout>
+
+    <section id="kinds">
+        <h2>Error kinds</h2>
+        <div class="table-scroll">
+            <table class="api-table">
+                <thead><tr><th><code>ApiErrorKind</code></th><th>When</th><th>Has a status code</th><th>Value methods throw</th></tr></thead>
+                <tbody>
+                    <tr><td><code>Http</code></td><td>The server answered with a status the operation does not declare as success.</td><td>yes</td><td><code>ApiException</code></td></tr>
+                    <tr><td><code>Network</code></td><td>DNS, connection refused, TLS, reset: no response arrived.</td><td>no</td><td><code>ApiNetworkException</code></td></tr>
+                    <tr><td><code>Timeout</code></td><td><code>ApiClientOptions.Timeout</code> or <code>HttpClient.Timeout</code> elapsed.</td><td>no</td><td><code>ApiTimeoutException</code></td></tr>
+                    <tr><td><code>Deserialization</code></td><td>A success body could not be read as the declared type.</td><td>yes</td><td><code>ApiDeserializationException</code></td></tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section id="api-error">
+        <h2>ApiError</h2>
+        <div class="table-scroll">
+            <table class="api-table">
+                <thead><tr><th>Member</th><th>Meaning</th></tr></thead>
+                <tbody>
+                    <tr><td><code>Kind</code></td><td>One of the kinds above.</td></tr>
+                    <tr><td><code>StatusCode</code>, <code>ReasonPhrase</code>, <code>Headers</code></td><td>When a response arrived.</td></tr>
+                    <tr><td><code>Content</code></td><td>The error body read as the type the contract declares for that status (<code>Error</code>, <code>ProblemDetails</code>, ...).</td></tr>
+                    <tr><td><code>TryGetContent&lt;T&gt;(out T)</code></td><td>Reads <code>Content</code> as a type, without casts.</td></tr>
+                    <tr><td><code>Problem</code></td><td><code>Content</code> as the runtime's <code>ApiProblemDetails</code> (for <code>application/problem+json</code> responses without a schema).</td></tr>
+                    <tr><td><code>Body</code></td><td>The raw error body text (up to <code>MaxErrorBodyLength</code>).</td></tr>
+                    <tr><td><code>Message</code>, <code>OperationId</code>, <code>Exception</code></td><td>A description (never containing credentials), the failed operation, the underlying exception.</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section id="typed">
+        <h2>Typed error bodies</h2>
+        <p>
+            The contract decides what an error body is. These are the error responses of this sample's contract, read from
+            it at runtime, and what <code>ApiError.Content</code> holds for each:
+        </p>
+        <div class="table-scroll">
+            <table class="api-table">
+                <thead><tr><th>Operation</th><th>Status</th><th>Media type</th><th><code>Content</code> type</th></tr></thead>
+                <tbody>
+                    @foreach (var (operation, response, content) in ErrorResponses)
+                    {
+                        <tr>
+                            <td><code>@operation.OperationId</code></td>
+                            <td>@response.StatusCode</td>
+                            <td class="mono small">@(content?.MediaType ?? "—")</td>
+                            <td><code>@(content?.Type?.ToString() ?? "null (Body only)")</code></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <CodeBlock Language="csharp" Code="@TypedErrors" />
+        <Callout Kind="info">
+            Statuses the contract does not declare still fail with <code>ApiErrorKind.Http</code>; their
+            <code>Content</code> is null and the text is in <code>Body</code>. <code>ApiValidation.Describe</code> and
+            <code>ApiErrorView</code> still find a title in common shapes (<code>title</code>, <code>message</code>,
+            <code>error</code>).
+        </Callout>
+    </section>
+
+    <section id="exceptions">
+        <h2>Exceptions</h2>
+        <p>
+            The value methods throw an <code>ApiException</code> carrying the same <code>ApiError</code>, so the information
+            is identical whichever style you use. <code>ApiError.ToException()</code> converts a result's error.
+        </p>
+        <CodeBlock Language="csharp" Code="@Exceptions" />
+    </section>
+
+    <section id="ui">
+        <h2>In the UI</h2>
+        <p>
+            <code>ApiErrorView</code> renders any <code>ApiError</code> (title, detail, field errors, retry button). For your
+            own messages, switch on the kind and status:
+        </p>
+        <CodeBlock Language="csharp" Code="@Messages" />
+        <p>
+            Server-side validation errors belong next to the form fields: see <code>ApiValidationErrors</code> in
+            <a href="docs/components#validation">Blazor components</a>.
+        </p>
+    </section>
+</DocPage>
+
+@code {
+    private IEnumerable<(ApiOperation Operation, ApiResponse Response, ApiContent? Content)> ErrorResponses =>
+        from operation in Explorer.Model.Operations
+        from response in operation.Responses
+        where !response.IsSuccess
+        select (operation, response, response.Contents.FirstOrDefault());
+
+    private const string TypedErrors = """
+        var result = await Api.GetPetResultAsync(petId);
+        if (result.Error?.TryGetContent<Error>(out var error) == true)
+        {
+            // getPet declares '404': Error { code, message }
+            Show($"{error.Code}: {error.Message}");
+        }
+
+        var created = await Api.CreatePetResultAsync(newPet);
+        if (created.Error?.TryGetContent<ProblemDetails>(out var problem) == true)
+        {
+            // createPet declares '422': application/problem+json with the contract's ProblemDetails schema
+            foreach (var (field, messages) in problem.Errors ?? new Dictionary<string, IReadOnlyList<string>>())
+                Show($"{field}: {string.Join(" ", messages)}");
+        }
+        """;
+
+    private const string Exceptions = """
+        try
+        {
+            var pet = await Api.GetPetAsync(petId);
+        }
+        catch (ApiException ex) when (ex.StatusCode == 404 && ex.Content is Error error)
+        {
+            // ex.Error is the same ApiError a ...ResultAsync call would return
+        }
+        catch (ApiTimeoutException) { /* retry later */ }
+        catch (ApiNetworkException) { /* offline */ }
+        """;
+
+    private const string Messages = """
+        static string Explain(ApiError error) => error.Kind switch
+        {
+            ApiErrorKind.Network => "You seem to be offline.",
+            ApiErrorKind.Timeout => "The server is slow; try again.",
+            ApiErrorKind.Http when error.StatusCode == 401 => "Please sign in.",
+            ApiErrorKind.Http when error.TryGetContent<Error>(out var e) => e.Message,
+            _ => ApiValidation.Describe(error).Title,
+        };
+        """;
+}

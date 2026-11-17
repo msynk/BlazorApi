@@ -8,7 +8,7 @@
 <PageTitle>@(_name ?? "Pet") · Petstore</PageTitle>
 
 <div>
-    <a class="crumbs" href=""><Icon Name="back" /> All pets</a>
+    <a class="crumbs" href="pets"><Icon Name="back" /> All pets</a>
 </div>
 
 @* ApiResultView loads with the generated ...ResultAsync method and renders the loading, success and error states. It
@@ -33,7 +33,7 @@
                     <span class="emoji" aria-hidden="true">🔍</span>
                     <h1>Pet not found</h1>
                     <p>The API answered <strong>@notFound.Code</strong>: “@notFound.Message”</p>
-                    <a class="btn btn-primary" href=""><Icon Name="back" /> Back to all pets</a>
+                    <a class="btn btn-primary" href="pets"><Icon Name="back" /> Back to all pets</a>
                 }
                 else
                 {
@@ -176,7 +176,62 @@
     </ChildContent>
 </ApiResultView>
 
+<HowItWorks Summary="One ApiResultView for the pet, and one card per kind of request body the client can send."
+            Sources="@(["Petstore.BlazorApp/Components/Pages/PetDetails.razor", "Petstore.BlazorApp/Components/Pets/PetPatchEditor.razor", "Petstore.BlazorApp/Components/Pets/PetPhotoCard.razor"])"
+            Docs="docs/components">
+    <div class="table-scroll">
+        <table class="api-table">
+            <thead><tr><th>Card</th><th>Generated method</th><th>Request</th></tr></thead>
+            <tbody>
+                <tr><td>The pet</td><td><code>GetPetResultAsync</code></td><td><code>GET /pets/{petId}</code>; a 404 body is the typed <code>Error</code></td></tr>
+                <tr><td>Edit</td><td><code>PatchPetResultAsync</code></td><td><code>application/merge-patch+json</code> from <code>PetPatch</code> with <code>Optional&lt;string?&gt;</code></td></tr>
+                <tr><td>Photo</td><td><code>UploadPetPhotoResultAsync</code>, <code>DownloadPetPhotoResultAsync</code></td><td><code>multipart/form-data</code> with a <code>FileContent</code>; an <code>image/png</code> stream as <code>FileResponse</code></td></tr>
+                <tr><td>Status</td><td><code>UpdatePetResultAsync</code></td><td><code>PUT</code> with the polymorphic <code>Pet</code>: written as <code>Dog</code> or <code>Cat</code></td></tr>
+                <tr><td>Adopt</td><td><code>PlaceOrderResultAsync</code></td><td><code>application/x-www-form-urlencoded</code> from <code>Order</code></td></tr>
+                <tr><td>Danger zone</td><td><code>DeletePetResultAsync</code></td><td><code>[Obsolete]</code> because the contract marks it deprecated</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <CodeBlock Language="razor" Title="The page's ApiResultView" Code="@HowView" />
+    <CodeBlock Language="csharp" Title="Multipart upload and binary download" Code="@HowPhoto" />
+</HowItWorks>
+
 @code {
+    private const string HowView = """
+        <ApiResultView TValue="Pet" @ref="_view" Load="LoadAsync" Key="PetId" KeepPreviousValue="true">
+            <Loading>...skeleton...</Loading>
+            <Error Context="error">
+                @if (error.StatusCode == 404 && error.TryGetContent<Error>(out var notFound))
+                {
+                    <p>The API answered @notFound.Code: “@notFound.Message”</p>
+                }
+                else
+                {
+                    <ApiErrorView Error="error" OnRetry="ReloadAsync" />
+                }
+            </Error>
+            <ChildContent Context="pet">...</ChildContent>
+        </ApiResultView>
+
+        @code {
+            // After an edit: refresh without flicker (KeepPreviousValue keeps the pet on screen).
+            private Task ReloadAsync() => _view!.ReloadAsync();
+        }
+        """;
+
+    private const string HowPhoto = """
+        var content = FileContent.FromBytes(bytes, file.Name, file.ContentType);
+        var uploaded = await Api.UploadPetPhotoResultAsync(PetId, content, caption);   // PhotoInfo { Url, Size }
+
+        var download = await Api.DownloadPetPhotoResultAsync(PetId);
+        if (download.IsSuccess)
+        {
+            await using var photo = download.Value!;                                  // FileResponse: a stream
+            var data = await photo.ReadAllBytesAsync();
+            _src = $"data:{photo.ContentType};base64,{Convert.ToBase64String(data)}";
+        }
+        """;
+
     private static readonly JsonSerializerOptions Json = ApiJson.CreateOptions();
 
     private ApiResultView<Pet>? _view;
@@ -279,6 +334,6 @@
         }
 
         Toasts.Show($"{pet.Name} was removed.", ToastKind.Info);
-        Navigation.NavigateTo("");
+        Navigation.NavigateTo("pets");
     }
 }

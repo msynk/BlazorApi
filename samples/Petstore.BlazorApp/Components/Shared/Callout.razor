@@ -1,0 +1,22 @@
+<div class="callout callout-@Kind">
+    <Icon Name="@(Kind switch { "warning" => "alert", "tip" => "bulb", _ => "info" })" />
+    <div>
+        @if (Title is not null)
+        {
+            <strong>@Title</strong>
+        }
+        @ChildContent
+    </div>
+</div>
+
+@code {
+    /// <summary><c>info</c>, <c>tip</c> or <c>warning</c>.</summary>
+    [Parameter]
+    public string Kind { get; set; } = "info";
+
+    [Parameter]
+    public string? Title { get; set; }
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+}

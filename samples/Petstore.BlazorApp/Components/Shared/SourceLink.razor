@@ -1,0 +1,14 @@
+@* A link to a sample file in the source browser. *@
+<a class="source-link" href="@Href(Path)" title="View @Path"><Icon Name="code" /><span>@(Label ?? Name)</span></a>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Path { get; set; } = string.Empty;
+
+    [Parameter]
+    public string? Label { get; set; }
+
+    private string Name => Path[(Path.LastIndexOf('/') + 1)..];
+
+    public static string Href(string path) => "source/" + path;
+}

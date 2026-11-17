@@ -20,6 +20,10 @@ builder.Services.AddTransient<ApiActivityHandler>();
 builder.Services.AddScoped<ToastService>();
 builder.Services.AddScoped<DemoClients>();
 
+// The in-app guide: the sample's own source files and the generator run at runtime for the code explorer.
+builder.Services.AddSingleton<SampleSources>();
+builder.Services.AddSingleton<ContractExplorer>();
+
 // The generated client, registered with IHttpClientFactory. Each authentication handler applies only to the operations
 // whose security requirements name its scheme: health stays anonymous, the inventory gets the API key and everything
 // else gets the bearer token. The activity handler is added last, so it sees the headers the others attached.

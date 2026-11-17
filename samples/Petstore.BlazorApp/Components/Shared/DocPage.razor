@@ -1,0 +1,62 @@
+@* The frame of a guide page: title, lead, an optional table of contents and links to the previous and next pages. *@
+<PageTitle>@Title · Guide · Petstore</PageTitle>
+
+<article class="doc">
+    <header>
+        <span class="doc-eyebrow"><Icon Name="book" /> Guide · @(_index + 1) of @SiteMap.Guide.Count</span>
+        <h1>@Title</h1>
+        @if (Lead is not null)
+        {
+            <p class="doc-lead">@Lead</p>
+        }
+    </header>
+
+    @if (Contents.Count > 0)
+    {
+        <nav class="toc" aria-label="On this page">
+            @foreach (var (id, label) in Contents)
+            {
+                <a href="@($"{Href}#{id}")">@label</a>
+            }
+        </nav>
+    }
+
+    @ChildContent
+
+    <nav class="doc-nav" aria-label="Guide">
+        @if (_index > 0)
+        {
+            var previous = SiteMap.Guide[_index - 1];
+            <a class="card" href="@previous.Href"><span>← Previous</span><strong>@previous.Title</strong></a>
+        }
+        @if (_index < SiteMap.Guide.Count - 1)
+        {
+            var next = SiteMap.Guide[_index + 1];
+            <a class="card next" href="@next.Href"><span>Next →</span><strong>@next.Title</strong></a>
+        }
+    </nav>
+</article>
+
+@code {
+    private int _index;
+
+    /// <summary>The page's address in <see cref="SiteMap.Guide"/>, such as <c>docs/calling</c>.</summary>
+    [Parameter, EditorRequired]
+    public string Href { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = string.Empty;
+
+    [Parameter]
+    public string? Lead { get; set; }
+
+    /// <summary>Section ids and labels for the table of contents.</summary>
+    [Parameter]
+    public IReadOnlyList<(string Id, string Label)> Contents { get; set; } = [];
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    protected override void OnParametersSet() =>
+        _index = Math.Max(0, SiteMap.Guide.ToList().FindIndex(i => i.Href == Href));
+}

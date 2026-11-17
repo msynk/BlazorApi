@@ -1,0 +1,18 @@
+@* A live example inside a guide page: it calls the API this app hosts (watch the traffic panel). *@
+<div class="live">
+    <div class="live-head">
+        <span class="badge">Live</span>
+        <span>@Title</span>
+    </div>
+    <div class="live-body">
+        @ChildContent
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = string.Empty;
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+}

@@ -7,20 +7,36 @@
   <!-- A Blazor Web App that hosts a small in-memory Petstore API (every operation of ../Contracts/petstore.yaml) and
        consumes it through the generated client: per-operation authentication, cursor pagination, ApiResultView loading
        and error states, server validation errors in EditForm, merge patch, polymorphic, multipart, binary and
-       form-encoded bodies, and an error playground. An API traffic panel shows each request the client sends. -->
+       form-encoded bodies, and an error playground. An API traffic panel shows each request the client sends.
+       It also documents itself: an in-app guide, a contract and generated-code explorer, and a source browser. -->
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <RootNamespace>Petstore.BlazorApp</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- What an application needs: the generator (build time only), the runtime and, for Blazor, the components. -->
     <ProjectReference Include="..\..\src\BlazorApi.SourceGenerator\BlazorApi.SourceGenerator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\..\src\BlazorApi.Runtime\BlazorApi.Runtime.csproj" />
     <ProjectReference Include="..\..\src\BlazorApi.Blazor\BlazorApi.Blazor.csproj" />
+
+    <!-- Only for the "Contract & code" page, which runs the same generator at runtime to show its output. Applications
+         using the source generator do not need this reference. -->
+    <ProjectReference Include="..\..\src\BlazorApi.CodeGeneration\BlazorApi.CodeGeneration.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <OpenApiContract Include="..\Contracts\petstore.yaml" Namespace="Petstore.BlazorApp.Api" />
+  </ItemGroup>
+
+  <!-- The sample's own files, embedded so the source browser and the guide show the code that actually runs. -->
+  <ItemGroup Label="Sample sources">
+    <EmbeddedResource Include="Program.cs;Petstore.BlazorApp.csproj;appsettings.json;wwwroot\*.css;Api\**\*.cs;Services\**\*.cs;Components\**\*.razor;Components\**\*.cs"
+                      LogicalName="sample/Petstore.BlazorApp/%(Identity)" WithCulture="false" />
+    <EmbeddedResource Include="..\Contracts\petstore.yaml" LogicalName="sample/Contracts/petstore.yaml" WithCulture="false" />
+    <EmbeddedResource Include="..\Contracts\baseline\petstore.yaml" LogicalName="sample/Contracts/baseline/petstore.yaml" WithCulture="false" />
+    <EmbeddedResource Include="..\Petstore.Tests\*.cs;..\Petstore.Tests\*.csproj" LogicalName="sample/Petstore.Tests/%(Filename)%(Extension)" WithCulture="false" />
+    <EmbeddedResource Include="..\Petstore.ConsoleClient\Program.cs;..\Petstore.ConsoleClient\*.csproj" LogicalName="sample/Petstore.ConsoleClient/%(Filename)%(Extension)" WithCulture="false" />
   </ItemGroup>
 
   <Import Project="..\..\src\BlazorApi.SourceGenerator\build\BlazorApi.SourceGenerator.targets" />

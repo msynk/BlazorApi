@@ -1,0 +1,50 @@
+@* The "How this page works" panel of the demo pages: the key code, an explanation and links to the full files. *@
+<details class="card how" open="@Open">
+    <summary class="card-header">
+        <div>
+            <h2><Icon Name="code" /> How this page works</h2>
+            <p>@Summary</p>
+        </div>
+        <span class="how-toggle" aria-hidden="true"><Icon Name="chevron" /></span>
+    </summary>
+    <div class="card-body stack how-body">
+        @ChildContent
+        @if (Sources.Count > 0 || Docs is not null)
+        {
+            <div class="how-links">
+                @if (Sources.Count > 0)
+                {
+                    <span class="hint">Full source:</span>
+                    @foreach (var path in Sources)
+                    {
+                        <SourceLink Path="@path" />
+                    }
+                }
+                @if (Docs is not null)
+                {
+                    <span class="spacer"></span>
+                    <a class="btn btn-sm" href="@Docs"><Icon Name="book" /> Read the guide</a>
+                }
+            </div>
+        }
+    </div>
+</details>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Summary { get; set; } = string.Empty;
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>Sample files (paths in the source browser) to link to.</summary>
+    [Parameter]
+    public IReadOnlyList<string> Sources { get; set; } = [];
+
+    /// <summary>A guide page to link to.</summary>
+    [Parameter]
+    public string? Docs { get; set; }
+
+    [Parameter]
+    public bool Open { get; set; }
+}

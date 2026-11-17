@@ -1,0 +1,422 @@
+@page "/code"
+@using BlazorApi.CodeGeneration
+@using BlazorApi.OpenApi.Diagnostics
+@using BlazorApi.OpenApi.Model
+@inject ContractExplorer Explorer
+@inject NavigationManager Navigation
+
+<PageTitle>Contract &amp; code · Petstore</PageTitle>
+
+<div class="page-header">
+    <div>
+        <h1>Contract &amp; code</h1>
+        <p class="lead">
+            The contract on one side, the C# it becomes on the other. This page runs the same engine as the source
+            generator (<code>ApiClientGenerator.Generate</code>) in the app, so you can change the options, or even the
+            contract, and watch the generated code follow.
+        </p>
+    </div>
+</div>
+
+<div class="tabs" role="tablist">
+    <button type="button" role="tab" class="@Active("operations")" aria-selected="@(_tab == "operations")" @onclick="@(() => Show("operations"))">
+        <Icon Name="list" /> Operations <span class="count">@(_result.Model?.Operations.Count ?? 0)</span>
+    </button>
+    <button type="button" role="tab" class="@Active("contract")" aria-selected="@(_tab == "contract")" @onclick="@(() => Show("contract"))">
+        <Icon Name="file" /> Contract @(_edited ? "(edited)" : null)
+    </button>
+    <button type="button" role="tab" class="@Active("files")" aria-selected="@(_tab == "files")" @onclick="@(() => Show("files"))">
+        <Icon Name="code" /> Generated code <span class="count">@_result.Files.Count</span>
+    </button>
+    <button type="button" role="tab" class="@Active("diagnostics")" aria-selected="@(_tab == "diagnostics")" @onclick="@(() => Show("diagnostics"))">
+        <Icon Name="alert" /> Diagnostics <span class="count">@_result.Diagnostics.Count</span>
+    </button>
+</div>
+
+@switch (_tab)
+{
+    case "operations":
+        if (_result.Model is { } model)
+        {
+            <p class="muted small">
+                @model.Title @model.Version · @model.Operations.Count operations · click a row for its parameters, responses and
+                the generated methods.
+            </p>
+            <div class="table-scroll">
+                <table class="api-table">
+                    <thead><tr><th>Method</th><th>Path</th><th>Operation</th><th>Security</th><th>Body</th><th>Success</th></tr></thead>
+                    <tbody>
+                        @foreach (var operation in model.Operations)
+                        {
+                            var expanded = _expanded == operation.OperationId;
+                            <tr class="op-row @(expanded ? "expanded" : null)" @onclick="() => _expanded = expanded ? null : operation.OperationId">
+                                <td><span class="method m-@operation.Method.ToLowerInvariant()">@operation.Method.ToUpperInvariant()</span></td>
+                                <td class="op-path">@operation.Path</td>
+                                <td>
+                                    <code class="@(operation.Deprecated ? "deprecated" : null)">@operation.OperationId</code>
+                                    @if (operation.Pagination is not null)
+                                    {
+                                        <span class="badge badge-info plain">paged</span>
+                                    }
+                                    @if (operation.Deprecated)
+                                    {
+                                        <span class="badge badge-pending plain">deprecated</span>
+                                    }
+                                </td>
+                                <td class="small">@SecurityOf(operation)</td>
+                                <td class="mono small">@(operation.RequestBody?.Contents.FirstOrDefault()?.MediaType ?? "—")</td>
+                                <td class="mono small">@string.Join(", ", operation.SuccessResponses.Select(r => r.StatusCode))</td>
+                            </tr>
+                            @if (expanded)
+                            {
+                                <tr class="op-detail">
+                                    <td colspan="6">
+                                        <div class="stack">
+                                            @if (operation.Summary is not null || operation.Description is not null)
+                                            {
+                                                <p>@operation.Summary @operation.Description</p>
+                                            }
+                                            <div class="grid-2">
+                                                <div class="stack">
+                                                    <h3>Parameters</h3>
+                                                    @if (operation.Parameters.Count == 0)
+                                                    {
+                                                        <span class="hint">None.</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <dl class="kv">
+                                                            @foreach (var parameter in operation.Parameters)
+                                                            {
+                                                                <dt>@parameter.Name</dt>
+                                                                <dd>@parameter.Location.ToString().ToLowerInvariant() · @parameter.Type@(parameter.Required ? " · required" : null)</dd>
+                                                            }
+                                                        </dl>
+                                                    }
+                                                    @if (operation.RequestBody is { } body)
+                                                    {
+                                                        <h3>Request body</h3>
+                                                        <dl class="kv">
+                                                            @foreach (var content in body.Contents)
+                                                            {
+                                                                <dt>@content.MediaType</dt>
+                                                                <dd>@(content.Type?.ToString() ?? content.Kind.ToString())</dd>
+                                                            }
+                                                        </dl>
+                                                    }
+                                                </div>
+                                                <div class="stack">
+                                                    <h3>Responses</h3>
+                                                    <dl class="kv">
+                                                        @foreach (var response in operation.Responses)
+                                                        {
+                                                            <dt>@response.StatusCode @(response.IsSuccess ? "✓" : null)</dt>
+                                                            <dd>@(response.Contents.FirstOrDefault() is { } content ? $"{content.MediaType} · {content.Type?.ToString() ?? content.Kind.ToString()}" : "no body")</dd>
+                                                        }
+                                                    </dl>
+                                                </div>
+                                            </div>
+                                            <h3>Generated</h3>
+                                            <CodeBlock Language="csharp" Compact="true" Code="@MethodsFor(operation)" />
+                                            @if (DemoFor(operation.OperationId) is { } demo)
+                                            {
+                                                <a class="btn btn-sm" href="@demo.Href" style="align-self: flex-start"><Icon Name="play" /> @demo.Label</a>
+                                            }
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <Callout Kind="warning" Title="The contract could not be loaded">See the diagnostics.</Callout>
+        }
+        break;
+
+    case "contract":
+        <div class="row">
+            @if (_editing)
+            {
+                <button type="button" class="btn btn-primary btn-sm" @onclick="Regenerate"><Icon Name="refresh" /> Generate code</button>
+                <button type="button" class="btn btn-sm" @onclick="() => _editing = false">Done</button>
+            }
+            else
+            {
+                <button type="button" class="btn btn-sm" @onclick="() => _editing = true"><Icon Name="pencil" /> Edit the contract</button>
+            }
+            @if (_edited)
+            {
+                <button type="button" class="btn btn-sm" @onclick="Reset">Reset to petstore.yaml</button>
+            }
+            <span class="hint">
+                Changes stay on this page; they do not change the API or the app's compiled client.
+            </span>
+        </div>
+        if (_editing)
+        {
+            <Callout Kind="tip">
+                Try renaming an <code>operationId</code>, adding a property to <code>NewPet</code>, or breaking a
+                <code>$ref</code>, then press <strong>Generate code</strong> and look at the other tabs.
+            </Callout>
+            <textarea class="contract-editor" spellcheck="false" aria-label="Contract" @bind="_draft"></textarea>
+        }
+        else
+        {
+            <CodeBlock Language="yaml" Title="@(_edited ? "petstore.yaml (edited)" : "petstore.yaml")" SourcePath="@(_edited ? null : ContractExplorer.ContractPath)" LineNumbers="true" Code="@_contract" />
+        }
+        break;
+
+    case "files":
+        <details class="card" open="@_optionsOpen">
+            <summary class="card-header" style="cursor: pointer">
+                <div>
+                    <h2>Generator options</h2>
+                    <p>The <code>Options</code> metadata of <code>OpenApiContract</code>: @(OptionsText.Length == 0 ? "defaults" : OptionsText)</p>
+                </div>
+            </summary>
+            <div class="card-body stack">
+                <div class="option-grid">
+                    <div class="field">
+                        <label for="o-grouping">Grouping</label>
+                        <select id="o-grouping" value="@_options.Grouping" @onchange="e => Set(o => o with { Grouping = Enum.Parse<ClientGrouping>((string)e.Value!) })">
+                            @foreach (var value in Enum.GetValues<ClientGrouping>())
+                            {
+                                <option value="@value">@value</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label for="o-collections">Collections</label>
+                        <select id="o-collections" value="@_options.Collections" @onchange="e => Set(o => o with { Collections = Enum.Parse<CollectionStyle>((string)e.Value!) })">
+                            @foreach (var value in Enum.GetValues<CollectionStyle>())
+                            {
+                                <option value="@value">@value</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label for="o-date">DateType</label>
+                        <select id="o-date" value="@_options.DateType" @onchange="e => Set(o => o with { DateType = Enum.Parse<DateType>((string)e.Value!) })">
+                            @foreach (var value in Enum.GetValues<DateType>())
+                            {
+                                <option value="@value">@value</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label for="o-optional">OptionalNullable</label>
+                        <select id="o-optional" value="@_options.OptionalNullable" @onchange="e => Set(o => o with { OptionalNullable = Enum.Parse<OptionalNullableStyle>((string)e.Value!) })">
+                            @foreach (var value in Enum.GetValues<OptionalNullableStyle>())
+                            {
+                                <option value="@value">@value</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+                <div class="row">
+                    <label class="toggle"><input type="checkbox" checked="@_options.GenerateMocks" @onchange="e => Set(o => o with { GenerateMocks = (bool)e.Value! })" /> GenerateMocks</label>
+                    <label class="toggle"><input type="checkbox" checked="@_options.GenerateDocumentation" @onchange="e => Set(o => o with { GenerateDocumentation = (bool)e.Value! })" /> GenerateDocumentation</label>
+                    <label class="toggle"><input type="checkbox" checked="@_options.GenerateDataAnnotations" @onchange="e => Set(o => o with { GenerateDataAnnotations = (bool)e.Value! })" /> GenerateDataAnnotations</label>
+                    <label class="toggle"><input type="checkbox" checked="@_options.InternalTypes" @onchange="e => Set(o => o with { InternalTypes = (bool)e.Value! })" /> InternalTypes</label>
+                    <label class="toggle"><input type="checkbox" checked="@(_options.IncludeTags.Count > 0)" @onchange="e => Set(o => o with { IncludeTags = (bool)e.Value! ? StoreTag : [] })" /> IncludeTags=store</label>
+                    <span class="spacer"></span>
+                    <button type="button" class="btn btn-sm" disabled="@(_options == ContractExplorer.DefaultOptions)" @onclick="() => Set(_ => ContractExplorer.DefaultOptions)">Reset options</button>
+                </div>
+            </div>
+        </details>
+
+        if (_result.Files.Count == 0)
+        {
+            <Callout Kind="warning" Title="Nothing was generated">The contract has errors: see the diagnostics.</Callout>
+        }
+        else
+        {
+            <div class="browser">
+                <nav class="card file-tree" aria-label="Generated files">
+                    @foreach (var group in _result.Files.GroupBy(f => f.Path.Contains('/') ? f.Path[..f.Path.LastIndexOf('/')] : ContractExplorer.Namespace))
+                    {
+                        <div class="folder"><Icon Name="folder" /> @group.Key</div>
+                        @foreach (var file in group)
+                        {
+                            <button type="button" class="file @(file.Path == SelectedFile?.Path ? "active" : null)" @onclick="() => SelectFile(file.Path)" title="@file.Path">
+                                @file.Path[(file.Path.LastIndexOf('/') + 1)..]
+                            </button>
+                        }
+                    }
+                </nav>
+                @if (SelectedFile is { } selected)
+                {
+                    <div class="stack" style="min-width: 0">
+                        <div class="row">
+                            <span class="hint">
+                                @selected.Content.Count(c => c == '\n') lines · as a source generator hint name:
+                                <code>petstore_yaml.@selected.Path.Replace('/', '.')</code>
+                            </span>
+                        </div>
+                        <CodeBlock Language="csharp" Title="@selected.Path" LineNumbers="true" MaxHeight="75vh" Code="@selected.Content" />
+                    </div>
+                }
+            </div>
+        }
+        break;
+
+    case "diagnostics":
+        if (_result.Diagnostics.Count == 0)
+        {
+            <Callout Kind="tip" Title="No diagnostics">
+                The contract loads, validates and generates cleanly. Edit it on the Contract tab to see how problems are
+                reported: the build shows the same <code>BAPI</code> diagnostics, with file, line and column.
+            </Callout>
+        }
+        else
+        {
+            <div class="stack">
+                @foreach (var diagnostic in _result.Diagnostics)
+                {
+                    <div class="diag diag-@diagnostic.Severity.ToString().ToLowerInvariant()">
+                        <code>@diagnostic.Id</code>
+                        <span class="badge plain">@diagnostic.Severity</span>
+                        <span>
+                            @diagnostic.Message
+                            @if (diagnostic.Location.HasPosition)
+                            {
+                                <span class="hint"> (line @diagnostic.Location.Line, column @diagnostic.Location.Column)</span>
+                            }
+                            @if (diagnostic.Pointer is not null)
+                            {
+                                <span class="hint mono"> @diagnostic.Pointer</span>
+                            }
+                        </span>
+                    </div>
+                }
+            </div>
+        }
+        break;
+}
+
+@code {
+    private static readonly string[] StoreTag = ["store"];
+
+    private string _tab = "operations";
+    private string _contract = string.Empty;
+    private string _draft = string.Empty;
+    private bool _editing;
+    private bool _edited;
+    private bool _optionsOpen;
+    private GeneratorOptions _options = ContractExplorer.DefaultOptions;
+    private GenerationResult _result = null!;
+    private string? _expanded;
+    private string? _file;
+
+    [SupplyParameterFromQuery(Name = "file")]
+    public string? FileQuery { get; set; }
+
+    [SupplyParameterFromQuery(Name = "tab")]
+    public string? TabQuery { get; set; }
+
+    protected override void OnInitialized()
+    {
+        _contract = _draft = Explorer.ContractText;
+        _result = Explorer.Default;
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (FileQuery is { Length: > 0 })
+        {
+            _file = FileQuery;
+            _tab = "files";
+        }
+        else if (TabQuery is "operations" or "contract" or "files" or "diagnostics")
+        {
+            _tab = TabQuery;
+        }
+    }
+
+    private GeneratedFile? SelectedFile =>
+        _result.Files.FirstOrDefault(f => f.Path == _file)
+        ?? _result.Files.FirstOrDefault(f => f.Path.EndsWith("Client.g.cs", StringComparison.Ordinal))
+        ?? _result.Files.FirstOrDefault();
+
+    private string? Active(string tab) => _tab == tab ? "active" : null;
+
+    private void Show(string tab) => _tab = tab;
+
+    private void SelectFile(string path) => _file = path;
+
+    private void Set(Func<GeneratorOptions, GeneratorOptions> change)
+    {
+        _options = change(_options);
+        _optionsOpen = true;
+        _result = ContractExplorer.Generate(_contract, _options);
+    }
+
+    private void Regenerate()
+    {
+        if (_draft.Length > 256 * 1024)
+        {
+            _draft = _draft[..(256 * 1024)];
+        }
+
+        _contract = _draft;
+        _edited = _contract != Explorer.ContractText;
+        _result = ContractExplorer.Generate(_contract, _options);
+    }
+
+    private void Reset()
+    {
+        _contract = _draft = Explorer.ContractText;
+        _edited = false;
+        _editing = false;
+        _result = ContractExplorer.Generate(_contract, _options);
+    }
+
+    private string OptionsText
+    {
+        get
+        {
+            var defaults = ContractExplorer.DefaultOptions;
+            var parts = new List<string>();
+            if (_options.Grouping != defaults.Grouping) parts.Add($"Grouping={_options.Grouping}");
+            if (_options.Collections != defaults.Collections) parts.Add($"Collections={_options.Collections}");
+            if (_options.DateType != defaults.DateType) parts.Add($"DateType={_options.DateType}");
+            if (_options.OptionalNullable != defaults.OptionalNullable) parts.Add($"OptionalNullable={_options.OptionalNullable}");
+            if (_options.GenerateMocks) parts.Add("GenerateMocks=true");
+            if (!_options.GenerateDocumentation) parts.Add("GenerateDocumentation=false");
+            if (!_options.GenerateDataAnnotations) parts.Add("GenerateDataAnnotations=false");
+            if (_options.InternalTypes) parts.Add("InternalTypes=true");
+            if (_options.IncludeTags.Count > 0) parts.Add($"IncludeTags={string.Join(',', _options.IncludeTags)}");
+            return string.Join(';', parts);
+        }
+    }
+
+    private static string SecurityOf(ApiOperation operation)
+    {
+        var schemes = operation.Security.SelectMany(r => r.Items).Select(i => i.Scheme.Name).Distinct().ToList();
+        return schemes.Count == 0 ? "anonymous" : string.Join(" or ", schemes);
+    }
+
+    private string MethodsFor(ApiOperation operation)
+    {
+        var name = ContractExplorer.MethodBaseName(operation);
+        var methods = ContractExplorer.Methods(_result)
+            .Where(m => m.Name == name + "Async" || m.Name == name + "ResultAsync" ||
+                        (m.IsExtension && m.Name.StartsWith(name, StringComparison.Ordinal)))
+            .Select(m => (m.Obsolete ? "[Obsolete]\n" : null) + (m.IsExtension ? "public static " : null) + m.Signature + ";");
+        return string.Join("\n", methods.DefaultIfEmpty("// Not generated with the current options."));
+    }
+
+    private static (string Href, string Label)? DemoFor(string? operationId) => operationId switch
+    {
+        "listPets" => ("pets", "See it on the pets page"),
+        "createPet" => ("pets", "Add a pet on the pets page"),
+        "getPet" or "patchPet" or "updatePet" or "deletePet" or "uploadPetPhoto" or "downloadPetPhoto" or "placeOrder" => ("pets/1", "Try it on a pet's page"),
+        "getInventory" => ("inventory", "See the inventory page"),
+        "getHealth" => ("playground", "Run it in the playground"),
+        _ => null,
+    };
+}

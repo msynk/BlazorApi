@@ -1,0 +1,148 @@
+@page "/"
+@inject ContractExplorer Explorer
+
+<PageTitle>BlazorApi sample · Petstore</PageTitle>
+
+<section class="hero-panel">
+    <h1>A typed C# client from your OpenAPI contract, generated while you build</h1>
+    <p>
+        This app is a tour of <strong>BlazorApi</strong>. It hosts a small Petstore API and calls it through a client that
+        the source generator writes from <code>petstore.yaml</code>: typed models, two methods per operation,
+        per-operation authentication, pagination helpers and Blazor components for loading, error and validation states.
+    </p>
+    <div class="hero-actions">
+        <a class="btn btn-primary" href="pets"><Icon Name="play" /> Try the live demo</a>
+        <a class="btn" href="docs/getting-started"><Icon Name="book" /> Read the guide</a>
+        <a class="btn" href="code"><Icon Name="code" /> See the generated code</a>
+    </div>
+    <div class="hero-stats">
+        <div><strong>@_operations</strong><span>operations in the contract</span></div>
+        <div><strong>@_models</strong><span>schemas</span></div>
+        <div><strong>@_files</strong><span>generated files</span></div>
+        <div><strong>@_lines.ToString("N0")</strong><span>lines you did not write</span></div>
+    </div>
+</section>
+
+<div class="section-title">
+    <h2>How it fits together</h2>
+    <p>Nothing runs at startup: the client is ordinary compiled code.</p>
+</div>
+<div class="flow">
+    <div class="card flow-step">
+        <span class="step-num">1</span>
+        <h3>Contract</h3>
+        <p><SourceLink Path="Contracts/petstore.yaml" Label="petstore.yaml" /> describes paths, schemas, errors and security.</p>
+    </div>
+    <div class="card flow-step">
+        <span class="step-num">2</span>
+        <h3>Build</h3>
+        <p>An <code>OpenApiContract</code> item hands it to the Roslyn source generator, which validates it and emits C#.</p>
+    </div>
+    <div class="card flow-step">
+        <span class="step-num">3</span>
+        <h3>Generated client</h3>
+        <p><code>IPetstoreClient</code>, models, enums, converters, <code>AddPetstoreClient</code> and page walkers.</p>
+    </div>
+    <div class="card flow-step">
+        <span class="step-num">4</span>
+        <h3>Your components</h3>
+        <p>Inject the client, call it and render the result with <code>ApiResultView</code> and friends.</p>
+    </div>
+</div>
+
+<div class="section-title">
+    <h2>Three steps</h2>
+    <p>Exactly what this app does. <a href="docs/getting-started">The full walkthrough →</a></p>
+</div>
+<div class="grid-2">
+    <CodeBlock Title="1. Petstore.BlazorApp.csproj" Language="xml" Compact="true" Code="@ContractItem" />
+    <CodeBlock Title="2. Program.cs" Language="csharp" Compact="true" Code="@Registration" SourcePath="Petstore.BlazorApp/Program.cs" />
+</div>
+<CodeBlock Title="3. PetDetails.razor" Language="razor" Compact="true" Code="@Component" SourcePath="Petstore.BlazorApp/Components/Pages/PetDetails.razor" />
+
+<div class="section-title">
+    <h2>What to look at</h2>
+    <p>Every card links to a live demo or a guide page.</p>
+</div>
+<div class="feature-grid">
+    @foreach (var feature in Features)
+    {
+        <a class="card feature" href="@feature.Href">
+            <span class="feature-icon"><Icon Name="@feature.Icon" /></span>
+            <h3>@feature.Title</h3>
+            <p>@feature.Text</p>
+            <span class="chip">@feature.Where</span>
+        </a>
+    }
+</div>
+
+<div class="section-title">
+    <h2>Keep an eye on the traffic panel</h2>
+</div>
+<Callout Kind="tip" Title="Every request is visible">
+    On the demo pages, the panel on the right lists each request the generated client sends: the operation id, the URL
+    it built from your arguments, and which credentials the authentication handlers attached. Toggle it with
+    <strong>Show traffic</strong> at the top.
+</Callout>
+
+@code {
+    private sealed record Feature(string Title, string Text, string Icon, string Href, string Where);
+
+    private static readonly Feature[] Features =
+    [
+        new("Typed client and models", "Classes, records-like models with required members, enums with their wire values, and DataAnnotations from schema constraints.", "box", "code", "Contract & code"),
+        new("Results or exceptions", "Every operation has XxxAsync (throws ApiException) and XxxResultAsync (returns ApiResult). Pick per call site.", "arrow-right", "docs/calling", "Guide"),
+        new("Errors you can act on", "ApiError tells network, timeout, HTTP and deserialization failures apart, with the typed error body the contract declares.", "alert", "playground", "Live demo"),
+        new("Blazor components", "ApiResultView for loading/success/error, ApiErrorView for problems, ApiValidationErrors for server validation in EditForm.", "layers", "docs/components", "Guide"),
+        new("Per-operation authentication", "Bearer, API key and Basic handlers apply only to operations whose security requirements name their scheme.", "shield", "inventory", "Live demo"),
+        new("Pagination", "Cursor, page, offset and Link-header APIs are detected; page and item walkers return IAsyncEnumerable.", "list", "pets", "Live demo"),
+        new("Every body format", "JSON, JSON merge patch with Optional<T>, multipart uploads, binary downloads and form-encoded bodies.", "file", "pets/1", "Live demo"),
+        new("Polymorphism", "Discriminated hierarchies deserialize to Dog, Cat or UnrecognizedPet; PUT writes the right subtype back.", "grid", "docs/models", "Guide"),
+        new("Testing without a server", "Generated mocks and fixtures, MockApiHandler for the full HTTP stack, and contract compatibility checks.", "test", "docs/testing", "Guide"),
+    ];
+
+    private const string ContractItem = """
+        <ItemGroup>
+          <!-- The generator and the runtime the generated code needs. -->
+          <PackageReference Include="BlazorApi.SourceGenerator" Version="0.1.0-preview" PrivateAssets="all" />
+          <PackageReference Include="BlazorApi.Runtime" Version="0.1.0-preview" />
+          <PackageReference Include="BlazorApi.Blazor" Version="0.1.0-preview" />
+
+          <!-- The contract: one item per API. -->
+          <OpenApiContract Include="..\Contracts\petstore.yaml" Namespace="Petstore.BlazorApp.Api" />
+        </ItemGroup>
+        """;
+
+    private const string Registration = """
+        builder.Services
+            .AddPetstoreClient(options => options.Timeout = TimeSpan.FromSeconds(15))
+            .AddBearerToken(_ => new StaticAccessTokenProvider(token), scheme: "bearerAuth")
+            .AddApiKey("X-API-Key", ApiKeyLocation.Header,
+                (_, _) => new ValueTask<string?>(apiKey), scheme: "apiKey");
+        """;
+
+    private const string Component = """
+        @inject IPetstoreClient Api
+
+        <ApiResultView TValue="Pet" Load="ct => Api.GetPetResultAsync(PetId, ct)" Key="PetId">
+            <ChildContent Context="pet">
+                <h1>@pet.Name</h1>
+                @if (pet is Dog dog) { <p>Bark volume: @dog.BarkVolume</p> }
+            </ChildContent>
+        </ApiResultView>
+        """;
+
+    private int _operations;
+    private int _models;
+    private int _files;
+    private int _lines;
+
+    protected override void OnInitialized()
+    {
+        var result = Explorer.Default;
+        _operations = result.Model!.Operations.Count;
+        _models = result.Model.Types.Count;
+        _files = result.Files.Count;
+        _lines = result.Files.Sum(f => f.Content.Count(c => c == '\n'));
+    }
+}

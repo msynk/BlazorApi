@@ -91,7 +91,33 @@
     </ChildContent>
 </ApiResultView>
 
+<HowItWorks Summary="ApiResultView over a free-form object response, authenticated with an API key instead of the bearer token."
+            Sources="@(["Petstore.BlazorApp/Components/Pages/Inventory.razor", "Petstore.BlazorApp/Program.cs"])"
+            Docs="docs/authentication">
+    <ol>
+        <li><code>getInventory</code> returns <code>additionalProperties: integer</code>, generated as <code>IReadOnlyDictionary&lt;string, int&gt;</code>.</li>
+        <li>Its <code>security: [apiKey: []]</code> replaces the contract's default, so only the handler registered with <code>scheme: "apiKey"</code> applies.</li>
+        <li><code>Refresh</code> calls <code>ReloadAsync()</code> through <code>@@ref</code>; <code>KeepPreviousValue</code> keeps the numbers visible meanwhile.</li>
+    </ol>
+    <CodeBlock Language="razor" Code="@HowView" />
+</HowItWorks>
+
 @code {
+    private const string HowView = """
+        <ApiResultView TValue="IReadOnlyDictionary<string, int>" @ref="_view"
+                       Load="ct => Api.GetInventoryResultAsync(ct)" KeepPreviousValue="true">
+            <ChildContent Context="inventory">
+                @foreach (var status in Enum.GetValues<PetStatus>())
+                {
+                    var count = inventory.GetValueOrDefault(PetStatusJsonConverter.ToWireValue(status));
+                    <Stat Label="@status" Value="@count" />
+                }
+            </ChildContent>
+        </ApiResultView>
+
+        <button @onclick="() => _view!.ReloadAsync()">Refresh</button>
+        """;
+
     private ApiResultView<IReadOnlyDictionary<string, int>>? _view;
     private DateTime _loadedAt;
     private bool _refreshing;

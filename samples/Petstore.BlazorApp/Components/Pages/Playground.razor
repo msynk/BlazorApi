@@ -49,7 +49,35 @@
                   Code="@CancellationCode" Run="CancellationAsync" />
 </div>
 
+<HowItWorks Summary="Generated clients are plain classes: besides the registered one, the playground builds clients that fail on purpose."
+            Sources="@(["Petstore.BlazorApp/Components/Pages/Playground.razor", "Petstore.BlazorApp/Services/DemoClients.cs", "Petstore.BlazorApp/Components/Shared/ScenarioCard.razor"])"
+            Docs="docs/errors">
+    <ol>
+        <li><em>Missing credentials</em> uses an <code>HttpClient</code> from <code>IHttpClientFactory</code> without the authentication handlers.</li>
+        <li><em>Network failure</em> points <code>ApiClientOptions.BaseAddress</code> at a port nothing listens on.</li>
+        <li><em>Timeout</em> and <em>Cancellation</em> add a demo-only header that makes this API wait, with <code>ApiClientOptions.Timeout</code> or your own token.</li>
+        <li>Each card renders the result with <code>ApiErrorView</code>, the component every failing page here uses.</li>
+    </ol>
+    <CodeBlock Language="csharp" Title="DemoClients.cs (excerpt)" Code="@HowClients" />
+</HowItWorks>
+
 @code {
+    private const string HowClients = """
+        public IPetstoreClient WithoutCredentials() =>
+            new PetstoreClient(factory.CreateClient("Petstore.Anonymous"));
+
+        public IPetstoreClient Unreachable() => new PetstoreClient(
+            factory.CreateClient("Petstore.Anonymous"),
+            new ApiClientOptions { BaseAddress = new Uri("http://127.0.0.1:9/v1/") });
+
+        public IPetstoreClient Slow(TimeSpan delay, TimeSpan? timeout = null)
+        {
+            var options = new ApiClientOptions { Timeout = timeout };
+            options.DefaultHeaders["X-Demo-Delay"] = delay.TotalMilliseconds.ToString();
+            return new PetstoreClient(factory.CreateClient("Petstore.Anonymous"), options);
+        }
+        """;
+
     private async Task<ScenarioOutcome> HealthAsync(CancellationToken cancellationToken)
     {
         var result = await Api.GetHealthResultAsync(cancellationToken);

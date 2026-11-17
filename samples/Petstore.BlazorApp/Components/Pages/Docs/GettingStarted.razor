@@ -1,0 +1,193 @@
+@page "/docs"
+@page "/docs/getting-started"
+@inject ContractExplorer Explorer
+@inject SampleSources Sources
+
+<DocPage Href="docs/getting-started" Title="Getting started"
+         Lead="Add an OpenAPI contract to a project, build, and call the API through a typed client. This is exactly how this sample is set up."
+         Contents="@([("packages", "Packages"), ("contract", "Add the contract"), ("generated", "What you get"), ("register", "Register the client"), ("call", "Call it"), ("options", "Generator options")])">
+
+    <section id="packages">
+        <h2>1. Reference the packages</h2>
+        <p>
+            Three packages cover a Blazor app. The generator runs inside the compiler only, so it is a private build-time
+            reference; the generated code needs <code>BlazorApi.Runtime</code>; <code>BlazorApi.Blazor</code> adds the UI
+            components.
+        </p>
+        <CodeBlock Language="xml" Title="MyApp.csproj" Code="@Packages" />
+        <Callout Kind="info">
+            Inside this repository the sample uses project references and imports the generator's MSBuild files directly:
+            see <SourceLink Path="Petstore.BlazorApp/Petstore.BlazorApp.csproj" />.
+        </Callout>
+    </section>
+
+    <section id="contract">
+        <h2>2. Add the contract</h2>
+        <p>
+            Point an <code>OpenApiContract</code> item at an OpenAPI 3.0 or 3.1 document (JSON or YAML). Build, and the code
+            exists: no command to run, no files to check in. Edits to the contract regenerate on the next build (and in
+            the IDE as you type).
+        </p>
+        <CodeBlock Language="xml" Code="@ContractItem" />
+        <p>
+            Contract problems are compiler diagnostics with a <code>BAPI</code> id, the file, line and column, so a broken
+            contract fails the build like broken C# would.
+        </p>
+    </section>
+
+    <section id="generated">
+        <h2>3. What you get</h2>
+        <p>
+            For this sample's contract, titled <em>@Explorer.Model.Title</em>, the generator produces
+            @Explorer.Default.Files.Count files in <code>@ContractExplorer.Namespace</code>:
+        </p>
+        <div class="table-scroll">
+            <table class="api-table">
+                <thead><tr><th>File</th><th>Contains</th></tr></thead>
+                <tbody>
+                    @foreach (var file in Explorer.Default.Files.OrderBy(f => f.Path.Contains('/')).ThenBy(f => f.Path))
+                    {
+                        <tr>
+                            <td><a class="mono" href="@($"code?file={Uri.EscapeDataString(file.Path)}")">@file.Path</a></td>
+                            <td class="muted">@Describe(file.Path)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <p>Browse them on the <a href="code">Contract &amp; code</a> page; they are the files this app compiles.</p>
+    </section>
+
+    <section id="register">
+        <h2>4. Register the client</h2>
+        <p>
+            <code>AddPetstoreClient</code> registers <code>IPetstoreClient</code> as a typed <code>HttpClient</code> client
+            with <code>IHttpClientFactory</code>, and returns the <code>IHttpClientBuilder</code> so you can add
+            authentication, resilience or logging handlers. This is this app's registration:
+        </p>
+        <CodeBlock Language="csharp" Title="Program.cs (excerpt)" SourcePath="Petstore.BlazorApp/Program.cs" Code="@Registration" />
+        <p>
+            The base address comes from <code>ApiClientOptions.BaseAddress</code>, else <code>HttpClient.BaseAddress</code>
+            (this app sets it from where Kestrel listens), else the contract's first server URL
+            (<code>PetstoreClient.DefaultBaseAddress</code>).
+        </p>
+        <p>Without dependency injection, construct the client yourself (from <SourceLink Path="Petstore.ConsoleClient/Program.cs" />):</p>
+        <CodeBlock Language="csharp" Code="@WithoutDi" />
+    </section>
+
+    <section id="call">
+        <h2>5. Call it</h2>
+        <p>Inject the interface and call operations. Arguments, bodies and results are typed from the contract.</p>
+        <CodeBlock Language="razor" Code="@Usage" />
+        <LiveExample Title="GetPetResultAsync against this app's API">
+            <div class="live-controls">
+                <label class="label" for="gs-id">petId</label>
+                <input id="gs-id" class="input" type="number" style="width: 7rem" @bind="_petId" />
+                <button type="button" class="btn btn-primary btn-sm" disabled="@_running" @onclick="RunAsync"><Icon Name="play" /> Run</button>
+            </div>
+            <ResultInspector Result="_result" Value="_result?.Value" />
+        </LiveExample>
+    </section>
+
+    <section id="options">
+        <h2>Generator options</h2>
+        <p>
+            Options go in the item's <code>Options</code> metadata as <code>key=value</code> pairs, or in a JSON file named
+            by <code>Config</code>. A few of the most useful:
+        </p>
+        <div class="table-scroll">
+            <table class="api-table">
+                <thead><tr><th>Option</th><th>Default</th><th>Effect</th></tr></thead>
+                <tbody>
+                    <tr><td><code>ClientName</code></td><td>from the title</td><td>Client class name (<code>PetstoreClient</code>).</td></tr>
+                    <tr><td><code>Grouping</code></td><td><code>single</code></td><td><code>tag</code> makes one client per tag (<code>PetsClient</code>, <code>StoreClient</code>).</td></tr>
+                    <tr><td><code>Collections</code></td><td><code>readOnly</code></td><td><code>IReadOnlyList&lt;T&gt;</code>, or <code>mutable</code> / <code>array</code>.</td></tr>
+                    <tr><td><code>DateType</code></td><td><code>dateOnly</code></td><td>C# type of <code>format: date</code>.</td></tr>
+                    <tr><td><code>GenerateMocks</code></td><td><code>false</code></td><td>Mocks and fixtures for tests (<a href="docs/testing">Testing</a>).</td></tr>
+                    <tr><td><code>IncludeTags</code> / <code>ExcludeOperations</code></td><td>all</td><td>Generate a subset of the API.</td></tr>
+                    <tr><td><code>Strict</code></td><td><code>false</code></td><td>Contract warnings fail the build.</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <Callout Kind="tip" Title="Try them">
+            The <a href="code">Contract &amp; code</a> page regenerates the client with the options you pick and shows
+            the result immediately.
+        </Callout>
+    </section>
+</DocPage>
+
+@code {
+    private long _petId = 1;
+    private ApiResult<Pet>? _result;
+    private bool _running;
+
+    [Inject]
+    private IPetstoreClient Api { get; set; } = null!;
+
+    private async Task RunAsync()
+    {
+        _running = true;
+        _result = await Api.GetPetResultAsync(_petId);
+        _running = false;
+    }
+
+    private static string Describe(string path) => path switch
+    {
+        var p when p.EndsWith("ClientServiceCollectionExtensions.g.cs", StringComparison.Ordinal) => "AddPetstoreClient(...) for dependency injection",
+        var p when p.EndsWith("ClientPagination.g.cs", StringComparison.Ordinal) => "Page and item walkers (ListPetsPagesAsync, ListPetsItemsAsync)",
+        var p when p.EndsWith("ClientMock.g.cs", StringComparison.Ordinal) => "Test double (GenerateMocks)",
+        var p when p.EndsWith("Fixtures.g.cs", StringComparison.Ordinal) => "Test data builders (GenerateMocks)",
+        var p when p.EndsWith("Client.g.cs", StringComparison.Ordinal) => "The client interface and class: two methods per operation",
+        var p when p.StartsWith("Models/", StringComparison.Ordinal) => "A model, enum or polymorphic hierarchy with its JSON converter",
+        _ => string.Empty,
+    };
+
+    private const string Packages = """
+        <ItemGroup>
+          <PackageReference Include="BlazorApi.SourceGenerator" Version="0.1.0-preview" PrivateAssets="all" />
+          <PackageReference Include="BlazorApi.Runtime" Version="0.1.0-preview" />
+          <PackageReference Include="BlazorApi.Blazor" Version="0.1.0-preview" />
+        </ItemGroup>
+        """;
+
+    private const string ContractItem = """
+        <ItemGroup>
+          <OpenApiContract Include="Contracts/petstore.yaml"
+                           Namespace="MyApp.Petstore"
+                           Options="Collections=mutable;GenerateMocks=false" />
+        </ItemGroup>
+        """;
+
+    private const string Registration = """
+        builder.Services
+            .AddPetstoreClient(options => options.Timeout = TimeSpan.FromSeconds(15))
+            .ConfigureHttpClient((services, http) => http.BaseAddress = services.GetRequiredService<PetstoreApiAddress>().Value)
+            .AddBearerToken(_ => new StaticAccessTokenProvider(PetStore.DemoToken), scheme: "bearerAuth")
+            .AddApiKey("X-API-Key", ApiKeyLocation.Header, (_, _) => new ValueTask<string?>(PetStore.DemoApiKey), scheme: "apiKey")
+            .AddHttpMessageHandler<ApiActivityHandler>();
+        """;
+
+    private const string WithoutDi = """
+        using var http = new HttpClient(new BearerTokenHandler(new StaticAccessTokenProvider("demo-token"), "bearerAuth")
+        {
+            InnerHandler = new HttpClientHandler(),
+        });
+        var client = new PetstoreClient(http, new ApiClientOptions { BaseAddress = baseAddress });
+        """;
+
+    private const string Usage = """
+        @inject IPetstoreClient Api
+
+        @code {
+            private async Task LoadAsync()
+            {
+                // Throws ApiException on failure:
+                Pet pet = await Api.GetPetAsync(1);
+
+                // Or returns the outcome:
+                ApiResult<Pet> result = await Api.GetPetResultAsync(1);
+                if (result.IsSuccess) { /* result.Value */ } else { /* result.Error */ }
+            }
+        }
+        """;
+}

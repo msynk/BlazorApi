@@ -1,26 +1,49 @@
 @inherits LayoutComponentBase
+@implements IDisposable
+@inject NavigationManager Navigation
 
 <header class="topbar">
+    <button type="button" class="btn btn-ghost menu-button" aria-label="Menu" aria-expanded="@_menuOpen" @onclick="() => _menuOpen = !_menuOpen">
+        <Icon Name="@(_menuOpen ? "x" : "menu")" />
+    </button>
+
     <a class="brand" href="">
         <span class="brand-mark" aria-hidden="true">🐾</span>
         <span>Petstore<small>BlazorApi sample</small></span>
     </a>
 
-    <nav class="nav" aria-label="Main">
-        <NavLink href="" Match="NavLinkMatch.All"><Icon Name="grid" /> Pets</NavLink>
-        <NavLink href="inventory"><Icon Name="chart" /> Inventory</NavLink>
-        <NavLink href="playground"><Icon Name="flask" /> Error playground</NavLink>
-    </nav>
-
     <div class="topbar-end">
-        <button type="button" class="btn btn-sm" aria-pressed="@_showTraffic" @onclick="() => _showTraffic = !_showTraffic">
-            <Icon Name="@(_showTraffic ? "eye-off" : "activity")" />
-            @(_showTraffic ? "Hide traffic" : "Show traffic")
+        <span class="badge badge-primary plain topbar-pill">Typed client generated from <code>petstore.yaml</code></span>
+        <button type="button" class="btn btn-sm" aria-pressed="@ShowTraffic" @onclick="ToggleTraffic">
+            <Icon Name="activity" />
+            <span class="hide-sm">@(ShowTraffic ? "Hide traffic" : "Show traffic")</span>
         </button>
     </div>
 </header>
 
-<div class="shell @(_showTraffic ? null : "traffic-hidden")">
+<div class="shell @(ShowTraffic ? "with-traffic" : null)">
+    <nav class="sidebar @(_menuOpen ? "open" : null)" aria-label="Main">
+        @foreach (var section in SiteMap.Sections)
+        {
+            <div class="nav-section">
+                <div class="nav-section-title">@section.Title</div>
+                @foreach (var item in section.Items)
+                {
+                    <NavLink href="@item.Href" Match="@(item.Href.Length == 0 || item.Href.StartsWith("docs/", StringComparison.Ordinal) ? NavLinkMatch.All : NavLinkMatch.Prefix)">
+                        <Icon Name="@item.Icon" /> @item.Title
+                    </NavLink>
+                }
+            </div>
+        }
+        <div class="sidebar-foot">
+            <span class="hint">Data lives in memory and resets when the app restarts.</span>
+        </div>
+    </nav>
+    @if (_menuOpen)
+    {
+        <div class="sidebar-backdrop" @onclick="() => _menuOpen = false"></div>
+    }
+
     <main class="content">
         <ErrorBoundary @ref="_errorBoundary">
             <ChildContent>
@@ -39,7 +62,7 @@
         </ErrorBoundary>
     </main>
 
-    @if (_showTraffic)
+    @if (ShowTraffic)
     {
         <ApiTrafficPanel />
     }
@@ -54,8 +77,39 @@
 </div>
 
 @code {
-    private bool _showTraffic = true;
+    // Pages that call the API show the traffic panel by default; reading pages hide it. A click on the toggle wins.
+    private static readonly string[] QuietPages = ["", "code", "source"];
+
+    private bool? _trafficChoice;
+    private bool _menuOpen;
     private ErrorBoundary? _errorBoundary;
 
+    private bool ShowTraffic => _trafficChoice ?? !IsQuietPage;
+
+    private bool IsQuietPage
+    {
+        get
+        {
+            var path = Navigation.ToBaseRelativePath(Navigation.Uri).Split('?', '#')[0].TrimEnd('/');
+            var first = path.Split('/')[0];
+            return QuietPages.Contains(first, StringComparer.OrdinalIgnoreCase);
+        }
+    }
+
+    protected override void OnInitialized() => Navigation.LocationChanged += OnLocationChanged;
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        if (_menuOpen)
+        {
+            _menuOpen = false;
+            _ = InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void ToggleTraffic() => _trafficChoice = !ShowTraffic;
+
     private void Recover() => _errorBoundary?.Recover();
+
+    public void Dispose() => Navigation.LocationChanged -= OnLocationChanged;
 }

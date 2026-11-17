@@ -131,12 +131,27 @@ dotnet run --project samples/Petstore.BlazorApp     # http://localhost:5080
 
 The app calls the API it hosts, at whatever address Kestrel listens on (`--urls` works); set `PetstoreApi` to call
 another server. An **API traffic** panel lists every request the generated client sends: the operation id, the URL
-it built and which credentials the handlers attached (secrets are never shown).
+it built and which credentials the handlers attached (secrets are never shown). Every demo page has a
+**How this page works** panel with the key code and links to the full files.
+
+The app also documents the library from the inside:
+
+- **Overview** (`/`): what the generator produces from the contract, with live counts, and a map of the sample.
+- **Guide** (`/docs/...`): getting started, calling operations, handling errors, Blazor components, authentication,
+  pagination, models and testing. Each page has highlighted code and live examples that call the hosted API (for
+  example the request a `ListPetsResultAsync` call builds, `ApiResultView` in four states, or JSON deserialized into
+  the polymorphic `Pet`). Tables of operations, error bodies, security requirements and model properties are read
+  from the contract and the compiled models, so they stay accurate.
+- **Contract & code** (`/code`): the contract's operations with their generated method signatures, the contract
+  itself (editable), the generated files, and the generator's diagnostics. It runs `ApiClientGenerator.Generate`
+  in the app (which is why the sample references `BlazorApi.CodeGeneration`; applications do not need it), so
+  changing the generator options or the contract shows the resulting code immediately.
+- **Source browser** (`/source`): every file of the samples, embedded at build time, which the guide links to.
 
 - `Program.cs` registers the generated client with `AddPetstoreClient`, a bearer token for the `bearerAuth` scheme,
   an API key for `apiKey` and a logging `DelegatingHandler` added last, so it sees the headers the others attached.
   `/health` stays anonymous because the contract says `security: []`.
-- **Pets** (`Pages/Home.razor`, `Pets/NewPetForm.razor`): cursor pagination with `ListPetsResultAsync` and
+- **Pets** (`Pages/PetList.razor`, `Pets/NewPetForm.razor`): cursor pagination with `ListPetsResultAsync` and
   "Load more", a typed `status` filter, the total from the `X-Total-Count` response header, and a create form with
   `DataAnnotationsValidator`, `ApiValidationErrors` and `CreatePetResultAsync`. An empty name or the "Parrot" kind
   shows the server's 422 problem details on the fields.

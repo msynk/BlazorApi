@@ -1,0 +1,212 @@
+@page "/docs/calling"
+@inject IPetstoreClient Api
+@inject DemoClients Clients
+@inject ContractExplorer Explorer
+
+<DocPage Href="docs/calling" Title="Calling operations"
+         Lead="Every operation becomes two methods: one returns the body and throws on failure, the other returns an ApiResult that never throws for API failures. Parameters, bodies and responses are typed from the contract."
+         Contents="@([("two-methods", "Two methods"), ("parameters", "Parameters"), ("results", "ApiResult"), ("options", "ApiClientOptions"), ("cancellation", "Cancellation and timeouts")])">
+
+    <section id="two-methods">
+        <h2>Two methods per operation</h2>
+        <p>From <code>getPet</code> the generator emits:</p>
+        <CodeBlock Language="csharp" Code="@GetPetSignatures" />
+        <div class="table-scroll">
+            <table class="api-table">
+                <thead><tr><th></th><th><code>GetPetAsync</code></th><th><code>GetPetResultAsync</code></th></tr></thead>
+                <tbody>
+                    <tr><td>Success</td><td>the <code>Pet</code></td><td><code>ApiResult&lt;Pet&gt;</code> with <code>Value</code></td></tr>
+                    <tr><td>HTTP error, network failure, timeout, unreadable body</td><td>throws <code>ApiException</code> (or a subclass)</td><td><code>IsSuccess == false</code>, details in <code>Error</code></td></tr>
+                    <tr><td>You cancel the token</td><td colspan="2"><code>OperationCanceledException</code></td></tr>
+                    <tr><td>Use it when</td><td>a failure is exceptional (services, scripts)</td><td>a failure is a state to render (UI)</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <LiveExample Title="The same failure, both ways">
+            <div class="live-controls">
+                <button type="button" class="btn btn-sm" @onclick="ThrowingAsync"><Icon Name="play" /> await Api.GetPetAsync(9999)</button>
+                <button type="button" class="btn btn-sm" @onclick="ResultAsync"><Icon Name="play" /> await Api.GetPetResultAsync(9999)</button>
+            </div>
+            @if (_caught is not null)
+            {
+                <div class="outcome fail">
+                    <span class="outcome-title"><Icon Name="alert" /> threw @_caught.GetType().Name</span>
+                    <span class="small mono">ex.StatusCode = @_caught.StatusCode · ex.Content is @(_caught.Content?.GetType().Name ?? "null")</span>
+                </div>
+            }
+            <ResultInspector Result="_petResult" Value="_petResult?.Value" />
+        </LiveExample>
+    </section>
+
+    <section id="parameters">
+        <h2>Parameters</h2>
+        <p>
+            Path parameters and the body come first, then the other parameters; optional ones default to <code>null</code>
+            and are left out of the request. <code>listPets</code> shows most kinds:
+        </p>
+        <CodeBlock Language="csharp" Code="@ListPetsSignature" />
+        <div class="table-scroll">
+            <table class="api-table">
+                <thead><tr><th>Contract</th><th>C#</th><th>On the wire</th></tr></thead>
+                <tbody>
+                    <tr><td><code>limit</code> query, integer int32</td><td><code>int? limit</code></td><td><code>?limit=2</code></td></tr>
+                    <tr><td><code>cursor</code> query, string</td><td><code>string? cursor</code></td><td><code>&amp;cursor=6</code></td></tr>
+                    <tr><td><code>tags</code> query, array, <code>style: form, explode: true</code></td><td><code>IEnumerable&lt;string&gt;? tags</code></td><td><code>&amp;tags=shy&amp;tags=quiet</code></td></tr>
+                    <tr><td><code>status</code> query, <code>$ref: PetStatus</code></td><td><code>PetStatus? status</code></td><td>the wire value: <code>&amp;status=available</code></td></tr>
+                    <tr><td><code>X-Request-Id</code> header, uuid</td><td><code>Guid? xRequestId</code></td><td><code>X-Request-Id: 6f1c…</code></td></tr>
+                </tbody>
+            </table>
+        </div>
+        <LiveExample Title="See the request the client builds">
+            <div class="live-controls">
+                <label class="toggle"><input type="checkbox" @bind="_withTags" /> tags: shy, quiet</label>
+                <select class="input" @bind="_status" aria-label="status">
+                    <option value="">status: null</option>
+                    <option value="@PetStatus.Available">status: Available</option>
+                    <option value="@PetStatus.Pending">status: Pending</option>
+                </select>
+                <label class="toggle"><input type="checkbox" @bind="_withRequestId" /> xRequestId</label>
+                <button type="button" class="btn btn-primary btn-sm" @onclick="ListAsync"><Icon Name="play" /> Run</button>
+            </div>
+            <CodeBlock Language="csharp" Compact="true" HideCopy="true" Code="@ListCall" />
+            @if (_request is not null)
+            {
+                <CodeBlock Language="http" Title="The request (seen by ApiClientOptions.OnRequest)" Compact="true" HideCopy="true" Code="@_request" />
+            }
+            <ResultInspector Result="_listResult" Value="_listResult?.Value" />
+        </LiveExample>
+        <Callout Kind="info">
+            Request bodies follow the content type the contract declares: JSON, JSON merge patch
+            (<code>PetPatch</code> with <code>Optional&lt;T&gt;</code>), multipart (<code>FileContent</code> plus the other
+            fields as parameters) and form-urlencoded. The <a href="pets/1">pet details page</a> uses each of them.
+        </Callout>
+    </section>
+
+    <section id="results">
+        <h2>ApiResult</h2>
+        <div class="table-scroll">
+            <table class="api-table">
+                <thead><tr><th>Member</th><th>Meaning</th></tr></thead>
+                <tbody>
+                    <tr><td><code>IsSuccess</code></td><td>The status is one the operation declares as success. When false, <code>Error</code> is set (the compiler knows: no <code>!</code> needed).</td></tr>
+                    <tr><td><code>Value</code></td><td>The typed body (<code>ApiResult&lt;T&gt;</code> only).</td></tr>
+                    <tr><td><code>StatusCode</code></td><td>The HTTP status; 0 when no response arrived.</td></tr>
+                    <tr><td><code>Headers</code>, <code>GetHeader(name)</code></td><td>Response headers, such as <code>X-Total-Count</code> on the <a href="pets">pets page</a>.</td></tr>
+                    <tr><td><code>Error</code></td><td>An <code>ApiError</code>: see <a href="docs/errors">Handling errors</a>.</td></tr>
+                    <tr><td><code>EnsureSuccess()</code>, <code>GetValueOrThrow()</code></td><td>Switch to exceptions when convenient.</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <CodeBlock Language="csharp" Code="@ResultUsage" />
+    </section>
+
+    <section id="options">
+        <h2>ApiClientOptions</h2>
+        <p>Configured in <code>AddPetstoreClient(options => ...)</code> or passed to the constructor.</p>
+        <div class="table-scroll">
+            <table class="api-table">
+                <thead><tr><th>Property</th><th>Default</th><th>Purpose</th></tr></thead>
+                <tbody>
+                    <tr><td><code>BaseAddress</code></td><td><code>null</code></td><td>Overrides <code>HttpClient.BaseAddress</code> and the contract's server.</td></tr>
+                    <tr><td><code>Timeout</code></td><td><code>null</code></td><td>Per request, including the body. Failures become <code>ApiErrorKind.Timeout</code>.</td></tr>
+                    <tr><td><code>DefaultHeaders</code></td><td>empty</td><td>Added to every request.</td></tr>
+                    <tr><td><code>OnRequest</code>, <code>OnResponse</code></td><td><code>null</code></td><td>Callbacks before sending and when headers arrive (used by the live example above).</td></tr>
+                    <tr><td><code>JsonSerializerOptions</code></td><td><code>ApiJson.CreateOptions()</code></td><td>System.Text.Json settings; supply a source-generated context for trimming and AOT.</td></tr>
+                    <tr><td><code>MaxErrorBodyLength</code></td><td>65,536</td><td>Characters of an error body kept in <code>ApiError.Body</code>.</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section id="cancellation">
+        <h2>Cancellation and timeouts</h2>
+        <p>
+            Every method takes a <code>CancellationToken</code> last. Cancelling your own token throws
+            <code>OperationCanceledException</code> from both methods; a timeout is not a cancellation, so
+            <code>...ResultAsync</code> returns <code>ApiErrorKind.Timeout</code> instead. Blazor components should cancel
+            in <code>Dispose</code> (<code>ApiResultView</code> does).
+        </p>
+        <CodeBlock Language="csharp" Code="@Cancellation" />
+        <p>Run both in the <a href="playground">error playground</a>.</p>
+    </section>
+</DocPage>
+
+@code {
+    private ApiException? _caught;
+    private ApiResult<Pet>? _petResult;
+    private bool _withTags;
+    private bool _withRequestId;
+    private PetStatus? _status;
+    private string? _request;
+    private ApiResult<PetPage>? _listResult;
+
+    private string GetPetSignatures => Signatures("GetPetAsync", "GetPetResultAsync");
+
+    private string ListPetsSignature => Signatures("ListPetsResultAsync");
+
+    private string Signatures(params string[] names) => string.Join("\n", ContractExplorer.Methods(Explorer.Default)
+        .Where(m => names.Contains(m.Name))
+        .Select(m => (m.Summary is null ? null : $"// {m.Summary}\n") + m.Signature + ";"));
+
+    private string ListCall =>
+        $"await Api.ListPetsResultAsync(limit: 2{(_withTags ? ", tags: [\"shy\", \"quiet\"]" : null)}" +
+        $"{(_status is { } s ? $", status: PetStatus.{s}" : null)}{(_withRequestId ? ", xRequestId: Guid.NewGuid()" : null)});";
+
+    private async Task ThrowingAsync()
+    {
+        _petResult = null;
+        _caught = null;
+        try
+        {
+            await Api.GetPetAsync(9999);
+        }
+        catch (ApiException ex)
+        {
+            _caught = ex;
+        }
+    }
+
+    private async Task ResultAsync()
+    {
+        _caught = null;
+        _petResult = await Api.GetPetResultAsync(9999);
+    }
+
+    private async Task ListAsync()
+    {
+        var client = Clients.Observed(request =>
+        {
+            var headers = request.Headers.Select(h => $"{h.Key}: {string.Join(", ", h.Value)}");
+            _request = string.Join("\n", new[] { $"{request.Method} {request.RequestUri}" }.Concat(headers));
+        });
+        _listResult = await client.ListPetsResultAsync(
+            limit: 2,
+            tags: _withTags ? ["shy", "quiet"] : null,
+            status: _status,
+            xRequestId: _withRequestId ? Guid.NewGuid() : null);
+    }
+
+    private const string ResultUsage = """
+        var result = await Api.ListPetsResultAsync(limit: 6, status: PetStatus.Available);
+        if (!result.IsSuccess)
+        {
+            _error = result.Error;              // no null check needed: IsSuccess == false implies Error != null
+            return;
+        }
+
+        _pets.AddRange(result.Value!.Items);
+        _total = long.Parse(result.GetHeader("X-Total-Count") ?? "0");
+        """;
+
+    private const string Cancellation = """
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        try
+        {
+            var result = await Api.GetHealthResultAsync(cts.Token);   // ApiErrorKind.Timeout when ApiClientOptions.Timeout elapses
+        }
+        catch (OperationCanceledException)
+        {
+            // cts was cancelled (by you or its own timer)
+        }
+        """;
+}

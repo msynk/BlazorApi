@@ -1,0 +1,292 @@
+@page "/docs/components"
+@inject IPetstoreClient Api
+@inject DemoClients Clients
+@inject ToastService Toasts
+
+<DocPage Href="docs/components" Title="Blazor components"
+         Lead="BlazorApi.Blazor turns the states of an API call into UI: ApiResultView for loading, success and error, ApiErrorView for any ApiError, and ApiValidationErrors for server-side validation inside an EditForm."
+         Contents="@([("setup", "Setup"), ("result-view", "ApiResultView"), ("error-view", "ApiErrorView"), ("validation", "ApiValidationErrors"), ("styling", "Styling")])">
+
+    <section id="setup">
+        <h2>Setup</h2>
+        <p>Reference <code>BlazorApi.Blazor</code> and add the namespaces to <code>_Imports.razor</code>:</p>
+        <CodeBlock Language="razor" Title="_Imports.razor" SourcePath="Petstore.BlazorApp/Components/_Imports.razor" Code="@Imports" />
+    </section>
+
+    <section id="result-view">
+        <h2>ApiResultView</h2>
+        <p>
+            Give it a <code>Load</code> function (a generated <code>...ResultAsync</code> call) and templates. It loads on
+            first render and whenever <code>Key</code> changes, cancels the previous load, and cancels on dispose.
+        </p>
+        <LiveExample Title="@("ApiResultView<Pet> with four kinds of outcome")">
+            <div class="live-controls">
+                <div class="segmented" role="group" aria-label="Scenario">
+                    @foreach (var (key, label) in Scenarios)
+                    {
+                        <button type="button" class="@(_scenario == key ? "active" : null)" @onclick="() => _scenario = key">@label</button>
+                    }
+                </div>
+                <label class="toggle"><input type="checkbox" @bind="_keepPrevious" /> KeepPreviousValue</label>
+                <button type="button" class="btn btn-sm" @onclick="ReloadAsync"><Icon Name="refresh" /> ReloadAsync()</button>
+            </div>
+
+            <ApiResultView TValue="Pet" @ref="_view" Load="LoadScenarioAsync" Key="_scenario" KeepPreviousValue="_keepPrevious">
+                <Loading>
+                    <div class="row muted"><span class="spinner"></span> Loading… (the <code>Loading</code> template)</div>
+                </Loading>
+                <ChildContent Context="pet">
+                    <div class="row">
+                        <PetAvatar Pet="pet" />
+                        <div>
+                            <strong>@pet.Name</strong>
+                            <div class="muted small">@PetCard.Describe(pet) · <code>@pet.GetType().Name</code></div>
+                        </div>
+                        @if (_view?.IsLoading == true)
+                        {
+                            <span class="spinner" title="Reloading; the previous value stays visible"></span>
+                        }
+                    </div>
+                </ChildContent>
+            </ApiResultView>
+            <span class="hint">No <code>Error</code> template here, so failures use the default: an <code>ApiErrorView</code> with a retry button.</span>
+        </LiveExample>
+        <CodeBlock Language="razor" Code="@ResultViewCode" />
+        <div class="table-scroll">
+            <table class="api-table">
+                <thead><tr><th>Parameter / member</th><th>Purpose</th></tr></thead>
+                <tbody>
+                    <tr><td><code>Load</code></td><td><code>Func&lt;CancellationToken, Task&lt;ApiResult&lt;TValue&gt;&gt;&gt;</code>, required.</td></tr>
+                    <tr><td><code>Key</code></td><td>Identifies what is loaded; a new value reloads (for example a route parameter).</td></tr>
+                    <tr><td><code>ChildContent</code></td><td><code>RenderFragment&lt;TValue&gt;</code> for the value.</td></tr>
+                    <tr><td><code>Loading</code></td><td>Shown while loading; default: “Loading...”.</td></tr>
+                    <tr><td><code>Error</code></td><td><code>RenderFragment&lt;ApiError&gt;</code>; default: <code>ApiErrorView</code> with retry.</td></tr>
+                    <tr><td><code>KeepPreviousValue</code></td><td>Keep showing the last value while reloading (no flicker after edits).</td></tr>
+                    <tr><td><code>ReloadAsync()</code>, <code>Result</code>, <code>IsLoading</code></td><td>Through <code>@@ref</code>: reload after a change, read the state.</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section id="error-view">
+        <h2>ApiErrorView</h2>
+        <p>
+            Renders an <code>ApiError</code> (or an exception) as an alert: the problem title, the detail, field errors
+            and an optional retry button. It renders nothing when there is no error, so it can sit in the markup
+            permanently. Text from the server is rendered as text, never as markup.
+        </p>
+        <LiveExample Title="Errors built with ApiError.Http, Network and Timeout">
+            <div class="live-controls">
+                <select class="input" @bind="_sample" aria-label="Error">
+                    <option value="problem">422 problem details with field errors</option>
+                    <option value="error">404 with a { code, message } body</option>
+                    <option value="network">Network failure</option>
+                    <option value="timeout">Timeout</option>
+                    <option value="plain">503 with no body</option>
+                </select>
+                <label class="toggle"><input type="checkbox" @bind="_withRetry" /> OnRetry</label>
+            </div>
+            @if (_withRetry)
+            {
+                <ApiErrorView Error="SampleError" OnRetry="Retried" RetryText="Try again" />
+            }
+            else
+            {
+                <ApiErrorView Error="SampleError" />
+            }
+        </LiveExample>
+        <CodeBlock Language="razor" Code="@ErrorViewCode" />
+        <p>
+            Parameters: <code>Error</code>, <code>Exception</code> (an <code>ApiException</code> shows its error),
+            <code>OnRetry</code>, <code>RetryText</code> and <code>CssClass</code> (default <code>api-error</code>).
+        </p>
+    </section>
+
+    <section id="validation">
+        <h2>ApiValidationErrors</h2>
+        <p>
+            Put it inside an <code>EditForm</code> and give it the error of the failed call. The <code>errors</code> of a
+            problem details body appear through the usual <code>ValidationMessage</code> components, next to the right
+            inputs; a field's messages disappear when the user edits it.
+        </p>
+        <LiveExample Title="Client rules from DataAnnotations, server rules from a 422">
+            <EditForm Model="_newPet" OnValidSubmit="CreateAsync">
+                <DataAnnotationsValidator />
+                <ApiValidationErrors Error="_createError" />
+                <div class="form-grid">
+                    <div class="field">
+                        <label for="doc-name">Name</label>
+                        <InputText id="doc-name" @bind-Value="_newPet.Name" placeholder="leave empty" />
+                        <ValidationMessage For="() => _newPet.Name" />
+                    </div>
+                    <div class="field">
+                        <label for="doc-kind">Kind</label>
+                        <InputSelect id="doc-kind" @bind-Value="_newPet.Kind">
+                            <option value="parrot">parrot</option>
+                            <option value="dog">dog</option>
+                            <option value="cat">cat</option>
+                        </InputSelect>
+                        <ValidationMessage For="() => _newPet.Kind" />
+                    </div>
+                </div>
+                <ValidationSummary Model="_newPet" />
+                <div class="row" style="margin-top: .75rem">
+                    <button type="submit" class="btn btn-primary btn-sm">Submit to createPet</button>
+                    <span class="hint">An empty name or a parrot comes back as 422; anything else creates a pet.</span>
+                </div>
+            </EditForm>
+        </LiveExample>
+        <CodeBlock Language="razor" Code="@ValidationCode" />
+        <h3>How error keys find fields</h3>
+        <div class="table-scroll">
+            <table class="api-table">
+                <thead><tr><th>Key in <code>errors</code></th><th>Field</th></tr></thead>
+                <tbody>
+                    <tr><td><code>name</code>, <code>Name</code>, <code>$.name</code></td><td><code>Model.Name</code> (case-insensitive)</td></tr>
+                    <tr><td><code>owner.email</code></td><td><code>Model.Owner.Email</code> (nested objects)</td></tr>
+                    <tr><td><code>items[2].name</code></td><td><code>Model.Items</code></td></tr>
+                    <tr><td>anything else</td><td>the model itself: shown by <code>&lt;ValidationSummary Model="..." /&gt;</code></td></tr>
+                </tbody>
+            </table>
+        </div>
+        <Callout Kind="info">
+            Generated models carry DataAnnotations from the contract (<code>[StringLength]</code>, <code>[Range]</code>,
+            <code>[RegularExpression]</code>, ...), so <code>DataAnnotationsValidator</code> catches what it can before the
+            request. Required strings use <code>AllowEmptyStrings = true</code>, which is why an empty name reaches the
+            server here.
+        </Callout>
+    </section>
+
+    <section id="styling">
+        <h2>Styling</h2>
+        <p>
+            The components render plain elements with stable classes: <code>api-error</code> (a <code>div</code> with
+            <code>role="alert"</code>, a <code>strong</code> title, an optional <code>p</code>, <code>ul</code> and
+            <code>button</code>) and <code>api-loading</code> (with <code>aria-busy="true"</code>). This app styles them in
+            <SourceLink Path="Petstore.BlazorApp/wwwroot/app.css" />.
+        </p>
+    </section>
+</DocPage>
+
+@code {
+    private static readonly (string Key, string Label)[] Scenarios =
+    [
+        ("found", "Pet #1"),
+        ("missing", "Pet #9999 (404)"),
+        ("slow", "Slow (2 s)"),
+        ("offline", "Server unreachable"),
+    ];
+
+    private ApiResultView<Pet>? _view;
+    private string _scenario = "found";
+    private bool _keepPrevious = true;
+    private string _sample = "problem";
+    private bool _withRetry = true;
+    private NewPet _newPet = new() { Name = string.Empty, Kind = "parrot" };
+    private ApiError? _createError;
+
+    private Task<ApiResult<Pet>> LoadScenarioAsync(CancellationToken cancellationToken) => _scenario switch
+    {
+        "missing" => Api.GetPetResultAsync(9999, cancellationToken),
+        "slow" => Clients.Slow(TimeSpan.FromSeconds(2), authenticated: true).GetPetResultAsync(2, cancellationToken),
+        "offline" => Clients.Unreachable().GetPetResultAsync(1, cancellationToken),
+        _ => Api.GetPetResultAsync(1, cancellationToken),
+    };
+
+    private Task ReloadAsync() => _view?.ReloadAsync() ?? Task.CompletedTask;
+
+    // ApiError has factory methods, handy for tests and design-time previews.
+    private ApiError SampleError => _sample switch
+    {
+        "error" => ApiError.Http(404, new Error { Code = 404, Message = "There is no pet 9999." }, """{"code":404,"message":"There is no pet 9999."}""", "getPet"),
+        "network" => ApiError.Network(new HttpRequestException("No connection could be made because the target machine actively refused it."), "getPet"),
+        "timeout" => ApiError.Timeout("getPet"),
+        "plain" => ApiError.Http(503, operationId: "getPet"),
+        _ => ApiError.Http(422, body: """{"title":"The pet is invalid.","status":422,"errors":{"name":["Every pet needs a name."],"kind":["'parrot' is not supported."]}}""", operationId: "createPet"),
+    };
+
+    private void Retried() => Toasts.Show("OnRetry was invoked.", ToastKind.Info);
+
+    private async Task CreateAsync()
+    {
+        _createError = null;
+        var result = await Api.CreatePetResultAsync(_newPet);
+        if (result.Error is { } error)
+        {
+            _createError = error;
+            return;
+        }
+
+        Toasts.Show($"Created {result.Value!.Name} (#{result.Value.Id}).");
+        _newPet = new NewPet { Name = string.Empty, Kind = "parrot" };
+    }
+
+    private const string Imports = """
+        @using BlazorApi.Blazor
+        @using BlazorApi.Runtime
+        @using MyApp.Petstore      @* the generated client's namespace *@
+        """;
+
+    private const string ResultViewCode = """
+        <ApiResultView TValue="Pet" @ref="_view" Key="PetId" KeepPreviousValue="true"
+                       Load="ct => Api.GetPetResultAsync(PetId, ct)">
+            <Loading><Spinner /></Loading>
+            <ChildContent Context="pet">
+                <h1>@pet.Name</h1>
+            </ChildContent>
+            <Error Context="error">
+                @if (error.StatusCode == 404) { <p>No such pet.</p> }
+                else { <ApiErrorView Error="error" OnRetry="() => _view!.ReloadAsync()" /> }
+            </Error>
+        </ApiResultView>
+
+        @code {
+            [Parameter] public long PetId { get; set; }
+            private ApiResultView<Pet>? _view;
+
+            private async Task SaveAsync()
+            {
+                await Api.PatchPetResultAsync(PetId, _patch);
+                await _view!.ReloadAsync();   // refresh after an edit
+            }
+        }
+        """;
+
+    private const string ErrorViewCode = """
+        <ApiErrorView Error="_error" OnRetry="LoadAsync" />
+
+        @code {
+            private ApiError? _error;
+
+            private async Task LoadAsync()
+            {
+                var result = await Api.ListPetsResultAsync();
+                _error = result.Error;      // null on success: the view renders nothing
+            }
+        }
+        """;
+
+    private const string ValidationCode = """
+        <EditForm Model="_model" OnValidSubmit="SaveAsync">
+            <DataAnnotationsValidator />
+            <ApiValidationErrors Error="_error" />
+
+            <InputText @bind-Value="_model.Name" />
+            <ValidationMessage For="() => _model.Name" />   @* client and server messages *@
+
+            <ValidationSummary Model="_model" />            @* errors for unknown keys *@
+            <button type="submit">Save</button>
+        </EditForm>
+
+        @code {
+            private NewPet _model = new() { Name = "", Kind = "dog" };
+            private ApiError? _error;
+
+            private async Task SaveAsync()
+            {
+                var result = await Api.CreatePetResultAsync(_model);
+                _error = result.Error;
+            }
+        }
+        """;
+}

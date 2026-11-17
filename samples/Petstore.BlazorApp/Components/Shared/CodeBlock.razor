@@ -1,0 +1,115 @@
+@inject IJSRuntime JS
+
+@* Highlighted code with an optional file name, a copy button and line numbers. *@
+<figure class="code-block @(Compact ? "compact" : null)">
+    @if (Title is not null || !HideCopy)
+    {
+        <figcaption class="code-head">
+            @if (Title is not null)
+            {
+                <span class="code-title">
+                    <Icon Name="file" />
+                    @if (SourcePath is not null)
+                    {
+                        <a href="@SourceLink.Href(SourcePath)">@Title</a>
+                    }
+                    else
+                    {
+                        @Title
+                    }
+                </span>
+            }
+            <span class="code-lang">@LanguageLabel</span>
+            @if (!HideCopy)
+            {
+                <button type="button" class="code-copy" @onclick="CopyAsync" aria-label="Copy code">
+                    <Icon Name="@(_copied ? "check" : "copy")" /> @(_copied ? "Copied" : "Copy")
+                </button>
+            }
+        </figcaption>
+    }
+    <div class="code-scroll" style="@(MaxHeight is null ? null : $"max-height: {MaxHeight}")">
+        @if (LineNumbers)
+        {
+            <pre class="code-gutter" aria-hidden="true">@_gutter</pre>
+        }
+        <pre class="code"><code>@((MarkupString)_html)</code></pre>
+    </div>
+</figure>
+
+@code {
+    private string _html = string.Empty;
+    private string _gutter = string.Empty;
+    private string? _highlighted;
+    private bool _copied;
+
+    [Parameter, EditorRequired]
+    public string Code { get; set; } = string.Empty;
+
+    [Parameter]
+    public string Language { get; set; } = "csharp";
+
+    /// <summary>A file name shown above the code.</summary>
+    [Parameter]
+    public string? Title { get; set; }
+
+    /// <summary>When set, the title links to this file in the source browser.</summary>
+    [Parameter]
+    public string? SourcePath { get; set; }
+
+    [Parameter]
+    public bool LineNumbers { get; set; }
+
+    [Parameter]
+    public bool HideCopy { get; set; }
+
+    [Parameter]
+    public bool Compact { get; set; }
+
+    /// <summary>A CSS length; longer code scrolls.</summary>
+    [Parameter]
+    public string? MaxHeight { get; set; }
+
+    private string LanguageLabel => Language switch
+    {
+        "csharp" => "C#",
+        "razor" => "Razor",
+        "xml" => "XML",
+        "yaml" => "YAML",
+        "json" => "JSON",
+        "shell" => "Shell",
+        "css" => "CSS",
+        "http" => "HTTP",
+        _ => Language,
+    };
+
+    protected override void OnParametersSet()
+    {
+        var code = Code.Replace("\r\n", "\n", StringComparison.Ordinal).Trim('\n');
+        var key = Language + "\0" + code;
+        if (key == _highlighted)
+        {
+            return;
+        }
+
+        _highlighted = key;
+        _html = SyntaxHighlighter.Highlight(code, Language);
+        _gutter = LineNumbers ? string.Join('\n', Enumerable.Range(1, code.Count(c => c == '\n') + 1)) : string.Empty;
+    }
+
+    private async Task CopyAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", Code.Trim('\n', '\r'));
+            _copied = true;
+            StateHasChanged();
+            await Task.Delay(1500);
+            _copied = false;
+        }
+        catch (JSException)
+        {
+            // The clipboard needs a secure context (https or localhost) and permission.
+        }
+    }
+}

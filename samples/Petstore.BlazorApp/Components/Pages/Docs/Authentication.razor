@@ -1,0 +1,189 @@
+@page "/docs/authentication"
+@inject ContractExplorer Explorer
+@inject IPetstoreClient Api
+@inject ApiActivityLog Log
+
+<DocPage Href="docs/authentication" Title="Authentication"
+         Lead="Credentials are added by message handlers in the client's HttpClient pipeline. Each handler is registered for a security scheme of the contract and applies only to the operations that require that scheme."
+         Contents="@([("schemes", "Per-operation security"), ("live", "See it happen"), ("bearer", "Bearer tokens"), ("api-keys", "API keys and Basic"), ("blazor", "Blazor notes")])">
+
+    <section id="schemes">
+        <h2>Per-operation security</h2>
+        <p>
+            The contract declares <code>bearerAuth</code> as the default, overrides it with <code>apiKey</code> for the
+            inventory, and makes <code>/health</code> anonymous with <code>security: []</code>:
+        </p>
+        <CodeBlock Language="yaml" Title="petstore.yaml (excerpt)" SourcePath="Contracts/petstore.yaml" Code="@ContractExcerpt" />
+        <p>This app registers one handler per scheme:</p>
+        <CodeBlock Language="csharp" Title="Program.cs" SourcePath="Petstore.BlazorApp/Program.cs" Code="@Registration" />
+        <p>
+            Generated clients put each operation's requirements on the request
+            (<code>ApiRequestOptionKeys.Security</code>), and the handlers read them. The result, for every operation in
+            the contract:
+        </p>
+        <div class="table-scroll">
+            <table class="api-table">
+                <thead><tr><th>Operation</th><th>Requirement</th><th>Credentials sent</th></tr></thead>
+                <tbody>
+                    @foreach (var operation in Explorer.Model.Operations)
+                    {
+                        var schemes = operation.Security.SelectMany(r => r.Items).Select(i => i.Scheme.Name).Distinct().ToList();
+                        <tr>
+                            <td><span class="method m-@operation.Method.ToLowerInvariant()">@operation.Method.ToUpperInvariant()</span> <code>@operation.OperationId</code></td>
+                            <td>@(schemes.Count == 0 ? "security: [] (anonymous)" : string.Join(" or ", schemes))</td>
+                            <td>
+                                @if (schemes.Count == 0)
+                                {
+                                    <span class="chip"><Icon Name="eye" /> none</span>
+                                }
+                                @foreach (var scheme in schemes)
+                                {
+                                    <span class="chip"><Icon Name="@(scheme == "apiKey" ? "key" : "lock")" /> @(scheme == "apiKey" ? "X-API-Key header" : "Authorization: Bearer")</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <ul>
+            <li>A handler registered without a scheme applies to every request except operations with <code>security: []</code>.</li>
+            <li>When an operation lists alternatives, every registered handler whose scheme is listed applies.</li>
+            <li>The scopes of the requirement are passed to the token provider.</li>
+            <li>Bearer and Basic handlers never overwrite an <code>Authorization</code> header that is already set.</li>
+        </ul>
+    </section>
+
+    <section id="live">
+        <h2>See it happen</h2>
+        <LiveExample Title="Three operations, three security requirements">
+            <div class="live-controls">
+                <button type="button" class="btn btn-primary btn-sm" disabled="@_running" @onclick="RunAsync"><Icon Name="play" /> Call getHealth, getInventory and getPet</button>
+                <span class="hint">Recorded by the logging handler, which runs after the authentication handlers.</span>
+            </div>
+            @if (_recorded is { Count: > 0 })
+            {
+                <div class="table-scroll">
+                    <table class="api-table">
+                        <thead><tr><th>Operation</th><th>Request</th><th>Credentials</th><th>Status</th></tr></thead>
+                        <tbody>
+                            @foreach (var entry in _recorded)
+                            {
+                                <tr>
+                                    <td><code>@entry.OperationId</code></td>
+                                    <td class="mono small">@entry.Method @entry.Path</td>
+                                    <td><span class="chip"><Icon Name="@(entry.Credentials == "none" ? "eye" : entry.Credentials == "API key" ? "key" : "lock")" /> @entry.Credentials</span></td>
+                                    <td class="status-code @($"s-{entry.StatusCode / 100}")">@entry.StatusCode</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </LiveExample>
+        <p>Without the handlers the API refuses: try <em>Missing credentials</em> in the <a href="playground">error playground</a>.</p>
+    </section>
+
+    <section id="bearer">
+        <h2>Bearer tokens</h2>
+        <p>
+            <code>AddBearerToken</code> takes your <code>IAccessTokenProvider</code> or a callback. Callback tokens are cached
+            until shortly before <code>AccessToken.ExpiresAt</code>. On a <code>401</code> the handler asks the provider to
+            invalidate the token and retries once with a new one (when the body can be replayed).
+        </p>
+        <CodeBlock Language="csharp" Code="@Bearer" />
+        <p>
+            For service-to-service calls, <code>ClientCredentialsTokenSource</code> implements the OAuth 2.0 client
+            credentials grant, and <code>CachingAccessTokenProvider</code> shares one refresh between concurrent callers.
+        </p>
+    </section>
+
+    <section id="api-keys">
+        <h2>API keys and Basic authentication</h2>
+        <CodeBlock Language="csharp" Code="@ApiKeys" />
+        <p>
+            <code>ApiKeyLocation</code> is <code>Header</code>, <code>Query</code> or <code>Cookie</code>. A <code>null</code>
+            key sends the request without one. Without dependency injection, chain the handlers yourself
+            (<code>new BearerTokenHandler(provider, "bearerAuth") { InnerHandler = ... }</code>), as the
+            <SourceLink Path="Petstore.ConsoleClient/Program.cs" Label="console client" /> does.
+        </p>
+    </section>
+
+    <section id="blazor">
+        <h2>Blazor notes</h2>
+        <Callout Kind="warning" Title="Blazor Server">
+            <code>IHttpClientFactory</code> creates handlers in their own scope, not in the user's circuit. Do not resolve
+            per-user services such as <code>AuthenticationStateProvider</code> in a handler factory; get per-user tokens
+            from a service designed for that.
+        </Callout>
+        <p>
+            In Blazor WebAssembly, forward tokens from <code>Microsoft.AspNetCore.Components.WebAssembly.Authentication</code>
+            in the callback overload of <code>AddBearerToken</code>. Credentials are never logged: <code>AccessToken.ToString()</code>
+            prints <code>AccessToken(****)</code> and <code>ApiError.Message</code> never contains them.
+        </p>
+    </section>
+</DocPage>
+
+@code {
+    private List<ApiActivity>? _recorded;
+    private bool _running;
+
+    private async Task RunAsync()
+    {
+        _running = true;
+        var before = Log.Entries.Count > 0 ? Log.Entries[0].Sequence : 0;
+        await Api.GetHealthResultAsync();
+        await Api.GetInventoryResultAsync();
+        await Api.GetPetResultAsync(1);
+        _recorded = Log.Entries.Where(e => e.Sequence > before).OrderBy(e => e.Sequence).ToList();
+        _running = false;
+    }
+
+    private const string ContractExcerpt = """
+        security:
+          - bearerAuth: []                 # the default for every operation
+        paths:
+          /store/inventory:
+            get:
+              operationId: getInventory
+              security:
+                - apiKey: []               # replaces the default
+          /health:
+            get:
+              operationId: getHealth
+              security: []                 # anonymous
+        components:
+          securitySchemes:
+            bearerAuth: { type: http, scheme: bearer }
+            apiKey: { type: apiKey, in: header, name: X-API-Key }
+        """;
+
+    private const string Registration = """
+        builder.Services
+            .AddPetstoreClient()
+            .AddBearerToken(_ => new StaticAccessTokenProvider(PetStore.DemoToken), scheme: "bearerAuth")
+            .AddApiKey("X-API-Key", ApiKeyLocation.Header, (_, _) => new ValueTask<string?>(PetStore.DemoApiKey), scheme: "apiKey");
+        """;
+
+    private const string Bearer = """
+        // Your own provider (GetTokenAsync, InvalidateAsync):
+        .AddBearerToken(services => services.GetRequiredService<MyTokenProvider>(), scheme: "bearerAuth")
+
+        // Or a callback; tokens are cached until shortly before they expire:
+        .AddBearerToken(async (services, scopes, cancellationToken) =>
+        {
+            var (value, expiresAt) = await services.GetRequiredService<ITokenService>().GetAsync(scopes, cancellationToken);
+            return new AccessToken(value, expiresAt);
+        }, scheme: "bearerAuth")
+        """;
+
+    private const string ApiKeys = """
+        .AddApiKey("X-API-Key", ApiKeyLocation.Header,
+            (services, ct) => ValueTask.FromResult(services.GetRequiredService<IConfiguration>()["Api:Key"]),
+            scheme: "apiKey")
+
+        .AddBasicAuthentication((services, ct) =>
+            ValueTask.FromResult<(string UserName, string Password)?>(("user", "secret")),
+            scheme: "basicAuth")
+        """;
+}

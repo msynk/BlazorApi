@@ -1,4 +1,4 @@
-@page "/"
+@page "/pets"
 @implements IDisposable
 @inject IPetstoreClient Api
 @inject ToastService Toasts
@@ -101,7 +101,52 @@ else
     </div>
 }
 
+<HowItWorks Summary="Cursor pagination with ListPetsResultAsync, a typed status filter, and a create form that shows the server's validation errors."
+            Sources="@(["Petstore.BlazorApp/Components/Pages/PetList.razor", "Petstore.BlazorApp/Components/Pets/NewPetForm.razor", "Petstore.BlazorApp/Components/Pets/PetCard.razor"])"
+            Docs="docs/pagination">
+    <ol>
+        <li>Each page is one <code>ListPetsResultAsync</code> call. The response's <code>NextCursor</code> is kept and passed back for “Load more”; it is null on the last page.</li>
+        <li>The filter is the generated <code>PetStatus</code> enum: the client sends its wire value (<code>?status=pending</code>).</li>
+        <li>The total comes from a response header the contract declares: <code>result.GetHeader("X-Total-Count")</code>.</li>
+        <li>A newer load cancels the one in flight through the <code>CancellationToken</code> every generated method accepts.</li>
+        <li>The form binds the generated <code>NewPet</code> model. Its DataAnnotations validate in the browser; the server's 422 problem details land on the same fields through <code>ApiValidationErrors</code>.</li>
+    </ol>
+    <CodeBlock Language="csharp" Title="Loading a page" Code="@HowLoad" />
+    <CodeBlock Language="razor" Title="Server validation in the form" Code="@HowForm" />
+</HowItWorks>
+
 @code {
+    private const string HowLoad = """
+        var result = await Api.ListPetsResultAsync(limit: PageSize, cursor: cursor, status: _status, cancellationToken: ct);
+        if (result.Error is { } error)
+        {
+            _listError = error;            // rendered by <ApiErrorView Error="..." OnRetry="..." />
+            return;
+        }
+
+        _pets.AddRange(result.Value!.Items);
+        _nextCursor = result.Value.NextCursor;
+        _total = long.TryParse(result.GetHeader("X-Total-Count"), out var total) ? total : null;
+        """;
+
+    private const string HowForm = """
+        <EditForm Model="_model" OnValidSubmit="SubmitAsync">
+            <DataAnnotationsValidator />
+            <ApiValidationErrors Error="_error" />
+            <InputText @bind-Value="_model.Name" />
+            <ValidationMessage For="() => _model.Name" />
+            ...
+        </EditForm>
+
+        @code {
+            private async Task SubmitAsync()
+            {
+                var result = await Api.CreatePetResultAsync(_model);
+                _error = result.Error;     // a 422 shows next to the fields
+            }
+        }
+        """;
+
     private const int PageSize = 6;
 
     private static readonly (string Label, PetStatus? Status)[] Filters =

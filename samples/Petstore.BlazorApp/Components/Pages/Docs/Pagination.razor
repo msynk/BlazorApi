@@ -1,0 +1,175 @@
+@page "/docs/pagination"
+@implements IDisposable
+@inject ContractExplorer Explorer
+@inject IPetstoreClient Api
+@inject ApiActivityLog Log
+
+<DocPage Href="docs/pagination" Title="Pagination"
+         Lead="BlazorApi recognizes paginated operations from common naming conventions (or an explicit x-pagination extension) and generates walkers that return every page or every item as an IAsyncEnumerable."
+         Contents="@([("detection", "Detection"), ("walkers", "Page and item walkers"), ("manual", "Page by page in a UI"), ("explicit", "x-pagination")])">
+
+    <section id="detection">
+        <h2>Detection</h2>
+        <p>
+            <code>listPets</code> has a string <code>cursor</code> query parameter and its page (<code>PetPage</code>) has a
+            string <code>nextCursor</code>, so it is cursor-paginated. This is what the generator found, read from its
+            model at runtime:
+        </p>
+        @if (_paging is { } paging)
+        {
+            <dl class="kv card card-body">
+                <dt>Operation</dt><dd>@_pagedOperation</dd>
+                <dt>Style</dt><dd>@paging.Style@(paging.IsExplicit ? " (x-pagination)" : " (detected)")</dd>
+                <dt>Page parameter</dt><dd>@paging.Parameter.Name</dd>
+                <dt>Size parameter</dt><dd>@(paging.SizeParameter?.Name ?? "—")</dd>
+                <dt>Page type</dt><dd>@paging.PageType</dd>
+                <dt>Items</dt><dd>@(paging.ItemsPath is { } items ? string.Join('.', items) : "—") : @paging.ItemType</dd>
+                <dt>Next cursor</dt><dd>@(paging.NextCursorPath is { } next ? string.Join('.', next) : "—")</dd>
+            </dl>
+        }
+        <p>
+            Cursor, Link header, page number and offset styles are recognized, with page size, items, "has more" and
+            total properties found by name (also inside <code>meta</code>, <code>pagination</code> or <code>pageInfo</code>
+            containers).
+        </p>
+    </section>
+
+    <section id="walkers">
+        <h2>Page and item walkers</h2>
+        <p>
+            For each paginated operation, <code>PetstoreClientPagination</code> adds extension methods on the client
+            interface. The paging parameter is managed for you, so it is not in their signatures:
+        </p>
+        <CodeBlock Language="csharp" Code="@WalkerSignatures" />
+        <LiveExample Title="await foreach over ListPetsItemsAsync">
+            <div class="live-controls">
+                <label class="label" for="pg-size">limit</label>
+                <select id="pg-size" class="input" @bind="_limit">
+                    <option value="2">2</option>
+                    <option value="4">4</option>
+                    <option value="10">10</option>
+                </select>
+                <button type="button" class="btn btn-primary btn-sm" disabled="@_streaming" @onclick="StreamAsync"><Icon Name="play" /> Stream every pet</button>
+                @if (_streaming)
+                {
+                    <button type="button" class="btn btn-sm" @onclick="() => _cancellation?.Cancel()"><Icon Name="stop" /> Stop</button>
+                }
+            </div>
+            <CodeBlock Language="csharp" Compact="true" HideCopy="true" Code="@StreamCode" />
+            @if (_streamed.Count > 0)
+            {
+                <p class="small muted">@_streamed.Count pets from @_pages page requests (watch them in the traffic panel)@(_streaming ? "…" : ".")</p>
+                <div class="row">
+                    @foreach (var pet in _streamed)
+                    {
+                        <span class="chip">@(pet is Dog ? "🐶" : pet is Cat ? "🐱" : "🐾") @pet.Name</span>
+                    }
+                </div>
+            }
+        </LiveExample>
+        <p>
+            Walkers call the throwing methods, so a failed page throws <code>ApiException</code>. They stop when the next
+            cursor is empty or unchanged (or "has more" is false, the total is reached, a page is short, depending on the
+            style).
+        </p>
+    </section>
+
+    <section id="manual">
+        <h2>Page by page in a UI</h2>
+        <p>
+            A “Load more” button keeps the cursor between clicks; call the result method directly. This is the core of the
+            <a href="pets">pets page</a>:
+        </p>
+        <CodeBlock Language="csharp" Title="PetList.razor (excerpt)" SourcePath="Petstore.BlazorApp/Components/Pages/PetList.razor" Code="@Manual" />
+    </section>
+
+    <section id="explicit">
+        <h2>x-pagination</h2>
+        <p>When an API's names do not follow the conventions, declare the pagination in the contract:</p>
+        <CodeBlock Language="yaml" Code="@Explicit" />
+    </section>
+</DocPage>
+
+@code {
+    private BlazorApi.OpenApi.Model.ApiPagination? _paging;
+    private string? _pagedOperation;
+    private int _limit = 4;
+    private bool _streaming;
+    private int _pages;
+    private readonly List<Pet> _streamed = [];
+    private CancellationTokenSource? _cancellation;
+
+    protected override void OnInitialized()
+    {
+        var operation = Explorer.Model.Operations.FirstOrDefault(o => o.Pagination is not null);
+        _paging = operation?.Pagination;
+        _pagedOperation = operation?.OperationId;
+    }
+
+    private string WalkerSignatures => string.Join("\n\n", ContractExplorer.Methods(Explorer.Default)
+        .Where(m => m.IsExtension)
+        .Select(m => (m.Summary is null ? null : $"// {m.Summary}\n") + "public static " + m.Signature + ";"));
+
+    private string StreamCode => $"await foreach (Pet pet in Api.ListPetsItemsAsync(limit: {_limit}, cancellationToken: ct))\n    _pets.Add(pet);";
+
+    private async Task StreamAsync()
+    {
+        _cancellation?.Dispose();
+        _cancellation = new CancellationTokenSource();
+        _streamed.Clear();
+        _streaming = true;
+        var before = Log.Entries.Count > 0 ? Log.Entries[0].Sequence : 0;
+        try
+        {
+            await foreach (var pet in Api.ListPetsItemsAsync(limit: _limit, cancellationToken: _cancellation.Token))
+            {
+                _streamed.Add(pet);
+                _pages = Log.Entries.Count(e => e.Sequence > before && e.OperationId == "listPets");
+                StateHasChanged();
+                await Task.Delay(120, _cancellation.Token); // only to make the streaming visible
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        finally
+        {
+            _streaming = false;
+        }
+    }
+
+    public void Dispose()
+    {
+        _cancellation?.Cancel();
+        _cancellation?.Dispose();
+    }
+
+    private const string Manual = """
+        private async Task LoadPageAsync(string? cursor)
+        {
+            var result = await Api.ListPetsResultAsync(limit: PageSize, cursor: cursor, status: _status, cancellationToken: ct);
+            if (result.Error is { } error)
+            {
+                _listError = error;
+                return;
+            }
+
+            (_pets ??= []).AddRange(result.Value!.Items);
+            _nextCursor = result.Value.NextCursor;           // null on the last page
+        }
+
+        private Task LoadMoreAsync() => LoadPageAsync(_nextCursor);
+        """;
+
+    private const string Explicit = """
+        /orders:
+          get:
+            operationId: listOrders
+            x-pagination:
+              style: cursor           # cursor, page, offset or link
+              parameter: continue     # the query parameter that selects the page
+              size: max               # the page size parameter
+              next: paging.token      # property path of the next cursor
+              items: entries          # property path of the items
+        """;
+}
