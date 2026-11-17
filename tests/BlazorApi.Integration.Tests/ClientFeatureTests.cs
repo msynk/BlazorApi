@@ -399,6 +399,15 @@ public class ClientFeatureTests
         Assert.Equal("d1", done.Value!.Id);
         Assert.Same(done.Value, done.Content);
         Assert.Null(GetDocumentResponseHeaders.From(done).RetryAfter);
+
+        // The typed view of the success bodies: exactly the one of the response's status is set.
+        var pendingBodies = GetDocumentResponseBodies.From(pending);
+        var doneBodies = GetDocumentResponseBodies.From(done);
+        Assert.Equal(40, pendingBodies.Accepted!.Percent);
+        Assert.Null(pendingBodies.Ok);
+        Assert.Equal("d1", doneBodies.Ok!.Id);
+        Assert.Null(doneBodies.Accepted);
+        Assert.Equal(202, pendingBodies.StatusCode);
     }
 
     [Fact]

@@ -173,6 +173,14 @@ public sealed record GeneratorOptions
     /// </summary>
     public bool UseRequiredMembers { get; init; } = true;
 
+    /// <summary>
+    /// Existing C# types to use instead of generated ones, keyed by component schema name (<c>Money</c>) or by
+    /// <c>format:</c> and a string format (<c>format:decimal-string</c>). Mapped schemas are not generated (share models
+    /// between contracts, or reuse domain types); the types must be serializable by System.Text.Json with the client's
+    /// options (for example with a <c>[JsonConverter]</c>). Default: none.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> TypeMappings { get; init; } = new Dictionary<string, string>(StringComparer.Ordinal);
+
     /// <summary>How enums read values the contract does not list. Default: <see cref="UnknownEnumValueHandling.Fail"/>.</summary>
     public UnknownEnumValueHandling UnknownEnumValues { get; init; } = UnknownEnumValueHandling.Fail;
 

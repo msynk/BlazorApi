@@ -32,6 +32,7 @@ Keys are case-insensitive. Enum values are case-insensitive and ignore `-` and `
 | `useRequiredMembers` | `true` | Required properties use the C# `required` modifier (also enforced by System.Text.Json when reading). |
 | `generateInterfaces` | `true` | Generate `I{Client}` interfaces. |
 | `generateDependencyInjection` | `true` | Generate `Add{Client}` registration methods. |
+| `typeMappings` | none | Existing C# types instead of generated ones: `Money->Shared.Finance.Money` (a component schema, which is then not generated) or `format:money->decimal` (a format). JSON form: `"typeMappings": { "Money": "Shared.Finance.Money" }`. The types must read and write the wire format with the client's JSON options (for example with a `[JsonConverter]`); mapped types get no DataAnnotations and fixtures use `default!`. |
 | `generateResponseHeaders` | `true` | Generate `{Operation}ResponseHeaders` classes for declared response headers. |
 | `generateMocks` | `false` | Generate client mocks and model fixtures ([Testing](testing.md)). |
 | `generateDataAnnotations` | `true` | Add `System.ComponentModel.DataAnnotations` attributes for schema constraints. |

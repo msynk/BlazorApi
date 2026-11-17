@@ -296,6 +296,11 @@ internal sealed class MockEmitter
     /// <summary>A C# expression for a representative value of a type.</summary>
     private string Value(ApiTypeRef type, string hint, ApiProperty? property, string depth)
     {
+        if (_plan.MappedType(type) is not null)
+        {
+            return "default!"; // A mapped type is the application's own: the fixture cannot invent a value.
+        }
+
         switch (type)
         {
             case ApiPrimitiveType primitive:

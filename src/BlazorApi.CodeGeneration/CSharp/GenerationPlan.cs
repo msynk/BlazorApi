@@ -208,8 +208,34 @@ internal sealed class GenerationPlan
         return isNullable ? core + "?" : core;
     }
 
+    /// <summary>
+    /// The C# type configured for a schema or format in <see cref="GeneratorOptions.TypeMappings"/>, or
+    /// <see langword="null"/> when the type is generated or mapped by the built-in rules.
+    /// </summary>
+    public string? MappedType(ApiTypeRef type) => type switch
+    {
+        ApiNamedTypeRef named => MappedType(named.Target),
+        ApiPrimitiveType { Format: { } format } when Options.TypeMappings.TryGetValue("format:" + format, out var mapped) => Qualify(mapped),
+        _ => null,
+    };
+
+    /// <summary>The configured C# type of a component schema, or <see langword="null"/>.</summary>
+    public string? MappedType(ApiNamedType type) =>
+        type.Origin == ApiTypeOrigin.Component && Options.TypeMappings.TryGetValue(type.Name, out var mapped) ? Qualify(mapped) : null;
+
+    /// <summary>Qualifies a dotted type name with <c>global::</c> so it never binds to a generated name.</summary>
+    private static string Qualify(string type) =>
+        type.Contains('.') && !type.StartsWith("global::", StringComparison.Ordinal) && type.IndexOf('<') is < 0 or > 0 && char.IsLetter(type[0])
+            ? "global::" + type
+            : type;
+
     public string NamedType(ApiNamedType type)
     {
+        if (MappedType(type) is { } mapped)
+        {
+            return mapped;
+        }
+
         if (!IsEmitted(type))
         {
             return "global::System.Text.Json.JsonElement";
@@ -243,7 +269,9 @@ internal sealed class GenerationPlan
             : $"global::System.Collections.Generic.Dictionary<string, {value}>";
     }
 
-    public string Primitive(ApiPrimitiveType type) => type.Kind switch
+    public string Primitive(ApiPrimitiveType type) => MappedType(type) ?? BuiltInPrimitive(type);
+
+    private string BuiltInPrimitive(ApiPrimitiveType type) => type.Kind switch
     {
         ApiPrimitiveKind.String => "string",
         ApiPrimitiveKind.Boolean => "bool",
@@ -301,6 +329,12 @@ internal sealed class GenerationPlan
         {
             case ApiPrimitiveType p:
                 var csharp = Primitive(p);
+                if (MappedType(p) is not null)
+                {
+                    // A mapped type is formatted with its own invariant ToString.
+                    return $"(global::System.Convert.ToString((object){expression}, global::System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty)";
+                }
+
                 return csharp switch
                 {
                     "string" => expression,

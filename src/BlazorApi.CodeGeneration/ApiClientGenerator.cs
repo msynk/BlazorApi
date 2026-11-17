@@ -85,6 +85,15 @@ public static class ApiClientGenerator
             }
         }
 
+        var bodies = new ResponseBodiesEmitter(plan, clients);
+        foreach (var client in plan.Clients)
+        {
+            if (bodies.Emit(client) is { } file)
+            {
+                files.Add(file);
+            }
+        }
+
         if (options.GenerateResponseHeaders)
         {
             var headers = new HeadersEmitter(plan, clients);

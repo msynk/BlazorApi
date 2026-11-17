@@ -92,6 +92,26 @@ public static class GeneratorOptionsReader
                     }
 
                     break;
+                case "typemappings":
+                    if (property.Value is ObjectNode mappings)
+                    {
+                        var map = options.TypeMappings.ToDictionary(p => p.Key, p => p.Value, StringComparer.Ordinal);
+                        foreach (var mapping in mappings.Properties)
+                        {
+                            if (Text(mapping, diagnostics) is { Length: > 0 } target)
+                            {
+                                map[mapping.Name] = target;
+                            }
+                        }
+
+                        options = options with { TypeMappings = map };
+                    }
+                    else
+                    {
+                        Invalid(property, diagnostics, "expected an object mapping schema names or 'format:<format>' to C# types");
+                    }
+
+                    break;
                 case "overlays":
                     configuration = configuration with { Overlays = List(property, diagnostics) };
                     break;
@@ -234,6 +254,25 @@ public static class GeneratorOptionsReader
             case "durationtype": return options with { DurationType = Enum(options.DurationType) };
             case "collections": return options with { Collections = Enum(options.Collections) };
             case "optionalnullable": return options with { OptionalNullable = Enum(options.OptionalNullable) };
+            case "typemappings":
+            {
+                // key=value form: Money->MyApp.Money,format:decimal-string->decimal
+                var map = options.TypeMappings.ToDictionary(p => p.Key, p => p.Value, StringComparer.Ordinal);
+                foreach (var entry in Names())
+                {
+                    var arrow = entry.IndexOf("->", StringComparison.Ordinal);
+                    if (arrow <= 0 || arrow + 2 >= entry.Length)
+                    {
+                        diagnostics.Report(CodeGenerationDiagnostics.InvalidOption, location, null, key, entry, "expected <schema or format:name>-><C# type>");
+                        continue;
+                    }
+
+                    map[entry.Substring(0, arrow).Trim()] = entry.Substring(arrow + 2).Trim();
+                }
+
+                return options with { TypeMappings = map };
+            }
+
             case "unknownenumvalues": return options with { UnknownEnumValues = Enum(options.UnknownEnumValues) };
             case "generatejsoncontext": return options with { GenerateJsonContext = Bool(options.GenerateJsonContext) };
             case "userequiredmembers": return options with { UseRequiredMembers = Bool(options.UseRequiredMembers) };

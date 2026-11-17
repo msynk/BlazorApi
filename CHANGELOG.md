@@ -82,6 +82,10 @@ target .NET Standard 2.0.
 - **Caching**: `AddApiCaching()` / `ApiCacheHandler` revalidate GET responses with `If-None-Match` and
   `If-Modified-Since` and answer 304s from a per-user, `Vary`-aware in-memory cache (`ApiResponseCache`).
 
+- **Response bodies**: operations with different success body types get `{Operation}ResponseBodies`, a typed view
+  with one property per status.
+- **Type mappings**: `typeMappings` maps component schemas or formats to existing C# types (shared models, domain
+  types); mapped schemas are not generated.
 - **Demo**: the Blazor app uses retries, caching and logging, shows a pet's `ETag` and cache revalidation, and a live
   activity feed (server-sent events with `ApiStreamView`); the console client shows typed headers and streaming.
 

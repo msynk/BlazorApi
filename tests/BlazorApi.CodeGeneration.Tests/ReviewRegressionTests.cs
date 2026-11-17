@@ -70,6 +70,87 @@ public class ReviewRegressionTests
     }
 
     [Fact]
+    public void Type_mappings_replace_generated_types()
+    {
+        const string contract = """
+            openapi: 3.1.0
+            info: { title: Bank, version: '1' }
+            paths:
+              /accounts/{id}:
+                get:
+                  operationId: getAccount
+                  parameters:
+                    - { name: id, in: path, required: true, schema: { type: string } }
+                    - { name: minimum, in: query, schema: { type: string, format: decimal-string } }
+                    - { name: currency, in: query, schema: { $ref: '#/components/schemas/Money' } }
+                  responses:
+                    '200':
+                      description: ok
+                      content:
+                        application/json: { schema: { $ref: '#/components/schemas/Account' } }
+                put:
+                  operationId: putBalance
+                  parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+                  requestBody:
+                    required: true
+                    content:
+                      application/json: { schema: { $ref: '#/components/schemas/Money' } }
+                  responses: { '204': { description: ok } }
+            components:
+              schemas:
+                Money:
+                  type: object
+                  required: [amount, currency]
+                  properties:
+                    amount: { type: string, format: decimal-string }
+                    currency: { type: string, minLength: 3, maxLength: 3 }
+                Account:
+                  type: object
+                  required: [balance]
+                  properties:
+                    balance: { $ref: '#/components/schemas/Money' }
+                    history: { type: array, items: { $ref: '#/components/schemas/Money' } }
+                    limit: { type: string, format: decimal-string, maxLength: 20 }
+            """;
+        const string shared = """
+            namespace Shared.Finance;
+            public sealed record Money(decimal Amount, string Currency);
+            """;
+        var result = GeneratedCode.GenerateYaml(contract, new GeneratorOptions
+        {
+            Namespace = "Bank",
+            GenerateMocks = true,
+            GenerateJsonContext = true,
+            TypeMappings = new Dictionary<string, string> { ["Money"] = "Shared.Finance.Money", ["format:decimal-string"] = "decimal" },
+        });
+
+        Assert.DoesNotContain(result.Files, f => f.Path == "Models/Money.g.cs");
+        var account = File(result, "Models/Account.g.cs");
+        Assert.Contains("public required global::Shared.Finance.Money Balance", account, StringComparison.Ordinal);
+        Assert.Contains("public decimal? Limit", account, StringComparison.Ordinal);
+        Assert.DoesNotContain("StringLength", account, StringComparison.Ordinal);
+        Assert.Contains("typeof(global::Shared.Finance.Money)", File(result, "BankJsonContext.g.cs"), StringComparison.Ordinal);
+        // The System.Text.Json generator does not run in this test compilation, so compile without the context.
+        GeneratedCode.Compile(GeneratedCode.GenerateYaml(contract, new GeneratorOptions
+        {
+            Namespace = "Bank",
+            GenerateMocks = true,
+            TypeMappings = new Dictionary<string, string> { ["Money"] = "Shared.Finance.Money", ["format:decimal-string"] = "decimal" },
+        }), shared);
+    }
+
+    [Fact]
+    public void Type_mappings_are_read_from_key_value_pairs()
+    {
+        var bag = new BlazorApi.OpenApi.Diagnostics.DiagnosticBag();
+        var options = BlazorApi.CodeGeneration.Configuration.GeneratorOptionsReader.ApplyPairs(new GeneratorOptions(), "typeMappings=Money->Shared.Money,format:money->decimal", bag);
+
+        Assert.Empty(bag);
+        Assert.Equal("Shared.Money", options.TypeMappings["Money"]);
+        Assert.Equal("decimal", options.TypeMappings["format:money"]);
+    }
+
+    [Fact]
     public void Json_context_keeps_user_types_named_like_runtime_types()
     {
         var context = File(Generate(), "ShopJsonContext.g.cs");

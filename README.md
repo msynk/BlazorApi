@@ -20,7 +20,10 @@ stable `BAPIxxxx` diagnostics with file, line and JSON pointer, and produces det
 - Clients with two methods per operation: `XxxAsync` (returns the value, throws `ApiException`) and
   `XxxResultAsync` (returns `ApiResult<T>`, never throws for API failures).
 - Typed error bodies per status code, RFC 9457 problem details, distinct network/timeout/deserialization errors;
-  other success bodies (`ApiResult.Content`) and typed response headers (`{Operation}ResponseHeaders`).
+  other success bodies (`ApiResult.Content`, typed by `{Operation}ResponseBodies`) and typed response headers
+  (`{Operation}ResponseHeaders`).
+- Type mappings (`typeMappings`) to use existing C# types for schemas or formats, for example models shared between
+  contracts.
 - Upload/download progress, reconnecting server-sent event streams (`ApiEventSource`), operation logging with
   `Deprecation`/`Sunset` warnings, `ETag` revalidation (`AddApiCaching`).
 - Streamed responses: server-sent events and JSON Lines/NDJSON/`json-seq` as `IAsyncEnumerable` (`ApiStream<T>`),

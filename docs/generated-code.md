@@ -104,6 +104,15 @@ private static readonly ApiResponseHandler<Pet> GetPetResponses = new ApiRespons
   `Content` is the value itself for the main success body. Binary and streamed alternative bodies are not read.
   `ApiResults.SuccessWithContent<T>(content, 202)` creates such results in tests.
 
+  Such operations also get a typed view, `{Operation}ResponseBodies`, with one nullable property per success status
+  (named after the status: `Ok`, `Created`, `Accepted`, ...); the one matching the response is set:
+
+  ```csharp
+  var bodies = GetDocumentResponseBodies.From(await api.GetDocumentResultAsync(id));
+  if (bodies.Accepted is { } progress) { /* 202 */ }
+  else if (bodies.Ok is { } document) { /* 200 */ }
+  ```
+
 ## Response headers
 
 Operations that declare response headers get a `{Operation}ResponseHeaders` class (in `{Client}ResponseHeaders.g.cs`)

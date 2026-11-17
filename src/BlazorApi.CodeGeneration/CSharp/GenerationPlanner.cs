@@ -108,7 +108,7 @@ internal static class GenerationPlanner
         {
             switch (type)
             {
-                case ApiNamedTypeRef named when selected.Add(named.Target):
+                case ApiNamedTypeRef named when plan.MappedType(named.Target) is null && selected.Add(named.Target):
                     queue.Enqueue(named.Target);
                     break;
                 case ApiArrayType array:
@@ -122,7 +122,7 @@ internal static class GenerationPlanner
 
         if (plan.Options.IncludeUnusedModels)
         {
-            foreach (var type in plan.Model.Types.Where(t => !plan.ParameterBodies.Contains(t)))
+            foreach (var type in plan.Model.Types.Where(t => !plan.ParameterBodies.Contains(t) && plan.MappedType(t) is null))
             {
                 if (selected.Add(type))
                 {

@@ -31,6 +31,7 @@ scoped to be reviewable on its own; the working tree has not been committed or s
 | M22 | Advanced generation features | Partly: operation/tag filters, unused-model pruning, multi-contract projects, `x-pagination`, `x-enum-varnames`; custom templates deferred |
 | M23 | Blazor integration (`BlazorApi.Blazor`: `ApiResultView`, `ApiErrorView`, `ApiValidationErrors`; auth registration helpers `AddBearerToken`/`AddApiKey`/`AddBasicAuthentication` in `BlazorApi.Runtime`) | Done |
 | M24 | Documentation, demo, benchmarks, CI workflow, packaging | Done (not published) |
+| M30 | Demo showcases (retries, caching, logging, typed ETag, live SSE feed); `{Operation}ResponseBodies` typed views; `typeMappings` | Done |
 | M29 | Independent reviews of M25-M28 (runtime, engine, code generation and CLI): 29 confirmed issues fixed with regression tests (2 findings rejected with reasons) | Done |
 | M28 | Intermediate hierarchy classes dispatch to their subtypes (subtree converters with payload classes); conditional-request cache (`AddApiCaching`) | Done |
 | M27 | Other success bodies (`ApiResult.Content`), typed response headers, transfer progress, reconnecting SSE, operation logging with deprecation warnings, `api-gen mock` with example synthesis | Done |
@@ -50,6 +51,7 @@ scoped to be reviewable on its own; the working tree has not been committed or s
 | 2026-11-09 | After documentation-review fixes: 440 tests (net8.0 + net10.0) + 5 demo tests | all passed |
 | 2026-11-09 | demo/BlazorApi.Demo.Tests (5); BlazorApi.Demo.BlazorApp run and checked over HTTP (pages, 401, 404, API key); BlazorApi.Demo.ConsoleClient run against it | passed |
 | 2026-11-17 | After removing the dotnet-query integration: full suite (net8.0 + net10.0) + 5 demo tests | all passed |
+| 2026-11-17 | M30, Release build without warnings: OpenApi 207, CodeGeneration 19 (type mappings compiled with mocks), Integration 95 (response bodies), SourceGenerator 15, Cli 26, Blazor 11, per framework; demo 5; demo app checked over HTTP (ETag 304, SSE feed) and the console client run against it | all passed |
 | 2026-11-17 | M29 review fixes, Release build without warnings: OpenApi 207, CodeGeneration 17, Integration 95, SourceGenerator 15, Cli 26, Blazor 11, per framework (net8.0, net10.0); demo 5 | all passed |
 | 2026-11-17 | M28 after review fixes, Release build: OpenApi 199, CodeGeneration 13, Integration 78 (intermediate hierarchies, cache incl. retries, API keys, large chunked bodies), SourceGenerator 14, Cli 24, Blazor 11, per framework (net8.0, net10.0); demo 5 | all passed |
 | 2026-11-17 | M27, Release build: OpenApi 199, CodeGeneration 13, Integration 74 (alternate bodies, headers, progress, reconnection, logging), SourceGenerator 14, Cli 24 (mock server), Blazor 11, per framework (net8.0, net10.0); demo 5 | all passed |
@@ -152,11 +154,17 @@ scoped to be reviewable on its own; the working tree has not been committed or s
     found and fixed: unbounded buffering, keys computed after inner handlers ran, conditions re-sent by outer
     retries, unbounded `Vary` bookkeeping, a sign-out race (a generation counter guards `Clear`), and the payload
     class making the root's discriminator required.
+30. **Typed views instead of new signatures.** Response headers and alternative success bodies are read through
+    generated `{Operation}ResponseHeaders` / `{Operation}ResponseBodies` classes created from an `ApiResult`, so the
+    operation methods, `ApiResult<T>`, mocks and existing callers are unchanged.
+31. **Type mappings are trusted names.** `typeMappings` values are used as written (dotted names get `global::`);
+    mapped types are treated as opaque values: no DataAnnotations, invariant `ToString` for parameters, `default!` in
+    fixtures, and System.Text.Json serializes them.
 
 ## Known limitations (current)
 
-- Only the first success response body is the typed value; other JSON/text success bodies are untyped `object`s in
-  `ApiResult.Content` (binary and streamed alternatives are not read).
+- Only the first success response body is the result's `Value`; other JSON/text success bodies are in
+  `ApiResult.Content` and typed by `{Operation}ResponseBodies` (binary and streamed alternatives are not read).
 - Server-sent event `retry:` fields are applied with the next event (the parser ignores `retry` in blocks without
   data); `ApiEventSource` falls back to `DefaultRetry`.
 - `api-gen mock` does not validate requests and serves one example per response (no stateful behavior).
@@ -248,7 +256,8 @@ as Microsoft.Identity.Web, MSAL or Blazor's `IAccessTokenProvider`), MCP server 
 ## Deferred features
 
 - Custom code templates (M22): the emitters are internal and not template-driven.
-- Sharing schemas between contracts: each contract generates its own types in its own namespace.
+- Sharing schemas between contracts is done with `typeMappings` (one contract generates the type, others map the
+  schema to it); there is no automatic detection of identical schemas.
 - ASP.NET Core contract verification: the recommended approach is to export the server's OpenAPI document in CI and
   run `api-gen diff` against the published contract.
 - A regression suite of large real-world contracts (GitHub, Stripe, Kubernetes): the repository has representative
@@ -256,4 +265,5 @@ as Microsoft.Identity.Web, MSAL or Blazor's `IAccessTokenProvider`), MCP server 
 - Generating a `JsonSerializerContext` for trimmed/AOT applications (possible from the CLI output; not from the
   source generator).
 - Publishing: no packages are pushed; versions are `0.1.0-preview`.
-- Several typed success bodies per operation as a generated result union (they are untyped in `ApiResult.Content`).
+- A result type per operation that is a union of its success bodies (an alternative to `{Operation}ResponseBodies`);
+  not planned, since it would change every result signature and mock.

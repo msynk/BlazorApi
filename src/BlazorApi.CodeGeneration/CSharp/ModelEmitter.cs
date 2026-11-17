@@ -326,6 +326,11 @@ internal sealed class ModelEmitter
     private IEnumerable<string> DataAnnotations(ApiProperty property, PropertyShape shape)
     {
         var constraints = property.Constraints;
+        if (_plan.MappedType(property.Type.WithNullable(false)) is not null)
+        {
+            yield break; // Schema constraints describe the wire value, not the mapped C# type.
+        }
+
         if (shape.Required && !_plan.IsValueType(property.Type) && !property.Type.IsNullable)
         {
             yield return $"[{Annotations}.Required(AllowEmptyStrings = true)]";
