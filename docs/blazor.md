@@ -98,26 +98,62 @@ In Blazor Server, `IHttpClientFactory` creates message handlers in their own dep
 user's circuit scope. Do not resolve per-user services (such as `AuthenticationStateProvider`) inside a handler
 factory; obtain per-user tokens through a service designed for that.
 
+## Generated types in component parameters
+
+The Razor compiler and the BlazorApi source generator run side by side, so when Razor reads a component's
+declaration it does not see the types the generator produces. A parameter typed with a generated model then fails to
+compile at its call sites (`CS0400: The type or namespace name 'Pet' could not be found in the global namespace`).
+Write generated types fully qualified, and not as nullable reference types, in `[Parameter]` declarations:
+
+```razor
+@code {
+    [Parameter, EditorRequired]
+    public global::MyApp.Api.Pet Pet { get; set; } = null!;
+
+    [Parameter]
+    public EventCallback<global::MyApp.Api.Pet> OnSaved { get; set; }
+}
+```
+
+Everything else (`@code` bodies, `ApiResultView TValue="Pet"`, expressions in markup) can use the short names. Value
+types such as generated enums (`PetStatus?`) are not affected. With the CLI (`blazorapi generate`) the code is
+ordinary source and this does not apply.
+
 ## The sample app
 
-`samples/Petstore.BlazorApp` is a Blazor Web App (interactive server rendering) that hosts a small in-memory Petstore
-API under `/v1` and consumes it through the client generated from `samples/Contracts/petstore.yaml`.
+`samples/Petstore.BlazorApp` is a Blazor Web App (interactive server rendering) that hosts a small in-memory
+implementation of every operation in `samples/Contracts/petstore.yaml` under `/v1`, and consumes it through the
+client generated from that contract.
 
 ```shell
 dotnet run --project samples/Petstore.BlazorApp     # http://localhost:5080
 ```
 
-- `Program.cs` registers the generated client with `AddPetstoreClient`, a bearer
-  token for the `bearerAuth` scheme and an API key for `apiKey`. `/health` stays anonymous because the contract says
-  `security: []`.
-- `Pages/Home.razor`: cursor pagination with `ListPetsResultAsync` and "Load more"; a create form with
-  `DataAnnotationsValidator`, `ApiValidationErrors` and `CreatePetResultAsync`, after which the list reloads.
-  Submitting an empty name or the "Parrot" kind shows the server's 422 problem details on the fields.
-- `Pages/PetDetails.razor`: `ApiResultView` around `GetPetResultAsync` (a missing pet shows the API's 404 body), a
-  JSON merge-patch update (an empty tag sends `"tag": null`), and delete.
-- `Pages/Inventory.razor`: `ApiResultView` around `GetInventoryResultAsync`, refreshed with `ReloadAsync()` and
-  `KeepPreviousValue`; the API key is added only to this operation.
-- `Api/PetstoreEndpoints.cs`: the in-memory API, which uses the generated models for its own JSON.
+The app calls the API it hosts, at whatever address Kestrel listens on (`--urls` works); set `PetstoreApi` to call
+another server. An **API traffic** panel lists every request the generated client sends: the operation id, the URL
+it built and which credentials the handlers attached (secrets are never shown).
+
+- `Program.cs` registers the generated client with `AddPetstoreClient`, a bearer token for the `bearerAuth` scheme,
+  an API key for `apiKey` and a logging `DelegatingHandler` added last, so it sees the headers the others attached.
+  `/health` stays anonymous because the contract says `security: []`.
+- **Pets** (`Pages/Home.razor`, `Pets/NewPetForm.razor`): cursor pagination with `ListPetsResultAsync` and
+  "Load more", a typed `status` filter, the total from the `X-Total-Count` response header, and a create form with
+  `DataAnnotationsValidator`, `ApiValidationErrors` and `CreatePetResultAsync`. An empty name or the "Parrot" kind
+  shows the server's 422 problem details on the fields.
+- **Pet details** (`Pages/PetDetails.razor`): `ApiResultView` with custom `Loading` and `Error` templates (a missing
+  pet reads the typed 404 `Error` body with `TryGetContent`), and one card per kind of request body: a JSON merge
+  patch whose preview shows how `Optional<string?>` omits or nulls the tag (`Pets/PetPatchEditor.razor`), a PUT with a
+  polymorphic `Pet` body, a multipart photo upload and binary download (`Pets/PetPhotoCard.razor`), a form-urlencoded
+  order, and the deprecated (`[Obsolete]`) delete.
+- **Inventory** (`Pages/Inventory.razor`): `ApiResultView` around `GetInventoryResultAsync` (an
+  `additionalProperties` object, generated as `IReadOnlyDictionary<string, int>`), refreshed with `ReloadAsync()`
+  and `KeepPreviousValue`; the API key is added to this operation only.
+- **Error playground** (`Pages/Playground.razor`): runs each failure and shows what comes back: a typed 404 body,
+  422 problem details, a 401 from a client without credentials, `ApiException` from the throwing methods, and
+  `ApiErrorKind.Network`, `ApiErrorKind.Timeout` and caller cancellation (`Services/DemoClients.cs` builds the
+  failing clients).
+- `Api/PetstoreEndpoints.cs` and `Api/PetStore.cs`: the in-memory API, which uses the generated models for its own
+  JSON. Data resets when the app restarts.
 
 `samples/Petstore.ConsoleClient` calls the same API without dependency injection (start the Blazor app first), and
 `samples/Petstore.Tests` shows mocks, fixtures, `MockApiHandler` and a compatibility test.

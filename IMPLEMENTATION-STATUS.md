@@ -45,6 +45,7 @@ scoped to be reviewable on its own; the working tree has not been committed or s
 | 2026-11-09 | After documentation-review fixes: 440 tests (net8.0 + net10.0) + 5 sample tests | all passed |
 | 2026-11-09 | samples/Petstore.Tests (5); Petstore.BlazorApp run and checked over HTTP (pages, 401, 404, API key); Petstore.ConsoleClient run against it | passed |
 | 2026-11-17 | After removing the dotnet-query integration: full suite (net8.0 + net10.0) + 5 sample tests | all passed |
+| 2026-11-17 | Petstore.BlazorApp rework: every contract operation served; browser end-to-end run in Chrome (list, filter, pagination, create with 422, merge patch, PUT, photo upload/download, order with 409, delete, inventory, 8 playground scenarios, not-found, mobile width, light and dark); full suite + 5 sample tests; console client against the app | all passed |
 
 ## Architectural decisions
 

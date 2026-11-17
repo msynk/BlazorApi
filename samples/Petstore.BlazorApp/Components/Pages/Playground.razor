@@ -1,0 +1,187 @@
+@page "/playground"
+@inject IPetstoreClient Api
+@inject DemoClients Clients
+
+<PageTitle>Error playground · Petstore</PageTitle>
+
+<div class="page-header">
+    <div>
+        <h1>Error playground</h1>
+        <p class="lead">
+            Every way a call can go wrong, and what the generated client gives you back. <code>...ResultAsync</code>
+            methods never throw for API failures: they return an <code>ApiResult</code> whose <code>ApiError</code> says
+            what happened. The plain <code>...Async</code> methods throw <code>ApiException</code> instead.
+        </p>
+    </div>
+</div>
+
+<div class="scenario-grid">
+    <ScenarioCard Title="Anonymous operation" Badge="200 text/plain" Run="HealthAsync"
+                  Description="getHealth declares security: [], so no handler adds credentials (the traffic panel shows “none”). The text/plain body arrives as a string."
+                  Code="@HealthCode" />
+
+    <ScenarioCard Title="Typed error body" Badge="404"
+                  Description="getPet declares its 404 response as the Error schema. The client deserializes it, and TryGetContent<Error> hands it back typed."
+                  Code="@NotFoundCode" Run="NotFoundAsync" />
+
+    <ScenarioCard Title="Validation problem" Badge="422"
+                  Description="createPet declares its 422 as the contract's ProblemDetails schema. ApiErrorView lists the field errors; in a form, ApiValidationErrors puts them next to the inputs."
+                  Code="@ValidationCode" Run="ValidationAsync" />
+
+    <ScenarioCard Title="Missing credentials" Badge="401"
+                  Description="The same generated client, built over an HttpClient without the authentication handlers. The API refuses the call."
+                  Code="@UnauthorizedCode" Run="UnauthorizedAsync" />
+
+    <ScenarioCard Title="Exceptions instead of results" Badge="ApiException"
+                  Description="The value-returning methods throw ApiException, which carries the same ApiError (status, typed content, problem details)."
+                  Code="@ExceptionCode" Run="ExceptionAsync" />
+
+    <ScenarioCard Title="Network failure" Badge="Network"
+                  Description="A client pointed at a port nothing listens on. The connection error becomes ApiErrorKind.Network instead of an HttpRequestException."
+                  Code="@NetworkCode" Run="NetworkAsync" />
+
+    <ScenarioCard Title="Timeout" Badge="Timeout"
+                  Description="ApiClientOptions.Timeout is one second and the API is told to wait three. The client gives up and reports ApiErrorKind.Timeout."
+                  Code="@TimeoutCode" Run="TimeoutAsync" />
+
+    <ScenarioCard Title="Cancellation" Badge="CancellationToken"
+                  Description="The API waits eight seconds. Press Cancel while it runs: cancelling your own token throws OperationCanceledException rather than returning an error."
+                  Code="@CancellationCode" Run="CancellationAsync" />
+</div>
+
+@code {
+    private async Task<ScenarioOutcome> HealthAsync(CancellationToken cancellationToken)
+    {
+        var result = await Api.GetHealthResultAsync(cancellationToken);
+        return result.IsSuccess
+            ? ScenarioOutcome.Ok($"HTTP {result.StatusCode}: “{result.Value}”", $"result.Value is a {result.Value!.GetType().Name}.")
+            : ScenarioOutcome.From(result.Error);
+    }
+
+    private async Task<ScenarioOutcome> NotFoundAsync(CancellationToken cancellationToken)
+    {
+        var result = await Api.GetPetResultAsync(99_999, cancellationToken);
+        if (result.IsSuccess)
+        {
+            return ScenarioOutcome.Ok("Unexpectedly found pet 99999.");
+        }
+
+        return result.Error.TryGetContent<Error>(out var error)
+            ? ScenarioOutcome.From(result.Error, $"Typed content: Error {{ Code = {error.Code}, Message = \"{error.Message}\" }}")
+            : ScenarioOutcome.From(result.Error);
+    }
+
+    private async Task<ScenarioOutcome> ValidationAsync(CancellationToken cancellationToken)
+    {
+        var result = await Api.CreatePetResultAsync(new NewPet { Name = "", Kind = "parrot" }, cancellationToken);
+        return result.IsSuccess
+            ? ScenarioOutcome.Ok("Unexpectedly created the pet.")
+            : result.Error.TryGetContent<ProblemDetails>(out var problem)
+                ? ScenarioOutcome.From(result.Error, $"Typed content: ProblemDetails {{ Title = \"{problem.Title}\", Errors = {problem.Errors?.Count ?? 0} field(s) }}")
+                : ScenarioOutcome.From(result.Error);
+    }
+
+    private async Task<ScenarioOutcome> UnauthorizedAsync(CancellationToken cancellationToken)
+    {
+        var result = await Clients.WithoutCredentials().ListPetsResultAsync(limit: 1, cancellationToken: cancellationToken);
+        return result.IsSuccess ? ScenarioOutcome.Ok("Unexpectedly allowed.") : ScenarioOutcome.From(result.Error);
+    }
+
+    private async Task<ScenarioOutcome> ExceptionAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            var pet = await Api.GetPetAsync(99_999, cancellationToken);
+            return ScenarioOutcome.Ok($"Unexpectedly found {pet.Name}.");
+        }
+        catch (ApiException ex)
+        {
+            return new ScenarioOutcome(
+                false,
+                $"Caught {ex.GetType().Name} · HTTP {ex.StatusCode}",
+                [$"ex.Content is {ex.Content?.GetType().Name ?? "null"}; ex.Error.OperationId is “{ex.Error.OperationId}”."],
+                Exception: ex);
+        }
+    }
+
+    private async Task<ScenarioOutcome> NetworkAsync(CancellationToken cancellationToken)
+    {
+        var result = await Clients.Unreachable().GetHealthResultAsync(cancellationToken);
+        return result.IsSuccess
+            ? ScenarioOutcome.Ok("Unexpectedly reached the server.")
+            : ScenarioOutcome.From(result.Error, $"Inner exception: {result.Error.Exception?.GetType().Name}");
+    }
+
+    private async Task<ScenarioOutcome> TimeoutAsync(CancellationToken cancellationToken)
+    {
+        var client = Clients.Slow(delay: TimeSpan.FromSeconds(3), timeout: TimeSpan.FromSeconds(1));
+        var result = await client.GetHealthResultAsync(cancellationToken);
+        return result.IsSuccess ? ScenarioOutcome.Ok("Unexpectedly answered in time.") : ScenarioOutcome.From(result.Error);
+    }
+
+    private async Task<ScenarioOutcome> CancellationAsync(CancellationToken cancellationToken)
+    {
+        var result = await Clients.Slow(delay: TimeSpan.FromSeconds(8)).GetHealthResultAsync(cancellationToken);
+        return result.IsSuccess
+            ? ScenarioOutcome.Ok($"Finished without being cancelled: “{result.Value}”")
+            : ScenarioOutcome.From(result.Error);
+    }
+
+    private const string HealthCode = """
+        var result = await Api.GetHealthResultAsync();
+        if (result.IsSuccess)
+            Console.WriteLine(result.Value); // "healthy"
+        """;
+
+    private const string NotFoundCode = """
+        var result = await Api.GetPetResultAsync(99999);
+        if (result.Error?.TryGetContent<Error>(out var error) == true)
+            Show($"{error.Code}: {error.Message}");
+        """;
+
+    private const string ValidationCode = """
+        var result = await Api.CreatePetResultAsync(
+            new NewPet { Name = "", Kind = "parrot" });
+        if (result.Error?.TryGetContent<ProblemDetails>(out var problem) == true)
+            Show(problem.Title, problem.Errors);
+        // or: <ApiErrorView Error="result.Error" />
+        """;
+
+    private const string UnauthorizedCode = """
+        var client = new PetstoreClient(
+            httpClientFactory.CreateClient("Petstore.Anonymous"));
+        var result = await client.ListPetsResultAsync(limit: 1);
+        // result.StatusCode == 401
+        """;
+
+    private const string ExceptionCode = """
+        try { var pet = await Api.GetPetAsync(99999); }
+        catch (ApiException ex) when (ex.StatusCode == 404)
+        {
+            var error = (Error)ex.Content!;
+        }
+        """;
+
+    private const string NetworkCode = """
+        var client = new PetstoreClient(http, new ApiClientOptions
+        {
+            BaseAddress = new Uri("http://127.0.0.1:9/v1/"),
+        });
+        var result = await client.GetHealthResultAsync();
+        // result.Error.Kind == ApiErrorKind.Network
+        """;
+
+    private const string TimeoutCode = """
+        var options = new ApiClientOptions { Timeout = TimeSpan.FromSeconds(1) };
+        var client = new PetstoreClient(http, options);
+        var result = await client.GetHealthResultAsync();
+        // result.Error.Kind == ApiErrorKind.Timeout
+        """;
+
+    private const string CancellationCode = """
+        using var cts = new CancellationTokenSource();
+        var call = Api.GetHealthResultAsync(cts.Token);
+        cts.Cancel();
+        await call; // throws OperationCanceledException
+        """;
+}

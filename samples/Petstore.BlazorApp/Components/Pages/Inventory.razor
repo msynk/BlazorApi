@@ -1,24 +1,120 @@
 @page "/inventory"
 @inject IPetstoreClient Api
 
-<h1>Inventory</h1>
+<PageTitle>Inventory · Petstore</PageTitle>
 
-@* getInventory needs the API key, which the registered handler adds for this operation only. *@
-<ApiResultView TValue="IReadOnlyDictionary<string, int>" @ref="_view" Load="ct => Api.GetInventoryResultAsync(ct)" KeepPreviousValue="true">
-    <ChildContent Context="inventory">
-        <ul>
-            @foreach (var pair in inventory.OrderBy(p => p.Key))
+<div class="page-header">
+    <div>
+        <h1>Inventory</h1>
+        <p class="lead">
+            <code>getInventory</code> requires the <code>apiKey</code> scheme instead of the bearer token. The handler
+            registered with <code>AddApiKey(..., scheme: "apiKey")</code> adds <code>X-API-Key</code> to this operation only;
+            check the traffic panel.
+        </p>
+    </div>
+    <div class="page-actions">
+        <button type="button" class="btn" disabled="@_refreshing" @onclick="RefreshAsync">
+            @if (_refreshing)
             {
-                <li>@pair.Key: @pair.Value</li>
+                <span class="spinner"></span>
             }
-        </ul>
+            else
+            {
+                <Icon Name="refresh" />
+            }
+            Refresh
+        </button>
+    </div>
+</div>
+
+@* The response is a free-form object (additionalProperties: integer), generated as IReadOnlyDictionary<string, int>.
+   KeepPreviousValue keeps the numbers on screen while Refresh reloads them. *@
+<ApiResultView TValue="IReadOnlyDictionary<string, int>" @ref="_view" Load="LoadAsync" KeepPreviousValue="true">
+    <Loading>
+        <div class="stats" aria-busy="true">
+            @for (var i = 0; i < 4; i++)
+            {
+                <div class="card stat">
+                    <div class="skeleton skeleton-line" style="width: 50%"></div>
+                    <div class="skeleton" style="width: 40%; height: 36px"></div>
+                </div>
+            }
+        </div>
+    </Loading>
+
+    <ChildContent Context="inventory">
+        @{
+            var total = inventory.Values.Sum();
+        }
+        <div class="stack @(_view?.IsLoading == true ? "is-refreshing" : null)">
+            <div class="stats">
+                <div class="card stat">
+                    <span class="stat-label"><Icon Name="grid" /> All pets</span>
+                    <span class="stat-value">@total</span>
+                    <span class="stat-sub">in the store</span>
+                </div>
+                @foreach (var status in Enum.GetValues<PetStatus>())
+                {
+                    var wire = PetStatusJsonConverter.ToWireValue(status);
+                    var count = inventory.GetValueOrDefault(wire);
+                    <div class="card stat">
+                        <span class="stat-label"><span class="dot dot-@wire" style="width: 9px; height: 9px; border-radius: 50%"></span> @StatusBadge.LabelFor(status)</span>
+                        <span class="stat-value">@count</span>
+                        <span class="stat-sub">@Percent(count, total) of all pets · key <code>@wire</code></span>
+                    </div>
+                }
+            </div>
+
+            <div class="card card-body stack">
+                <h2>Distribution</h2>
+                <div class="stacked-bar" role="img" aria-label="@string.Join(", ", inventory.Select(p => $"{p.Key}: {p.Value}"))">
+                    @foreach (var status in Enum.GetValues<PetStatus>())
+                    {
+                        var wire = PetStatusJsonConverter.ToWireValue(status);
+                        var count = inventory.GetValueOrDefault(wire);
+                        if (count > 0)
+                        {
+                            <span class="dot-@wire" style="flex-grow: @count" title="@StatusBadge.LabelFor(status): @count"></span>
+                        }
+                    }
+                </div>
+                <div class="legend">
+                    @foreach (var status in Enum.GetValues<PetStatus>())
+                    {
+                        var wire = PetStatusJsonConverter.ToWireValue(status);
+                        <span><span class="dot dot-@wire" style="width: 9px; height: 9px; border-radius: 50%"></span> @StatusBadge.LabelFor(status) (@inventory.GetValueOrDefault(wire))</span>
+                    }
+                </div>
+                <span class="hint">Loaded at @_loadedAt.ToString("HH:mm:ss") · add, adopt or delete pets and refresh.</span>
+            </div>
+        </div>
     </ChildContent>
 </ApiResultView>
 
-<button type="button" @onclick="RefreshAsync">Refresh</button>
-
 @code {
     private ApiResultView<IReadOnlyDictionary<string, int>>? _view;
+    private DateTime _loadedAt;
+    private bool _refreshing;
 
-    private Task RefreshAsync() => _view?.ReloadAsync() ?? Task.CompletedTask;
+    private async Task<ApiResult<IReadOnlyDictionary<string, int>>> LoadAsync(CancellationToken cancellationToken)
+    {
+        var result = await Api.GetInventoryResultAsync(cancellationToken);
+        _loadedAt = DateTime.Now;
+        return result;
+    }
+
+    private async Task RefreshAsync()
+    {
+        _refreshing = true;
+        try
+        {
+            await _view!.ReloadAsync();
+        }
+        finally
+        {
+            _refreshing = false;
+        }
+    }
+
+    private static string Percent(int count, int total) => total == 0 ? "0%" : $"{100.0 * count / total:0}%";
 }

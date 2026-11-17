@@ -1,66 +1,284 @@
 @page "/pets/{PetId:long}"
+@using System.Text.Json
+@using BlazorApi.Runtime.Json
 @inject IPetstoreClient Api
 @inject NavigationManager Navigation
+@inject ToastService Toasts
 
-@* ApiResultView loads with the generated ...ResultAsync method and renders loading, success and error states; a
-   missing pet shows the API's 404 error body. *@
-<ApiResultView TValue="Pet" @ref="_view" Load="ct => Api.GetPetResultAsync(PetId, ct)" Key="PetId">
+<PageTitle>@(_name ?? "Pet") · Petstore</PageTitle>
+
+<div>
+    <a class="crumbs" href=""><Icon Name="back" /> All pets</a>
+</div>
+
+@* ApiResultView loads with the generated ...ResultAsync method and renders the loading, success and error states. It
+   reloads when Key changes; KeepPreviousValue keeps the pet on screen while ReloadAsync() refreshes it after an edit. *@
+<ApiResultView TValue="Pet" @ref="_view" Load="LoadAsync" Key="PetId" KeepPreviousValue="true">
+    <Loading>
+        <div class="card card-body hero" aria-busy="true">
+            <div class="skeleton" style="width: 96px; height: 96px; border-radius: 22px"></div>
+            <div class="stack" style="flex: 1">
+                <div class="skeleton skeleton-line" style="width: 40%; height: 24px"></div>
+                <div class="skeleton skeleton-line" style="width: 25%"></div>
+            </div>
+        </div>
+    </Loading>
+
+    <Error Context="error">
+        @* The 404 body is the contract's typed Error model: TryGetContent reads it without parsing JSON by hand. *@
+        <div class="card">
+            <div class="empty">
+                @if (error.StatusCode == 404 && error.TryGetContent<Error>(out var notFound))
+                {
+                    <span class="emoji" aria-hidden="true">🔍</span>
+                    <h1>Pet not found</h1>
+                    <p>The API answered <strong>@notFound.Code</strong>: “@notFound.Message”</p>
+                    <a class="btn btn-primary" href=""><Icon Name="back" /> Back to all pets</a>
+                }
+                else
+                {
+                    <ApiErrorView Error="error" OnRetry="ReloadAsync" />
+                }
+            </div>
+        </div>
+    </Error>
+
     <ChildContent Context="pet">
-        <h1>@pet.Name</h1>
-        <dl>
-            <dt>Kind</dt>
-            <dd>@pet.Kind</dd>
-            <dt>Status</dt>
-            <dd>@(pet.Status?.ToString() ?? "unknown")</dd>
-            <dt>Tag</dt>
-            <dd>@(pet.Tag ?? "(none)")</dd>
-            @if (pet is Dog dog)
-            {
-                <dt>Bark volume</dt>
-                <dd>@(dog.BarkVolume?.ToString() ?? "unknown")</dd>
-            }
-        </dl>
+        <section class="card card-body stack">
+            <div class="hero">
+                <PetAvatar Pet="pet" PhotoUrl="@_photoUrl" Large="true" />
+                <div class="hero-text">
+                    <h1>@pet.Name</h1>
+                    <div class="row">
+                        <StatusBadge Status="pet.Status" />
+                        <span class="badge badge-primary plain">@PetCard.Describe(pet)</span>
+                        @if (pet.Tag is { } tag)
+                        {
+                            <span class="chip"><Icon Name="tag" /> @tag</span>
+                        }
+                    </div>
+                </div>
+            </div>
 
-        <p>
-            <input @bind="_tag" placeholder="New tag (empty clears it)" />
-            <button type="button" @onclick="SaveTagAsync">Save tag</button>
-        </p>
-        <button type="button" @onclick="DeleteAsync">Delete</button>
+            <dl class="facts">
+                <div><dt>ID</dt><dd class="mono">#@pet.Id</dd></div>
+                <div><dt>Model type</dt><dd class="mono">@pet.GetType().Name</dd></div>
+                <div><dt>Born</dt><dd>@(pet.BirthDate?.ToString("MMM d, yyyy") ?? "Unknown")</dd></div>
+                <div><dt>Listed</dt><dd>@(pet.CreatedAt?.ToLocalTime().ToString("MMM d, HH:mm") ?? "—")</dd></div>
+                @switch (pet)
+                {
+                    case Dog dog:
+                        <div><dt>Bark volume</dt><dd>@(dog.BarkVolume?.ToString("0.#") ?? "Unknown")</dd></div>
+                        break;
+                    case Cat cat:
+                        <div><dt>Lives</dt><dd>@(cat.Indoor ? "Indoors" : "Outdoors")</dd></div>
+                        break;
+                }
+                <div><dt>Owner</dt><dd>@(pet.Owner is { } owner ? $"{owner.Name} ({owner.Email})" : "None yet")</dd></div>
+            </dl>
+        </section>
+
+        <div class="grid-2">
+            <PetPatchEditor Pet="pet" OnSaved="SavedAsync" />
+            <PetPhotoCard PetId="PetId" PetName="@pet.Name" OnPhotoChanged="url => _photoUrl = url" />
+        </div>
+
+        <div class="grid-2">
+            @* PUT replaces the whole resource. The body is the polymorphic Pet: the client writes it as a Dog or a Cat. *@
+            <div class="card">
+                <div class="card-header">
+                    <div>
+                        <h2>Status</h2>
+                        <p><code>UpdatePetResultAsync</code> · PUT with a polymorphic body</p>
+                    </div>
+                </div>
+                <div class="card-body stack">
+                    <div class="field">
+                        <label for="status">Status</label>
+                        <select id="status" @bind="_newStatus">
+                            <option value="">Choose…</option>
+                            <option value="@PetStatus.Available">Available</option>
+                            <option value="@PetStatus.Pending">Pending</option>
+                            <option value="@PetStatus.Sold">Adopted</option>
+                        </select>
+                    </div>
+                    <ApiErrorView Error="_statusError" />
+                </div>
+                <div class="card-footer">
+                    <span class="hint">Sends <code>"kind": "@pet.Kind"</code> with every property.</span>
+                    <span class="spacer"></span>
+                    <button type="button" class="btn btn-primary" disabled="@(_busy || _newStatus is null || _newStatus == pet.Status)" @onclick="() => ReplaceStatusAsync(pet)">
+                        Replace pet
+                    </button>
+                </div>
+            </div>
+
+            @* A form-encoded body (application/x-www-form-urlencoded) built from the generated Order model. *@
+            <div class="card">
+                <div class="card-header">
+                    <div>
+                        <h2><Icon Name="heart" /> Adopt</h2>
+                        <p><code>PlaceOrderResultAsync</code> · form-urlencoded body</p>
+                    </div>
+                </div>
+                <div class="card-body stack">
+                    @if (_order is { } order)
+                    {
+                        <div class="outcome ok">
+                            <span class="outcome-title"><Icon Name="check" /> Order complete</span>
+                            <span>Pet #@order.PetId · quantity @order.Quantity · ships @order.ShipDate?.ToLocalTime().ToString("dddd, MMM d")</span>
+                        </div>
+                    }
+                    else if (pet.Status == PetStatus.Available)
+                    {
+                        <p class="muted">@pet.Name is waiting for a home. Placing an order marks the pet as adopted.</p>
+                    }
+                    else
+                    {
+                        <p class="muted">Only available pets can be adopted; the API answers 409 for the others. Try it to see the error.</p>
+                    }
+                    <ApiErrorView Error="_orderError" />
+                </div>
+                <div class="card-footer">
+                    <span class="spacer"></span>
+                    <button type="button" class="btn @(pet.Status == PetStatus.Available ? "btn-primary" : null)" disabled="@_busy" @onclick="() => AdoptAsync(pet)">
+                        <Icon Name="heart" /> Adopt @pet.Name
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="card danger-zone">
+            <div class="card-header">
+                <div>
+                    <h2>Danger zone</h2>
+                    <p><code>DeletePetResultAsync</code> · the contract marks <code>deletePet</code> deprecated, so the generated method is <code>[Obsolete]</code></p>
+                </div>
+                @if (_confirmDelete)
+                {
+                    <div class="row">
+                        <button type="button" class="btn btn-sm" @onclick="() => _confirmDelete = false">Keep</button>
+                        <button type="button" class="btn btn-danger btn-sm" disabled="@_busy" @onclick="() => DeleteAsync(pet)">
+                            <Icon Name="trash" /> Yes, delete @pet.Name
+                        </button>
+                    </div>
+                }
+                else
+                {
+                    <button type="button" class="btn btn-sm" @onclick="() => _confirmDelete = true"><Icon Name="trash" /> Delete</button>
+                }
+            </div>
+            @if (_deleteError is not null)
+            {
+                <div class="card-body"><ApiErrorView Error="_deleteError" /></div>
+            }
+        </div>
     </ChildContent>
 </ApiResultView>
 
-<ApiErrorView Error="_error" />
-
-<p><a href="">Back to the list</a></p>
-
 @code {
+    private static readonly JsonSerializerOptions Json = ApiJson.CreateOptions();
+
     private ApiResultView<Pet>? _view;
-    private string? _tag;
-    private ApiError? _error;
+    private string? _name;
+    private string? _photoUrl;
+    private PetStatus? _newStatus;
+    private Order? _order;
+    private ApiError? _statusError;
+    private ApiError? _orderError;
+    private ApiError? _deleteError;
+    private bool _confirmDelete;
+    private bool _busy;
+    private long _shownFor;
 
     [Parameter]
     public long PetId { get; set; }
 
-    private async Task SaveTagAsync()
+    protected override void OnParametersSet()
     {
-        // A JSON merge-patch body: an empty input sends "tag": null (clearing the tag); unset properties are omitted.
-        var result = await Api.PatchPetResultAsync(PetId, new PetPatch { Tag = string.IsNullOrWhiteSpace(_tag) ? null : _tag });
-        _error = result.Error;
-        if (result.IsSuccess)
+        if (_shownFor != PetId)
         {
-            await _view!.ReloadAsync();
+            // Another pet: forget what the previous one showed.
+            _shownFor = PetId;
+            (_name, _photoUrl, _newStatus, _order) = (null, null, null, null);
+            (_statusError, _orderError, _deleteError, _confirmDelete) = (null, null, null, false);
         }
     }
 
-    private async Task DeleteAsync()
+    private async Task<ApiResult<Pet>> LoadAsync(CancellationToken cancellationToken)
     {
+        var result = await Api.GetPetResultAsync(PetId, cancellationToken);
+        if (result.Value?.Name != _name)
+        {
+            // The page title lives outside ApiResultView, so re-render the page for it.
+            _name = result.Value?.Name;
+            StateHasChanged();
+        }
+
+        return result;
+    }
+
+    private Task ReloadAsync() => _view?.ReloadAsync() ?? Task.CompletedTask;
+
+    private async Task SavedAsync(Pet pet)
+    {
+        Toasts.Show($"Saved {pet.Name}.");
+        await ReloadAsync();
+    }
+
+    private async Task ReplaceStatusAsync(Pet pet)
+    {
+        _busy = true;
+        _statusError = null;
+
+        // A copy of the loaded pet (still a Dog or a Cat) with the new status.
+        var replacement = JsonSerializer.Deserialize<Pet>(JsonSerializer.Serialize(pet, Json), Json)!;
+        replacement.Status = _newStatus;
+        var result = await Api.UpdatePetResultAsync(PetId, replacement);
+        _busy = false;
+        if (result.Error is { } error)
+        {
+            _statusError = error;
+            return;
+        }
+
+        _newStatus = null;
+        Toasts.Show($"{pet.Name} is now {StatusBadge.LabelFor(result.Value!.Status).ToLowerInvariant()}.");
+        await ReloadAsync();
+    }
+
+    private async Task AdoptAsync(Pet pet)
+    {
+        _busy = true;
+        _orderError = null;
+        var result = await Api.PlaceOrderResultAsync(new Order { PetId = pet.Id, Quantity = 1 });
+        _busy = false;
+        if (result.Error is { } error)
+        {
+            _orderError = error;
+            return;
+        }
+
+        _order = result.Value;
+        Toasts.Show($"{pet.Name} has a new home! 🎉");
+        await ReloadAsync();
+    }
+
+    private async Task DeleteAsync(Pet pet)
+    {
+        _busy = true;
+        _deleteError = null;
 #pragma warning disable CS0618 // deletePet is deprecated by the contract.
         var result = await Api.DeletePetResultAsync(PetId);
 #pragma warning restore CS0618
-        _error = result.Error;
-        if (result.IsSuccess)
+        _busy = false;
+        if (result.Error is { } error)
         {
-            Navigation.NavigateTo("");
+            _deleteError = error;
+            return;
         }
+
+        Toasts.Show($"{pet.Name} was removed.", ToastKind.Info);
+        Navigation.NavigateTo("");
     }
 }

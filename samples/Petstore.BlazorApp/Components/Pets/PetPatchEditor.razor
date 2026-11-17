@@ -1,0 +1,131 @@
+@using BlazorApi.Runtime.Json
+@inject IPetstoreClient Api
+
+@* JSON merge patch (RFC 7396) with the generated PetPatch model. Its nullable "tag" is an Optional<string?>, so the
+   client can tell "leave it alone" (property omitted) from "clear it" ("tag": null). The preview shows the exact body. *@
+<div class="card">
+    <div class="card-header">
+        <div>
+            <h2><Icon Name="pencil" /> Edit</h2>
+            <p><code>PatchPetResultAsync</code> · <code>application/merge-patch+json</code></p>
+        </div>
+    </div>
+
+    <EditForm Model="_form" OnValidSubmit="SaveAsync">
+        <ApiValidationErrors Error="_error" />
+        <div class="card-body stack">
+            <ValidationSummary Model="_form" />
+            @if (_error is not null && ApiValidation.GetFieldErrors(_error).Count == 0)
+            {
+                <ApiErrorView Error="_error" />
+            }
+
+            <div class="field">
+                <label for="patch-name">Name</label>
+                <InputText id="patch-name" @bind-Value="_form.Name" placeholder="@Pet.Name" autocomplete="off" />
+                <span class="hint">Leave empty to keep the current name (the property is omitted).</span>
+                <ValidationMessage For="() => _form.Name" />
+            </div>
+
+            <div class="field">
+                <span class="label">Tag</span>
+                <InputRadioGroup @bind-Value="_form.TagMode" Name="tag-mode">
+                    <div class="radio-row">
+                        <label><InputRadio Value="TagMode.Keep" /> Keep</label>
+                        <label><InputRadio Value="TagMode.Set" /> Set</label>
+                        <label><InputRadio Value="TagMode.Clear" /> Clear</label>
+                    </div>
+                </InputRadioGroup>
+                @if (_form.TagMode == TagMode.Set)
+                {
+                    <InputText @bind-Value="_form.Tag" placeholder="@(Pet.Tag ?? "e.g. playful")" aria-label="New tag" autocomplete="off" />
+                }
+                <ValidationMessage For="() => _form.Tag" />
+            </div>
+
+            <div class="field">
+                <span class="label">Request body</span>
+                <pre class="code">@Preview</pre>
+            </div>
+        </div>
+
+        <div class="card-footer">
+            <span class="spacer"></span>
+            <button type="submit" class="btn btn-primary" disabled="@(_saving || IsEmpty)">
+                @if (_saving)
+                {
+                    <span class="spinner"></span>
+                }
+                Save changes
+            </button>
+        </div>
+    </EditForm>
+</div>
+
+@code {
+    private static readonly System.Text.Json.JsonSerializerOptions Json = ApiJson.CreateOptions();
+
+    private PatchForm _form = new();
+    private ApiError? _error;
+    private bool _saving;
+
+    [Parameter, EditorRequired]
+    public global::Petstore.BlazorApp.Api.Pet Pet { get; set; } = null!;
+
+    [Parameter]
+    public EventCallback<global::Petstore.BlazorApp.Api.Pet> OnSaved { get; set; }
+
+    private PetPatch Patch => new()
+    {
+        Name = string.IsNullOrWhiteSpace(_form.Name) ? null : _form.Name,
+        Tag = _form.TagMode switch
+        {
+            TagMode.Set => _form.Tag ?? string.Empty,
+            TagMode.Clear => (string?)null,
+            _ => Optional<string?>.Absent,
+        },
+    };
+
+    private bool IsEmpty => Patch is { Name: null, Tag.HasValue: false };
+
+    private string Preview => ApiJson.Serialize(Patch, Json);
+
+    private async Task SaveAsync()
+    {
+        _saving = true;
+        _error = null;
+        try
+        {
+            var result = await Api.PatchPetResultAsync(Pet.Id!.Value, Patch);
+            if (result.Error is { } error)
+            {
+                _error = error;
+                return;
+            }
+
+            _form = new PatchForm();
+            await OnSaved.InvokeAsync(result.Value!);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private enum TagMode
+    {
+        Keep,
+        Set,
+        Clear,
+    }
+
+    // The form's own model; the server's "name" and "tag" errors map onto these properties by name.
+    private sealed class PatchForm
+    {
+        public string? Name { get; set; }
+
+        public TagMode TagMode { get; set; }
+
+        public string? Tag { get; set; }
+    }
+}

@@ -1,0 +1,111 @@
+@implements IDisposable
+
+<article class="card scenario">
+    <div class="card-header">
+        <div>
+            <h2>@Title</h2>
+        </div>
+        @if (Badge is not null)
+        {
+            <span class="badge badge-info plain mono">@Badge</span>
+        }
+    </div>
+
+    <div class="card-body">
+        <p class="scenario-desc">@Description</p>
+        <pre class="code">@Code</pre>
+
+        @if (_outcome is { } outcome)
+        {
+            <div class="outcome @(outcome.Success ? "ok" : "fail")" role="status">
+                <span class="outcome-title">
+                    <Icon Name="@(outcome.Success ? "check" : "alert")" /> @outcome.Summary
+                </span>
+                @foreach (var detail in outcome.Details)
+                {
+                    <span class="small">@detail</span>
+                }
+                @if (outcome.Error is not null || outcome.Exception is not null)
+                {
+                    @* The library's error view: title, detail and field errors from the response. *@
+                    <ApiErrorView Error="outcome.Error" Exception="outcome.Exception" />
+                }
+            </div>
+        }
+    </div>
+
+    <div class="card-footer">
+        @if (_elapsed is { } elapsed && !_running)
+        {
+            <span class="hint">Took @(elapsed.TotalMilliseconds < 1000 ? $"{elapsed.TotalMilliseconds:0} ms" : $"{elapsed.TotalSeconds:0.0} s")</span>
+        }
+        <span class="spacer"></span>
+        @if (_running)
+        {
+            <button type="button" class="btn btn-sm" @onclick="Cancel"><Icon Name="stop" /> Cancel</button>
+        }
+        <button type="button" class="btn btn-primary btn-sm" disabled="@_running" @onclick="RunAsync">
+            @if (_running)
+            {
+                <span class="spinner"></span>
+            }
+            else
+            {
+                <Icon Name="play" />
+            }
+            Run
+        </button>
+    </div>
+</article>
+
+@code {
+    private CancellationTokenSource? _cancellation;
+    private ScenarioOutcome? _outcome;
+    private TimeSpan? _elapsed;
+    private bool _running;
+
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = string.Empty;
+
+    [Parameter]
+    public string? Badge { get; set; }
+
+    [Parameter, EditorRequired]
+    public string Description { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public string Code { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public Func<CancellationToken, Task<ScenarioOutcome>> Run { get; set; } = null!;
+
+    private async Task RunAsync()
+    {
+        _cancellation?.Dispose();
+        _cancellation = new CancellationTokenSource();
+        _running = true;
+        _outcome = null;
+        var started = System.Diagnostics.Stopwatch.GetTimestamp();
+        try
+        {
+            _outcome = await Run(_cancellation.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            _outcome = ScenarioOutcome.Fail("Cancelled by the caller", "The CancellationToken passed to the generated method was cancelled, so the call threw OperationCanceledException.");
+        }
+        finally
+        {
+            _elapsed = System.Diagnostics.Stopwatch.GetElapsedTime(started);
+            _running = false;
+        }
+    }
+
+    private void Cancel() => _cancellation?.Cancel();
+
+    public void Dispose()
+    {
+        _cancellation?.Cancel();
+        _cancellation?.Dispose();
+    }
+}

@@ -1,0 +1,31 @@
+<div class="avatar @Pet.Kind @(Large ? "lg" : null)">
+    @if (PhotoUrl is not null)
+    {
+        <img src="@PhotoUrl" alt="Photo of @Pet.Name" />
+    }
+    else
+    {
+        <span aria-hidden="true">@Emoji</span>
+    }
+</div>
+
+@code {
+    // Generated model types are written fully qualified (and non-nullable) in component parameters: the Razor compiler
+    // runs alongside the BlazorApi source generator and does not see the types it generates.
+    [Parameter, EditorRequired]
+    public global::Petstore.BlazorApp.Api.Pet Pet { get; set; } = null!;
+
+    [Parameter]
+    public string? PhotoUrl { get; set; }
+
+    [Parameter]
+    public bool Large { get; set; }
+
+    // Polymorphic models: the discriminator ("kind") selects the generated subtype.
+    private string Emoji => Pet switch
+    {
+        Dog => "🐶",
+        Cat => "🐱",
+        _ => "🐾",
+    };
+}

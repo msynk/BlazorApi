@@ -1,72 +1,133 @@
 @page "/"
+@implements IDisposable
 @inject IPetstoreClient Api
+@inject ToastService Toasts
 
-<h1>Pets</h1>
+<PageTitle>Pets · Petstore</PageTitle>
 
-@* Cursor pagination with the generated client: each page carries the cursor of the next one. *@
-@if (_listError is { } error)
+<div class="page-header">
+    <div>
+        <h1>Pets</h1>
+        <p class="lead">
+            Cursor pagination with <code>ListPetsResultAsync</code>: each page carries the cursor of the next one, the
+            <code>status</code> filter is a typed enum and the total comes from the <code>X-Total-Count</code> header.
+        </p>
+    </div>
+    <div class="page-actions">
+        <button type="button" class="btn btn-primary" @onclick="() => _showForm = !_showForm" aria-expanded="@_showForm">
+            <Icon Name="@(_showForm ? "x" : "plus")" /> @(_showForm ? "Close" : "Add pet")
+        </button>
+    </div>
+</div>
+
+@if (_showForm)
+{
+    <NewPetForm OnCreated="CreatedAsync" OnClose="() => _showForm = false" />
+}
+
+<div class="toolbar">
+    <div class="segmented" role="group" aria-label="Filter by status">
+        @foreach (var (label, status) in Filters)
+        {
+            <button type="button" class="@(_status == status ? "active" : null)" aria-pressed="@(_status == status)" @onclick="() => FilterAsync(status)">
+                @if (status is { } s)
+                {
+                    <span class="dot dot-@PetStatusJsonConverter.ToWireValue(s)"></span>
+                }
+                @label
+            </button>
+        }
+    </div>
+    <span class="muted small">
+        @if (_pets is not null)
+        {
+            @($"Showing {_pets.Count} of {_total?.ToString() ?? "?"} pets")
+        }
+    </span>
+</div>
+
+@if (_listError is { } error && _pets is null)
 {
     <ApiErrorView Error="error" OnRetry="ReloadAsync" />
 }
 else if (_pets is null)
 {
-    <p aria-busy="true">Loading...</p>
+    <div class="pet-grid" aria-busy="true" aria-label="Loading pets">
+        @for (var i = 0; i < PageSize; i++)
+        {
+            <div class="skeleton skeleton-card"></div>
+        }
+    </div>
+}
+else if (_pets.Count == 0)
+{
+    <div class="card">
+        <div class="empty">
+            <span class="emoji" aria-hidden="true">🐾</span>
+            <h2>No pets here</h2>
+            <p>Nothing matches this filter. Add a pet or pick another status.</p>
+        </div>
+    </div>
 }
 else
 {
-    <ul>
+    <div class="pet-grid">
         @foreach (var pet in _pets)
         {
-            <li>
-                <a href="pets/@pet.Id">@pet.Name</a>
-                (@pet.Kind@(pet is Cat { Indoor: true } ? ", indoor" : string.Empty))
-            </li>
+            <PetCard Pet="pet" @key="pet.Id" />
         }
-    </ul>
+    </div>
 
-    @if (_nextCursor is not null)
-    {
-        <button type="button" disabled="@_loading" @onclick="LoadMoreAsync">Load more</button>
-    }
+    <div class="list-footer">
+        @if (_listError is { } pageError)
+        {
+            <ApiErrorView Error="pageError" OnRetry="LoadMoreAsync" />
+        }
+        else if (_nextCursor is not null)
+        {
+            <button type="button" class="btn" disabled="@_loading" @onclick="LoadMoreAsync">
+                @if (_loading)
+                {
+                    <span class="spinner"></span>
+                }
+                Load more
+            </button>
+            <span class="hint">Next cursor: <code>@_nextCursor</code></span>
+        }
+        else
+        {
+            <span class="hint">That's everyone: the last page has no <code>nextCursor</code>.</span>
+        }
+    </div>
 }
 
-<h2>Add a pet</h2>
-
-@* Client-side rules come from the contract (DataAnnotations); server-side errors (422 problem details) appear on
-   the same fields through ApiValidationErrors. Try an empty name or a kind the server rejects. *@
-<EditForm Model="_new" OnValidSubmit="CreateAsync" FormName="new-pet">
-    <DataAnnotationsValidator />
-    <ApiValidationErrors Error="_createError" />
-    <ValidationSummary />
-
-    <label>Name <InputText @bind-Value="_new.Name" /></label>
-    <ValidationMessage For="() => _new.Name" />
-
-    <label>
-        Kind
-        <InputSelect @bind-Value="_new.Kind">
-            <option value="dog">Dog</option>
-            <option value="cat">Cat</option>
-            <option value="parrot">Parrot (rejected by the server)</option>
-        </InputSelect>
-    </label>
-    <ValidationMessage For="() => _new.Kind" />
-
-    <button type="submit" disabled="@_creating">Add</button>
-</EditForm>
-
 @code {
-    private const int PageSize = 5;
+    private const int PageSize = 6;
 
+    private static readonly (string Label, PetStatus? Status)[] Filters =
+    [
+        ("All", null),
+        ("Available", PetStatus.Available),
+        ("Pending", PetStatus.Pending),
+        ("Adopted", PetStatus.Sold),
+    ];
+
+    private CancellationTokenSource? _cancellation;
+    private PetStatus? _status;
     private List<Pet>? _pets;
     private string? _nextCursor;
+    private long? _total;
     private bool _loading;
     private ApiError? _listError;
-    private NewPet _new = NewModel();
-    private ApiError? _createError;
-    private bool _creating;
+    private bool _showForm;
 
     protected override Task OnInitializedAsync() => ReloadAsync();
+
+    private Task FilterAsync(PetStatus? status)
+    {
+        _status = status;
+        return ReloadAsync();
+    }
 
     private Task ReloadAsync()
     {
@@ -79,36 +140,48 @@ else
 
     private async Task LoadPageAsync(string? cursor)
     {
+        // A newer load (another filter, say) cancels the one in flight.
+        _cancellation?.Cancel();
+        _cancellation?.Dispose();
+        var cancellation = _cancellation = new CancellationTokenSource();
+
         _loading = true;
         _listError = null;
-        var result = await Api.ListPetsResultAsync(limit: PageSize, cursor: cursor);
-        _loading = false;
-        if (result.Error is { } error)
+        try
         {
-            _listError = error;
-            return;
-        }
+            var result = await Api.ListPetsResultAsync(limit: PageSize, cursor: cursor, status: _status, cancellationToken: cancellation.Token);
+            if (result.Error is { } error)
+            {
+                _listError = error;
+                return;
+            }
 
-        (_pets ??= []).AddRange(result.Value!.Items);
-        _nextCursor = result.Value.NextCursor;
+            (_pets ??= []).AddRange(result.Value!.Items);
+            _nextCursor = result.Value.NextCursor;
+            _total = long.TryParse(result.GetHeader("X-Total-Count"), out var total) ? total : null;
+        }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+        {
+        }
+        finally
+        {
+            if (ReferenceEquals(cancellation, _cancellation))
+            {
+                _loading = false;
+            }
+        }
     }
 
-    private async Task CreateAsync()
+    private async Task CreatedAsync(Pet pet)
     {
-        _createError = null;
-        _creating = true;
-        var result = await Api.CreatePetResultAsync(_new);
-        _creating = false;
-        if (result.Error is { } error)
-        {
-            _createError = error;
-            return;
-        }
-
-        // Start the list over so the new pet shows up.
-        _new = NewModel();
+        _showForm = false;
+        Toasts.Show($"{pet.Name} joined the store (#{pet.Id}).");
         await ReloadAsync();
     }
 
-    private static NewPet NewModel() => new() { Name = string.Empty, Kind = "dog" };
+    public void Dispose()
+    {
+        _cancellation?.Cancel();
+        _cancellation?.Dispose();
+    }
 }

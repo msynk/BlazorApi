@@ -16,6 +16,12 @@
 The generated code uses `BlazorApi.Runtime`, which the generator package does not bring in. Add a reference to
 it. Generated mocks also need `BlazorApi.Testing`.
 
+## CS0400 in a Razor component: 'Pet' could not be found in the global namespace
+
+A `[Parameter]` of a Razor component is typed with a model from the source generator. Razor compiles component
+declarations without seeing other generators' output, so write the type fully qualified and non-nullable
+(`global::MyApp.Api.Pet`). See [Blazor](blazor.md#generated-types-in-component-parameters).
+
 ## Generated code does not update
 
 - The source generator re-runs when the contract, its metadata, an `OpenApiReference` or a `Config` file changes.

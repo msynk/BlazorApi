@@ -1,10 +1,61 @@
 @inherits LayoutComponentBase
 
-<header>
-    <a href="">Petstore</a> ·
-    <a href="inventory">Inventory</a>
+<header class="topbar">
+    <a class="brand" href="">
+        <span class="brand-mark" aria-hidden="true">🐾</span>
+        <span>Petstore<small>BlazorApi sample</small></span>
+    </a>
+
+    <nav class="nav" aria-label="Main">
+        <NavLink href="" Match="NavLinkMatch.All"><Icon Name="grid" /> Pets</NavLink>
+        <NavLink href="inventory"><Icon Name="chart" /> Inventory</NavLink>
+        <NavLink href="playground"><Icon Name="flask" /> Error playground</NavLink>
+    </nav>
+
+    <div class="topbar-end">
+        <button type="button" class="btn btn-sm" aria-pressed="@_showTraffic" @onclick="() => _showTraffic = !_showTraffic">
+            <Icon Name="@(_showTraffic ? "eye-off" : "activity")" />
+            @(_showTraffic ? "Hide traffic" : "Show traffic")
+        </button>
+    </div>
 </header>
 
-<main>
-    @Body
-</main>
+<div class="shell @(_showTraffic ? null : "traffic-hidden")">
+    <main class="content">
+        <ErrorBoundary @ref="_errorBoundary">
+            <ChildContent>
+                @Body
+            </ChildContent>
+            <ErrorContent Context="exception">
+                <div class="card">
+                    <div class="empty">
+                        <span class="emoji" aria-hidden="true">🙀</span>
+                        <h2>This page ran into a problem</h2>
+                        <p>@exception.Message</p>
+                        <button type="button" class="btn btn-primary" @onclick="Recover">Try again</button>
+                    </div>
+                </div>
+            </ErrorContent>
+        </ErrorBoundary>
+    </main>
+
+    @if (_showTraffic)
+    {
+        <ApiTrafficPanel />
+    }
+</div>
+
+<ToastHost />
+
+<div id="blazor-error-ui" data-nosnippet>
+    An unhandled error has occurred.
+    <a href="." class="reload">Reload</a>
+    <span class="dismiss">✕</span>
+</div>
+
+@code {
+    private bool _showTraffic = true;
+    private ErrorBoundary? _errorBoundary;
+
+    private void Recover() => _errorBoundary?.Recover();
+}

@@ -1,87 +1,105 @@
-using System.Collections.Concurrent;
+using System.Globalization;
+using System.Text.Json;
 using BlazorApi.Runtime.Json;
 
 namespace Petstore.BlazorApp.Api;
 
 /// <summary>
-/// An in-memory implementation of the Petstore contract, so the sample runs without external services. It uses the
-/// generated models for its own JSON, which keeps server and client on the same contract.
+/// The sample API: every operation of <c>samples/Contracts/petstore.yaml</c>, under <c>/v1</c> as the contract's server
+/// URL says. It is deliberately small; the interesting part is the generated client that calls it from the pages.
 /// </summary>
-public sealed class PetStore
-{
-    public const string DemoToken = "demo-token";
-    public const string DemoApiKey = "demo-key";
-
-    private readonly ConcurrentDictionary<long, Pet> _pets = new();
-    private long _nextId;
-
-    public PetStore()
-    {
-        Add(new Dog { Name = "Rex", Status = PetStatus.Available, BarkVolume = 7 });
-        Add(new Cat { Name = "Tom", Indoor = true, Status = PetStatus.Pending });
-        Add(new Dog { Name = "Fido", Status = PetStatus.Sold, Tag = "senior" });
-        for (var i = 1; i <= 9; i++)
-        {
-            Add(i % 2 == 0 ? new Cat { Name = $"Cat {i}", Indoor = i % 4 == 0 } : new Dog { Name = $"Dog {i}" });
-        }
-    }
-
-    public IEnumerable<Pet> All => _pets.Values.OrderBy(p => p.Id);
-
-    public Pet Add(Pet pet)
-    {
-        pet.Id = Interlocked.Increment(ref _nextId);
-        pet.CreatedAt = DateTimeOffset.UtcNow;
-        _pets[pet.Id.Value] = pet;
-        return pet;
-    }
-
-    public Pet? Find(long id) => _pets.TryGetValue(id, out var pet) ? pet : null;
-
-    public bool Remove(long id) => _pets.TryRemove(id, out _);
-}
-
-/// <summary>The API endpoints, under <c>/v1</c> as the contract's server URL says.</summary>
 public static class PetstoreEndpoints
 {
+    /// <summary>The largest photo the API accepts.</summary>
+    public const long MaxPhotoSize = 1024 * 1024;
+
+    /// <summary>
+    /// A request header (not part of the contract) that makes the API wait the given number of milliseconds before
+    /// answering. The playground uses it to demonstrate client timeouts and cancellation.
+    /// </summary>
+    public const string DelayHeader = "X-Demo-Delay";
+
+    private static readonly JsonSerializerOptions Json = ApiJson.CreateOptions();
+
     public static void MapPetstoreApi(this WebApplication app)
     {
-        var json = ApiJson.CreateOptions();
-        var api = app.MapGroup("/v1");
+        var api = app.MapGroup("/v1").AddEndpointFilter(async (context, next) =>
+        {
+            if (int.TryParse(context.HttpContext.Request.Headers[DelayHeader], out var delay) && delay > 0)
+            {
+                await Task.Delay(Math.Min(delay, 10_000), context.HttpContext.RequestAborted);
+            }
+
+            return await next(context);
+        });
+
+        // security: [] in the contract: no credentials needed.
         api.MapGet("/health", () => Results.Text("healthy"));
 
-        var pets = api.MapGroup("/pets").AddEndpointFilter(async (context, next) =>
+        // The contract's default security requirement (bearerAuth) applies to everything else but the inventory.
+        var secured = api.MapGroup("/").AddEndpointFilter(async (context, next) =>
             context.HttpContext.Request.Headers.Authorization == "Bearer " + PetStore.DemoToken
                 ? await next(context)
-                : Results.Json(new Error { Code = 401, Message = "Sign in first." }, json, statusCode: 401));
+                : Failure(401, "Sign in first: this operation requires a bearer token."));
 
-        pets.MapGet("/", (PetStore store, int? limit, string? cursor, string? status) =>
+        MapPets(secured.MapGroup("/pets"));
+
+        secured.MapPost("/store/orders", PlaceOrderAsync);
+
+        api.MapGet("/store/inventory", (PetStore store, HttpRequest request) =>
+            request.Headers["X-API-Key"] == PetStore.DemoApiKey
+                ? Results.Json(Enum.GetValues<PetStatus>().ToDictionary(PetStatusJsonConverter.ToWireValue, s => store.All.Count(p => (p.Status ?? PetStatus.Available) == s)), Json)
+                : Failure(401, "An API key is required."));
+    }
+
+    private static void MapPets(RouteGroupBuilder pets)
+    {
+        pets.MapGet("/", (PetStore store, HttpResponse response, int? limit, string? cursor, string? status, string[]? tags) =>
         {
+            PetStatus? wanted = null;
+            if (status is not null)
+            {
+                if (!PetStatusJsonConverter.TryParse(status, out var parsed))
+                {
+                    return Failure(400, $"'{status}' is not a pet status.");
+                }
+
+                wanted = parsed;
+            }
+
             var size = Math.Clamp(limit ?? 20, 1, 100);
-            var after = long.TryParse(cursor, out var parsed) ? parsed : 0;
-            var filtered = store.All.Where(p => p.Id > after &&
-                (status is null || (PetStatusJsonConverter.TryParse(status, out var s) && p.Status == s))).ToList();
-            var page = filtered.Take(size).ToList();
-            var response = new PetPage
+            var after = long.TryParse(cursor, out var id) ? id : 0;
+            var matching = store.All.Where(p => (wanted is null || p.Status == wanted) &&
+                (tags is not { Length: > 0 } || (p.Tag is not null && tags.Contains(p.Tag, StringComparer.OrdinalIgnoreCase)))).ToList();
+            var remaining = matching.Where(p => p.Id > after).ToList();
+            var page = remaining.Take(size).ToList();
+
+            response.Headers["X-Total-Count"] = matching.Count.ToString(CultureInfo.InvariantCulture);
+            return Results.Json(new PetPage
             {
                 Items = page,
-                NextCursor = filtered.Count > size ? page[^1].Id!.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) : null,
-            };
-            return Results.Json(response, json);
+                NextCursor = remaining.Count > size ? page[^1].Id!.Value.ToString(CultureInfo.InvariantCulture) : null,
+            }, Json);
         });
 
         pets.MapPost("/", async (PetStore store, HttpRequest request) =>
         {
-            var body = await request.ReadFromJsonAsync<NewPet>(json);
-            var errors = new Dictionary<string, string[]>();
-            if (body is null || string.IsNullOrWhiteSpace(body.Name))
+            var (body, invalid) = await ReadJsonAsync<NewPet>(request);
+            if (invalid is not null)
             {
-                errors["name"] = ["Every pet needs a name."];
+                return invalid;
             }
 
-            if (body is not null && body.Kind is not ("dog" or "cat"))
+            var errors = new Dictionary<string, string[]>();
+            ValidateName(body!.Name, errors);
+            if (body.Kind is not ("dog" or "cat"))
             {
-                errors["kind"] = ["Only dogs and cats are supported."];
+                errors["kind"] = [$"'{body.Kind}' is not supported: only dogs and cats live here."];
+            }
+
+            if (body.Tag is { Length: > 30 })
+            {
+                errors["tag"] = ["Keep the tag to 30 characters or fewer."];
             }
 
             if (errors.Count > 0)
@@ -89,45 +107,182 @@ public static class PetstoreEndpoints
                 return Results.ValidationProblem(errors, title: "The pet is invalid.", statusCode: 422);
             }
 
-            Pet pet = body!.Kind == "dog" ? new Dog { Name = body.Name } : new Cat { Name = body.Name, Indoor = true };
-            pet.Tag = body.Tag;
+            Pet pet = body.Kind == "dog" ? new Dog { Name = body.Name.Trim() } : new Cat { Name = body.Name.Trim(), Indoor = true };
+            pet.Tag = string.IsNullOrWhiteSpace(body.Tag) ? null : body.Tag.Trim();
             pet.Status = body.Status ?? PetStatus.Available;
-            return Results.Json(store.Add(pet), json, statusCode: 201);
+            return Results.Json(store.Add(pet), Json, statusCode: 201);
         });
 
         pets.MapGet("/{petId:long}", (PetStore store, long petId) =>
-            store.Find(petId) is { } pet ? Results.Json(pet, json) : NotFound(petId, json));
+            store.Find(petId) is { } pet ? Results.Json(pet, Json) : NotFound(petId));
 
+        // PUT replaces the whole pet; the polymorphic body arrives as a Dog or a Cat.
+        pets.MapPut("/{petId:long}", async (PetStore store, long petId, HttpRequest request) =>
+        {
+            if (store.Find(petId) is null)
+            {
+                return NotFound(petId);
+            }
+
+            var (pet, invalid) = await ReadJsonAsync<Pet>(request);
+            if (invalid is not null)
+            {
+                return invalid;
+            }
+
+            if (pet is UnrecognizedPet)
+            {
+                return Failure(400, $"'{pet.Kind}' is not a kind of pet this store knows.");
+            }
+
+            var errors = new Dictionary<string, string[]>();
+            ValidateName(pet!.Name, errors);
+            if (errors.Count > 0)
+            {
+                return Results.ValidationProblem(errors, title: "The pet is invalid.", statusCode: 422);
+            }
+
+            store.Replace(petId, pet);
+            return Results.Json(pet, Json);
+        });
+
+        // A JSON merge patch: absent properties stay as they are, "tag": null clears the tag.
         pets.MapPatch("/{petId:long}", async (PetStore store, long petId, HttpRequest request) =>
         {
             if (store.Find(petId) is not { } pet)
             {
-                return NotFound(petId, json);
+                return NotFound(petId);
             }
 
-            var patch = await request.ReadFromJsonAsync<PetPatch>(json);
-            if (patch?.Name is { Length: > 0 } name)
+            var (patch, invalid) = await ReadJsonAsync<PetPatch>(request);
+            if (invalid is not null)
             {
-                pet.Name = name;
+                return invalid;
             }
 
-            if (patch?.Tag is { HasValue: true } tag)
+            if (patch!.Name is not null)
             {
-                pet.Tag = tag.Value;
+                var errors = new Dictionary<string, string[]>();
+                ValidateName(patch.Name, errors);
+                if (errors.Count > 0)
+                {
+                    return Results.ValidationProblem(errors, title: "The change is invalid.", statusCode: 422);
+                }
+
+                pet.Name = patch.Name.Trim();
             }
 
-            return Results.Json(pet, json);
+            if (patch.Tag.HasValue)
+            {
+                pet.Tag = string.IsNullOrWhiteSpace(patch.Tag.Value) ? null : patch.Tag.Value.Trim();
+            }
+
+            return Results.Json(pet, Json);
         });
 
         pets.MapDelete("/{petId:long}", (PetStore store, long petId) =>
-            store.Remove(petId) ? Results.NoContent() : NotFound(petId, json));
+            store.Remove(petId) ? Results.NoContent() : NotFound(petId));
 
-        api.MapGet("/store/inventory", (PetStore store, HttpRequest request) =>
-            request.Headers["X-API-Key"] == PetStore.DemoApiKey
-                ? Results.Json(store.All.GroupBy(p => p.Status ?? PetStatus.Available).ToDictionary(g => PetStatusJsonConverter.ToWireValue(g.Key), g => g.Count()), json)
-                : Results.Json(new Error { Code = 401, Message = "An API key is required." }, json, statusCode: 401));
+        pets.MapGet("/{petId:long}/photo", (PetStore store, long petId) =>
+            store.Find(petId) is null ? NotFound(petId)
+            : store.FindPhoto(petId) is { } photo ? Results.File(photo.Content, photo.ContentType, $"pet-{petId}.png")
+            : Failure(404, "This pet has no photo yet."));
+
+        // multipart/form-data with a "file" part and an optional "caption".
+        pets.MapPost("/{petId:long}/photo", async (PetStore store, long petId, HttpRequest request) =>
+        {
+            if (store.Find(petId) is null)
+            {
+                return NotFound(petId);
+            }
+
+            if (!request.HasFormContentType)
+            {
+                return Failure(415, "Send the photo as multipart/form-data.");
+            }
+
+            var form = await request.ReadFormAsync();
+            if (form.Files.GetFile("file") is not { Length: > 0 } file)
+            {
+                return Results.ValidationProblem(new Dictionary<string, string[]> { ["file"] = ["Choose a photo to upload."] }, statusCode: 422);
+            }
+
+            if (file.Length > MaxPhotoSize)
+            {
+                return Results.ValidationProblem(new Dictionary<string, string[]> { ["file"] = ["The photo must be 1 MB or smaller."] }, statusCode: 422);
+            }
+
+            using var content = new MemoryStream();
+            await file.CopyToAsync(content);
+            store.SetPhoto(petId, new StoredPhoto(content.ToArray(), file.ContentType ?? "application/octet-stream", form["caption"]));
+            var url = new Uri($"{request.Scheme}://{request.Host}{request.PathBase}/v1/pets/{petId}/photo");
+            return Results.Json(new PhotoInfo { Url = url, Size = file.Length }, Json);
+        });
     }
 
-    private static IResult NotFound(long id, System.Text.Json.JsonSerializerOptions json) =>
-        Results.Json(new Error { Code = 404, Message = $"There is no pet {id}." }, json, statusCode: 404);
+    // application/x-www-form-urlencoded: adopting an available pet marks it sold.
+    private static async Task<IResult> PlaceOrderAsync(PetStore store, HttpRequest request)
+    {
+        if (!request.HasFormContentType)
+        {
+            return Failure(415, "Send the order as a form.");
+        }
+
+        var form = await request.ReadFormAsync();
+        if (!long.TryParse(form["petId"], CultureInfo.InvariantCulture, out var petId) || store.Find(petId) is not { } pet)
+        {
+            return Results.ValidationProblem(new Dictionary<string, string[]> { ["petId"] = ["Choose a pet that exists."] }, statusCode: 422);
+        }
+
+        if (pet.Status != PetStatus.Available)
+        {
+            return Failure(409, $"{pet.Name} is not available for adoption.");
+        }
+
+        var quantity = int.TryParse(form["quantity"], CultureInfo.InvariantCulture, out var q) ? q : 1;
+        pet.Status = PetStatus.Sold;
+        return Results.Json(new Order
+        {
+            PetId = petId,
+            Quantity = quantity,
+            ShipDate = DateTimeOffset.UtcNow.AddDays(2),
+            Complete = true,
+        }, Json);
+    }
+
+    private static async Task<(T? Value, IResult? Invalid)> ReadJsonAsync<T>(HttpRequest request)
+        where T : class
+    {
+        try
+        {
+            return await request.ReadFromJsonAsync<T>(Json) is { } value
+                ? (value, null)
+                : (null, Failure(400, "The request body is empty."));
+        }
+        catch (JsonException ex)
+        {
+            return (null, Results.Problem(title: "The request body is not valid JSON for this operation.", detail: ex.Message, statusCode: 400));
+        }
+        catch (InvalidOperationException)
+        {
+            return (null, Failure(415, "Send the body as JSON."));
+        }
+    }
+
+    private static void ValidateName(string? name, Dictionary<string, string[]> errors)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            errors["name"] = ["Every pet needs a name."];
+        }
+        else if (name.Trim().Length > 100)
+        {
+            errors["name"] = ["Keep the name to 100 characters or fewer."];
+        }
+    }
+
+    private static IResult NotFound(long id) => Failure(404, $"There is no pet {id}.");
+
+    private static IResult Failure(int status, string message) =>
+        Results.Json(new Error { Code = status, Message = message }, Json, statusCode: status);
 }

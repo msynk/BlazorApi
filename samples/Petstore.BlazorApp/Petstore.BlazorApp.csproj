@@ -4,9 +4,10 @@
        come from the package; inside this repository the project and its build files are referenced directly. -->
   <Import Project="..\..\src\BlazorApi.SourceGenerator\build\BlazorApi.SourceGenerator.props" />
 
-  <!-- A Blazor Web App that hosts a small in-memory Petstore API (the contract in ../Contracts) and consumes it through
-       the generated client: authentication, cursor pagination, ApiResultView loading states, server validation errors
-       in EditForm and error display. -->
+  <!-- A Blazor Web App that hosts a small in-memory Petstore API (every operation of ../Contracts/petstore.yaml) and
+       consumes it through the generated client: per-operation authentication, cursor pagination, ApiResultView loading
+       and error states, server validation errors in EditForm, merge patch, polymorphic, multipart, binary and
+       form-encoded bodies, and an error playground. An API traffic panel shows each request the client sends. -->
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <RootNamespace>Petstore.BlazorApp</RootNamespace>

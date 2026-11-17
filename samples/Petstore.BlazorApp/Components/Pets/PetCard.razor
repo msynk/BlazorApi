@@ -1,0 +1,29 @@
+<a class="card pet-card" href="pets/@Pet.Id">
+    <div class="pet-card-top">
+        <PetAvatar Pet="Pet" />
+        <div style="min-width: 0">
+            <div class="pet-card-name">@Pet.Name</div>
+            <div class="muted small">@Describe(Pet)</div>
+        </div>
+    </div>
+    <div class="pet-card-meta">
+        <StatusBadge Status="Pet.Status" />
+        @if (Pet.Tag is { } tag)
+        {
+            <span class="chip"><Icon Name="tag" /> @tag</span>
+        }
+    </div>
+</a>
+
+@code {
+    [Parameter, EditorRequired]
+    public global::Petstore.BlazorApp.Api.Pet Pet { get; set; } = null!;
+
+    public static string Describe(Pet pet) => pet switch
+    {
+        Dog { BarkVolume: { } volume } => $"Dog · bark volume {volume:0.#}",
+        Dog => "Dog",
+        Cat cat => cat.Indoor ? "Indoor cat" : "Outdoor cat",
+        _ => pet.Kind,
+    };
+}

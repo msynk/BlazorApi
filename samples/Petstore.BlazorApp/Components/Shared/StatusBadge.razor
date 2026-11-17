@@ -1,0 +1,17 @@
+<span class="badge badge-@CssName">@LabelFor(Status)</span>
+
+@code {
+    [Parameter]
+    public global::Petstore.BlazorApp.Api.PetStatus? Status { get; set; }
+
+    // The CSS class uses the contract's wire value ("available", "pending", "sold").
+    private string CssName => Status is { } status ? PetStatusJsonConverter.ToWireValue(status) : "sold";
+
+    public static string LabelFor(PetStatus? status) => status switch
+    {
+        PetStatus.Available => "Available",
+        PetStatus.Pending => "Pending",
+        PetStatus.Sold => "Adopted",
+        _ => "Unknown",
+    };
+}

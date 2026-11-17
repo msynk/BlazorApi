@@ -1,0 +1,114 @@
+@inject IPetstoreClient Api
+
+@* Client-side rules come from the contract as DataAnnotations (DataAnnotationsValidator); the server's 422 problem
+   details land on the same fields through ApiValidationErrors. The name is validated by the server only, so an empty
+   name or the "Parrot" kind shows the server's messages next to the inputs. *@
+<div class="card">
+    <div class="card-header">
+        <div>
+            <h2>Add a pet</h2>
+            <p><code>CreatePetResultAsync</code> · validation errors come back as problem details</p>
+        </div>
+        <button type="button" class="btn btn-ghost btn-sm" aria-label="Close" @onclick="OnClose"><Icon Name="x" /></button>
+    </div>
+
+    <EditForm Model="_model" OnValidSubmit="SubmitAsync">
+        <DataAnnotationsValidator />
+        <ApiValidationErrors Error="_error" />
+
+        <div class="card-body">
+            <ValidationSummary Model="_model" />
+            @if (_error is not null && ApiValidation.GetFieldErrors(_error).Count == 0)
+            {
+                <ApiErrorView Error="_error" />
+            }
+
+            <div class="form-grid">
+                <div class="field">
+                    <label for="pet-name">Name</label>
+                    <InputText id="pet-name" @bind-Value="_model.Name" placeholder="e.g. Biscuit" autocomplete="off" />
+                    <ValidationMessage For="() => _model.Name" />
+                </div>
+
+                <div class="field">
+                    <label for="pet-kind">Kind</label>
+                    <InputSelect id="pet-kind" @bind-Value="_model.Kind">
+                        <option value="dog">🐶 Dog</option>
+                        <option value="cat">🐱 Cat</option>
+                        <option value="parrot">🦜 Parrot (the server rejects it)</option>
+                    </InputSelect>
+                    <ValidationMessage For="() => _model.Kind" />
+                </div>
+
+                <div class="field">
+                    <label for="pet-status">Status</label>
+                    <InputSelect id="pet-status" @bind-Value="_model.Status">
+                        <option value="@PetStatus.Available">Available</option>
+                        <option value="@PetStatus.Pending">Pending</option>
+                        <option value="@PetStatus.Sold">Adopted</option>
+                    </InputSelect>
+                </div>
+
+                <div class="field">
+                    <label for="pet-tag">Tag <span class="hint">(optional)</span></label>
+                    <InputText id="pet-tag" @bind-Value="_model.Tag" placeholder="e.g. playful" autocomplete="off" />
+                    <ValidationMessage For="() => _model.Tag" />
+                </div>
+            </div>
+        </div>
+
+        <div class="card-footer">
+            <span class="hint">Try an empty name or a parrot to see server-side validation.</span>
+            <span class="spacer"></span>
+            <button type="button" class="btn" @onclick="OnClose">Cancel</button>
+            <button type="submit" class="btn btn-primary" disabled="@_saving">
+                @if (_saving)
+                {
+                    <span class="spinner"></span>
+                }
+                else
+                {
+                    <Icon Name="plus" />
+                }
+                Add pet
+            </button>
+        </div>
+    </EditForm>
+</div>
+
+@code {
+    private NewPet _model = NewModel();
+    private ApiError? _error;
+    private bool _saving;
+
+    [Parameter]
+    public EventCallback<global::Petstore.BlazorApp.Api.Pet> OnCreated { get; set; }
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    private async Task SubmitAsync()
+    {
+        _saving = true;
+        _error = null;
+        try
+        {
+            var result = await Api.CreatePetResultAsync(_model);
+            if (result.Error is { } error)
+            {
+                // A 422 shows on the fields; anything else (no field errors) in the summary.
+                _error = error;
+                return;
+            }
+
+            _model = NewModel();
+            await OnCreated.InvokeAsync(result.Value!);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private static NewPet NewModel() => new() { Name = string.Empty, Kind = "dog", Status = PetStatus.Available };
+}

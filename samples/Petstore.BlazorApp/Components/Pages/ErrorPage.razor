@@ -1,0 +1,25 @@
+@page "/error"
+@using System.Diagnostics
+@attribute [ExcludeFromInteractiveRouting]
+
+<PageTitle>Error · Petstore</PageTitle>
+
+<div class="card">
+    <div class="empty">
+        <span class="emoji" aria-hidden="true">🙀</span>
+        <h1>Something went wrong</h1>
+        <p>An error occurred while processing your request.</p>
+        @if (RequestId is not null)
+        {
+            <p class="small">Request ID: <code>@RequestId</code></p>
+        }
+        <a class="btn btn-primary" href="">Back to the pets</a>
+    </div>
+</div>
+
+@code {
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    private string? RequestId => Activity.Current?.Id ?? HttpContext?.TraceIdentifier;
+}

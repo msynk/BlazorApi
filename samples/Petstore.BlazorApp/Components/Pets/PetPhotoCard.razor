@@ -1,0 +1,164 @@
+@inject IPetstoreClient Api
+@inject ToastService Toasts
+
+@* Binary responses and multipart uploads: DownloadPetPhotoResultAsync returns a FileResponse stream, and
+   UploadPetPhotoResultAsync takes a FileContent plus the other form fields of the multipart body. *@
+<div class="card">
+    <div class="card-header">
+        <div>
+            <h2><Icon Name="image" /> Photo</h2>
+            <p><code>UploadPetPhotoResultAsync</code> (multipart) · <code>DownloadPetPhotoResultAsync</code> (binary)</p>
+        </div>
+    </div>
+
+    <div class="card-body stack">
+        <div class="photo-frame @(_photoUrl is null ? null : "has-photo")">
+            @if (_loading)
+            {
+                <span class="spinner"></span>
+            }
+            else if (_photoUrl is not null)
+            {
+                <img src="@_photoUrl" alt="Photo of @PetName" />
+            }
+            else
+            {
+                <span class="small">No photo yet. The download answered 404, which the client returns as an <code>ApiError</code>.</span>
+            }
+        </div>
+
+        <ApiErrorView Error="_error" />
+
+        <label class="file-drop">
+            <Icon Name="upload" />
+            <span>@(_file?.Name ?? "Choose an image (up to 1 MB)")</span>
+            <InputFile accept="image/*" OnChange="FileChosen" />
+        </label>
+
+        <div class="field">
+            <label for="photo-caption">Caption <span class="hint">(optional form field)</span></label>
+            <input id="photo-caption" class="input" @bind="_caption" placeholder="e.g. Sunday at the park" />
+        </div>
+    </div>
+
+    <div class="card-footer">
+        @if (_size is { } size)
+        {
+            <span class="hint">Stored @FormatSize(size)</span>
+        }
+        <span class="spacer"></span>
+        <button type="button" class="btn btn-primary" disabled="@(_file is null || _uploading)" @onclick="UploadAsync">
+            @if (_uploading)
+            {
+                <span class="spinner"></span>
+            }
+            else
+            {
+                <Icon Name="upload" />
+            }
+            Upload
+        </button>
+    </div>
+</div>
+
+@code {
+    private string? _photoUrl;
+    private long? _size;
+    private ApiError? _error;
+    private IBrowserFile? _file;
+    private string? _caption;
+    private bool _loading = true;
+    private bool _uploading;
+    private long _loadedFor;
+
+    [Parameter, EditorRequired]
+    public long PetId { get; set; }
+
+    [Parameter]
+    public string? PetName { get; set; }
+
+    /// <summary>Called with the photo as a data URL (null when there is none).</summary>
+    [Parameter]
+    public EventCallback<string?> OnPhotoChanged { get; set; }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_loadedFor != PetId)
+        {
+            _loadedFor = PetId;
+            await LoadAsync();
+        }
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _error = null;
+        var result = await Api.DownloadPetPhotoResultAsync(PetId);
+        if (result.IsSuccess)
+        {
+            await using var photo = result.Value!;
+            var bytes = await photo.ReadAllBytesAsync();
+            _photoUrl = $"data:{photo.ContentType ?? "image/png"};base64,{Convert.ToBase64String(bytes)}";
+            _size = bytes.Length;
+        }
+        else
+        {
+            _photoUrl = null;
+            _size = null;
+            _error = result.StatusCode == 404 ? null : result.Error;
+        }
+
+        _loading = false;
+        await OnPhotoChanged.InvokeAsync(_photoUrl);
+    }
+
+    private void FileChosen(InputFileChangeEventArgs e)
+    {
+        _file = e.File;
+        _error = null;
+    }
+
+    private async Task UploadAsync()
+    {
+        if (_file is null)
+        {
+            return;
+        }
+
+        _uploading = true;
+        _error = null;
+        try
+        {
+            // The browser stream is read here; anything over 1 MB is sent anyway so the server's 422 is visible.
+            using var buffer = new MemoryStream();
+            await using (var stream = _file.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024))
+            {
+                await stream.CopyToAsync(buffer);
+            }
+
+            var content = FileContent.FromBytes(buffer.ToArray(), _file.Name, _file.ContentType);
+            var result = await Api.UploadPetPhotoResultAsync(PetId, content, string.IsNullOrWhiteSpace(_caption) ? null : _caption);
+            if (result.Error is { } error)
+            {
+                _error = error;
+                return;
+            }
+
+            Toasts.Show($"Photo uploaded ({FormatSize(result.Value!.Size)}).");
+            _file = null;
+            _caption = null;
+            await LoadAsync();
+        }
+        catch (IOException ex)
+        {
+            Toasts.Show(ex.Message, ToastKind.Error);
+        }
+        finally
+        {
+            _uploading = false;
+        }
+    }
+
+    private static string FormatSize(long bytes) => bytes < 1024 ? $"{bytes} B" : bytes < 1024 * 1024 ? $"{bytes / 1024.0:0.#} KB" : $"{bytes / 1024.0 / 1024.0:0.##} MB";
+}

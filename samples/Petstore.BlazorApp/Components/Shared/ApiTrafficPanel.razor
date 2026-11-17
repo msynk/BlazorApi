@@ -1,0 +1,75 @@
+@implements IDisposable
+@inject ApiActivityLog Log
+
+@* Every request made by a generated client in this app, recorded by ApiActivityHandler (Services/ApiActivityLog.cs).
+   It shows the operation id the client attaches to each request and which credentials the authentication handlers
+   added: the bearer token for pet operations, the API key for the inventory, nothing for /health. *@
+<aside class="card traffic" aria-label="API traffic">
+    <div class="card-header">
+        <div>
+            <h2><Icon Name="activity" /> API traffic</h2>
+            <p>Requests sent by the generated client</p>
+        </div>
+        <button type="button" class="btn btn-sm" disabled="@(_entries.Count == 0)" @onclick="Log.Clear">Clear</button>
+    </div>
+
+    @if (_entries.Count == 0)
+    {
+        <div class="traffic-empty">No requests yet. Use the app and they show up here.</div>
+    }
+    else
+    {
+        <ul class="traffic-list">
+            @foreach (var entry in _entries)
+            {
+                <li class="traffic-item @(entry.Sequence > _seenUpTo ? "fresh" : null)" @key="entry.Sequence">
+                    <span class="method m-@entry.Method.ToLowerInvariant()">@entry.Method</span>
+                    <span class="traffic-path" title="@entry.Path">@entry.Path</span>
+                    <span class="status-code @StatusClass(entry)">@(entry.StatusCode?.ToString() ?? "—")</span>
+                    <span class="traffic-meta">
+                        @if (entry.OperationId is not null)
+                        {
+                            <span class="chip mono">@entry.OperationId</span>
+                        }
+                        <span class="chip" title="Credentials attached by the authentication handlers">
+                            <Icon Name="@(entry.Credentials == "none" ? "eye" : entry.Credentials == "API key" ? "key" : "lock")" />
+                            @entry.Credentials
+                        </span>
+                        <span>@FormatDuration(entry.Duration)</span>
+                        @if (entry.Failure is not null)
+                        {
+                            <span class="s-x">@entry.Failure</span>
+                        }
+                    </span>
+                </li>
+            }
+        </ul>
+    }
+</aside>
+
+@code {
+    private IReadOnlyList<ApiActivity> _entries = [];
+    private long _seenUpTo;
+
+    protected override void OnInitialized()
+    {
+        _entries = Log.Entries;
+        _seenUpTo = _entries.Count > 0 ? _entries[0].Sequence : 0;
+        Log.Changed += OnChanged;
+    }
+
+    protected override void OnAfterRender(bool firstRender) => _seenUpTo = _entries.Count > 0 ? _entries[0].Sequence : _seenUpTo;
+
+    private void OnChanged() => _ = InvokeAsync(() =>
+    {
+        _entries = Log.Entries;
+        StateHasChanged();
+    });
+
+    private static string StatusClass(ApiActivity entry) => entry.StatusCode is { } code ? $"s-{code / 100}" : "s-x";
+
+    private static string FormatDuration(TimeSpan duration) =>
+        duration.TotalMilliseconds < 1000 ? $"{duration.TotalMilliseconds:0} ms" : $"{duration.TotalSeconds:0.0} s";
+
+    public void Dispose() => Log.Changed -= OnChanged;
+}
