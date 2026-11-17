@@ -79,6 +79,8 @@ internal sealed class HeadersEmitter
         {
             var members = new NameScope(reserved: [name, "From", "Headers"]);
             var properties = headers.Select(h => (h.Header, h.Statuses, Property: members.Allocate(Identifier.Pascal(h.Header.Name)))).ToList();
+            var variables = new NameScope(reserved: ["headers"]);
+            var variableNames = properties.ToDictionary(p => p.Header, p => variables.Allocate("h" + p.Property));
 
             writer.Doc("summary", "Reads the headers.");
             using (writer.Block($"public {name}({HeaderMap} headers)"))
@@ -86,7 +88,7 @@ internal sealed class HeadersEmitter
                 writer.Line("Headers = headers ?? throw new global::System.ArgumentNullException(nameof(headers));");
                 foreach (var (header, _, property) in properties)
                 {
-                    writer.Line($"{property} = {Reader(header, "headers")};");
+                    writer.Line($"{property} = {Reader(header, "headers", variableNames[header])};");
                 }
             }
 
@@ -117,13 +119,13 @@ internal sealed class HeadersEmitter
         { } kind => kind + "?",
     };
 
-    private string Reader(ApiHeader header, string headers)
+    private string Reader(ApiHeader header, string headers, string variable)
     {
         var name = Literal.String(header.Name);
         return Kind(header.Type) switch
         {
             "list" => $"{Http}.ApiHeaderValues.List({headers}, {name})",
-            "enum" => $"{Http}.ApiHeaderValues.String({headers}, {name}) is {{ }} {Variable(header)} && {_plan.CSharpType(header.Type.WithNullable(false), nullable: false)}JsonConverter.TryParse({Variable(header)}, out var {Variable(header)}Parsed) ? {Variable(header)}Parsed : null",
+            "enum" => $"{Http}.ApiHeaderValues.String({headers}, {name}) is {{ }} {variable} && {_plan.CSharpType(header.Type.WithNullable(false), nullable: false)}JsonConverter.TryParse({variable}, out var {variable}Parsed) ? {variable}Parsed : null",
             "string" => $"{Http}.ApiHeaderValues.String({headers}, {name})",
             "long" => $"{Http}.ApiHeaderValues.Int64({headers}, {name})",
             "int" => $"{Http}.ApiHeaderValues.Int32({headers}, {name})",
@@ -138,8 +140,6 @@ internal sealed class HeadersEmitter
             _ => $"{Http}.ApiHeaderValues.String({headers}, {name})",
         };
     }
-
-    private static string Variable(ApiHeader header) => "h" + Identifier.Pascal(header.Name);
 
     /// <summary>The supported C# type of a header, or <c>string</c> for anything without a header reader.</summary>
     private string Kind(ApiTypeRef type)

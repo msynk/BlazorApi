@@ -84,6 +84,23 @@ public class GeneratorTests
     }
 
     [Fact]
+    public void Contracts_with_the_same_file_name_get_distinct_hints_and_namespaces()
+    {
+        var text = File.ReadAllText(Contract("petstore.yaml"));
+        var root = Path.GetDirectoryName(Contract("petstore.yaml"))!;
+        var v1 = new TestAdditionalFile(Path.Combine(root, "v1", "petstore.yaml"), text, new Dictionary<string, string> { ["BlazorApiKind"] = "Contract" });
+        var v2 = new TestAdditionalFile(Path.Combine(root, "v2", "petstore.yaml"), text, new Dictionary<string, string> { ["BlazorApiKind"] = "Contract" });
+        var compilation = Compilation("namespace Consumer; public static class Usage { public static System.Type[] T => [typeof(Consumer.V1.Petstore.PetstoreClient), typeof(Consumer.V2.Petstore.PetstoreClient)]; }");
+
+        var driver = Driver(v1, v2).RunGeneratorsAndUpdateCompilation(compilation, out var output, out var generatorDiagnostics);
+
+        Assert.Empty(generatorDiagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
+        var hints = driver.GetRunResult().Results.Single().GeneratedSources.Select(s => s.HintName).ToList();
+        Assert.Equal(hints.Count, hints.Distinct(StringComparer.OrdinalIgnoreCase).Count());
+        Assert.Empty(output.GetDiagnostics().Where(d => d.Severity == DiagnosticSeverity.Error));
+    }
+
+    [Fact]
     public void Json_context_option_is_reported_and_ignored()
     {
         var compilation = Compilation("namespace Consumer; public static class Usage { }");

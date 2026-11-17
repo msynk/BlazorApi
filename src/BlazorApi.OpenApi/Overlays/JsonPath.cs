@@ -380,8 +380,8 @@ public sealed class JsonPath
             var j = 0;
             while (i < left.Length && j < right.Length)
             {
-                var a = char.ConvertToUtf32(left, i);
-                var b = char.ConvertToUtf32(right, j);
+                var a = char.IsSurrogatePair(left, i) ? char.ConvertToUtf32(left, i) : left[i];
+                var b = char.IsSurrogatePair(right, j) ? char.ConvertToUtf32(right, j) : right[j];
                 if (a != b)
                 {
                     return a.CompareTo(b);
@@ -504,16 +504,45 @@ public sealed class JsonPath
         /// Converts an I-Regexp (RFC 9485) to a .NET regular expression: <c>.</c> matches any character except line
         /// breaks, and <c>match</c> is anchored to the whole string. Invalid expressions yield <see langword="null"/>.
         /// </summary>
-        private static Regex? ToRegex(string pattern, bool anchored)
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<(string Pattern, bool Anchored), Regex?> Regexes = new();
+
+        /// <summary>
+        /// .NET's linear-time engine (RegexOptions.NonBacktracking, .NET 7 and later), which rules out catastrophic
+        /// backtracking; the engine targets .NET Standard, so it is used only when the runtime has it.
+        /// </summary>
+        private static readonly RegexOptions LinearTime = Enum.IsDefined(typeof(RegexOptions), 1024) ? (RegexOptions)1024 : RegexOptions.None;
+
+        private static Regex? ToRegex(string pattern, bool anchored) =>
+            Regexes.Count > 1024 ? Compile(pattern, anchored) : Regexes.GetOrAdd((pattern, anchored), key => Compile(key.Pattern, key.Anchored));
+
+        /// <summary>
+        /// Translates an I-Regexp (RFC 9485). Only its syntax is accepted: escapes of metacharacters, <c>\n</c>,
+        /// <c>\r</c>, <c>\t</c> and <c>\p{..}</c>/<c>\P{..}</c>, plain groups and balanced parentheses. .NET
+        /// extensions (<c>(?..)</c> groups and options, backreferences, <c>\d</c>, anchors) make the expression invalid,
+        /// so <c>match</c> and <c>search</c> return false for it.
+        /// </summary>
+        private static Regex? Compile(string pattern, bool anchored)
         {
             var builder = new StringBuilder();
             var inClass = false;
+            var depth = 0;
             for (var i = 0; i < pattern.Length; i++)
             {
                 var c = pattern[i];
-                if (c == '\\' && i + 1 < pattern.Length)
+                if (c == '\\')
                 {
-                    builder.Append(c).Append(pattern[++i]);
+                    if (i + 1 >= pattern.Length)
+                    {
+                        return null;
+                    }
+
+                    var e = pattern[++i];
+                    if ("\\.^$?*+{}()[]|-nrt".IndexOf(e) < 0 && !(e is 'p' or 'P' && i + 1 < pattern.Length && pattern[i + 1] == '{'))
+                    {
+                        return null;
+                    }
+
+                    builder.Append('\\').Append(e);
                     continue;
                 }
 
@@ -521,28 +550,59 @@ public sealed class JsonPath
                 {
                     inClass = c != ']';
                     builder.Append(c);
+                    continue;
                 }
-                else if (c == '[')
+
+                switch (c)
                 {
-                    inClass = true;
-                    builder.Append(c);
+                    case '[':
+                        inClass = true;
+                        builder.Append(c);
+                        break;
+                    case '.':
+                        builder.Append("[^\\n\\r]");
+                        break;
+                    case '(':
+                        if (i + 1 < pattern.Length && pattern[i + 1] == '?')
+                        {
+                            return null;
+                        }
+
+                        depth++;
+                        builder.Append(c);
+                        break;
+                    case ')':
+                        if (--depth < 0)
+                        {
+                            return null; // Would close the anchoring group and escape it.
+                        }
+
+                        builder.Append(c);
+                        break;
+                    case '^':
+                    case '$':
+                        return null; // Not I-Regexp: match is anchored by definition, search is unanchored.
+                    default:
+                        builder.Append(c);
+                        break;
                 }
-                else if (c == '.')
-                {
-                    builder.Append("[^\\n\\r]");
-                }
-                else
-                {
-                    builder.Append(c);
-                }
+            }
+
+            if (depth != 0 || inClass)
+            {
+                return null;
             }
 
             var text = anchored ? "\\A(?:" + builder + ")\\z" : builder.ToString();
             try
             {
-                return new Regex(text, RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1));
+                return new Regex(text, RegexOptions.CultureInvariant | LinearTime, TimeSpan.FromSeconds(1));
             }
             catch (ArgumentException)
+            {
+                return null;
+            }
+            catch (NotSupportedException)
             {
                 return null;
             }
@@ -1011,6 +1071,11 @@ public sealed class JsonPath
                 if (!needsNodes && argument is QueryOperand { IsSingular: false })
                 {
                     throw Error($"The arguments of {name}() must be singular queries or values", argumentStart);
+                }
+
+                if (argument is FunctionCall { Name: "match" or "search" })
+                {
+                    throw Error($"{((FunctionCall)argument).Name}() returns a logical value, not a value {name}() accepts", argumentStart);
                 }
 
                 arguments.Add(argument);

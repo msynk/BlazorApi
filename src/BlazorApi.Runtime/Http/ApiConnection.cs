@@ -302,7 +302,7 @@ public sealed class ApiConnection
             }
 
             using var reader = new StreamReader(stream, encoding, detectEncodingFromByteOrderMarks: true);
-            var buffer = new char[Math.Min(Math.Max(maxLength, 0) + 1, 81920)];
+            var buffer = new char[Math.Min(Math.Max(maxLength, 0), 81919) + 1];
             var builder = new StringBuilder();
             int read;
             while ((read = await reader.ReadAsync(buffer.AsMemory(), cancellationToken).ConfigureAwait(false)) > 0)

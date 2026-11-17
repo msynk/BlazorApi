@@ -51,11 +51,50 @@ internal static class OverlayProcessor
                 if (Resolve(action, reusable, diagnostics) is { } resolved)
                 {
                     ApplyAction(document, resolved, diagnostics);
+                    // Copies and concatenations can double the document per action: keep it within the parser limits.
+                    if (CountNodes(document, limits.MaxExpandedNodes) > limits.MaxExpandedNodes)
+                    {
+                        diagnostics.Report(DiagnosticDescriptors.LimitExceeded, resolved.Target.Location, null,
+                            $"The overlay makes the document larger than {limits.MaxExpandedNodes} nodes");
+                        return document;
+                    }
                 }
             }
         }
 
         return document;
+    }
+
+    /// <summary>Counts nodes, stopping just past <paramref name="limit"/>.</summary>
+    private static long CountNodes(DocNode root, long limit)
+    {
+        long count = 0;
+        var pending = new Stack<DocNode>();
+        pending.Push(root);
+        while (pending.Count > 0 && count <= limit)
+        {
+            var node = pending.Pop();
+            count++;
+            switch (node)
+            {
+                case ObjectNode obj:
+                    foreach (var property in obj.Properties)
+                    {
+                        pending.Push(property.Value);
+                    }
+
+                    break;
+                case ArrayNode array:
+                    foreach (var item in array.Items)
+                    {
+                        pending.Push(item);
+                    }
+
+                    break;
+            }
+        }
+
+        return count;
     }
 
     private static bool CheckHeader(ObjectNode overlay, DiagnosticBag diagnostics)

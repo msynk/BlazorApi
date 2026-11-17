@@ -59,4 +59,26 @@ if (missing.Error?.Content is Error error)
     Console.WriteLine($"Pet 9999: {error.Code} {error.Message}");
 }
 
+// Declared response headers are typed: the ETag of a pet, sent back in If-None-Match to revalidate it.
+var first = await client.GetPetResultAsync(created.Id!.Value);
+var etag = GetPetResponseHeaders.From(first).ETag;
+var again = await client.WithOptions(o => o.DefaultHeaders["If-None-Match"] = etag!).GetPetResultAsync(created.Id.Value);
+Console.WriteLine($"#{created.Id} ETag {etag}; revalidated: {again.StatusCode}");
+
+// Server-sent events arrive one by one while the response streams; dispose the stream to stop early.
+Console.WriteLine($"Activity of {created.Name}:");
+await using (var activity = await client.StreamPetActivityAsync(created.Id.Value))
+{
+    var shown = 0;
+    await foreach (var e in activity)
+    {
+        var item = e.GetValue();
+        Console.WriteLine($"  [{e.Id}] {item.Kind}: {item.Message}");
+        if (++shown == 3)
+        {
+            break;
+        }
+    }
+}
+
 return 0;

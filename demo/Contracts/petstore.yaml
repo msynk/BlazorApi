@@ -101,6 +101,12 @@ paths:
       responses:
         '200':
           description: The pet
+          headers:
+            ETag:
+              description: The version of the pet; send it in If-None-Match to get 304 when it has not changed.
+              required: true
+              schema:
+                type: string
           content:
             application/json:
               schema:
@@ -146,6 +152,28 @@ paths:
       responses:
         '204':
           description: Deleted
+  /pets/{petId}/activity:
+    parameters:
+      - name: petId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+    get:
+      operationId: streamPetActivity
+      tags: [pets]
+      summary: Follow a pet's activity
+      description: Server-sent events, one per activity, while the connection stays open.
+      responses:
+        '200':
+          description: The activity feed
+          content:
+            text/event-stream:
+              itemSchema:
+                $ref: '#/components/schemas/PetActivity'
+        '404':
+          $ref: '#/components/responses/Error'
   /pets/{petId}/photo:
     parameters:
       - name: petId
@@ -366,6 +394,18 @@ components:
           format: email
         manager:
           $ref: '#/components/schemas/Owner'
+    PetActivity:
+      type: object
+      required: [at, kind, message]
+      properties:
+        at:
+          type: string
+          format: date-time
+        kind:
+          type: string
+          enum: [visit, meal, play, nap]
+        message:
+          type: string
     PhotoInfo:
       type: object
       required: [url, size]

@@ -31,21 +31,22 @@ public sealed class OpenApiExamples
             throw new ArgumentNullException(nameof(media));
         }
 
+        // Copies: callers may change the value, which must never change the document.
         if (exampleName is not null && media.Examples.TryGetValue(exampleName, out var named) && named.Resolved.Value is { } namedValue)
         {
-            return namedValue;
+            return namedValue.DeepClone();
         }
 
         if (media.Example is { } example)
         {
-            return example;
+            return example.DeepClone();
         }
 
         foreach (var candidate in media.Examples.Values)
         {
             if (candidate.Resolved.Value is { } value)
             {
-                return value;
+                return value.DeepClone();
             }
         }
 
@@ -65,7 +66,7 @@ public sealed class OpenApiExamples
 
         if ((s.Enum.FirstOrDefault(e => e is not ScalarNode { IsNull: true }) ?? s.Enum.FirstOrDefault()) is { } first)
         {
-            return first;
+            return first.DeepClone();
         }
 
         if (s.BooleanSchema is not null || depth > MaxDepth || _visiting.Contains(s))
@@ -237,7 +238,7 @@ public sealed class OpenApiExamples
 
         if (schema.MinLength is { } min && value.Length < min)
         {
-            value = value.PadRight(min, 'x');
+            value = value.PadRight(Math.Min(min, 4096), 'x'); // The contract is untrusted: bound the allocation.
         }
 
         if (schema.MaxLength is { } max && value.Length > max)
@@ -250,15 +251,26 @@ public sealed class OpenApiExamples
 
     private static ScalarNode NumberValue(OpenApiSchema schema, bool integer)
     {
-        var value = schema.Minimum ?? (schema.ExclusiveMinimum is { } exclusive ? exclusive + (integer ? 1 : 0.5m) : integer ? 1m : 1.5m);
+        var step = integer ? 1m : 0.5m;
+        var value = schema.Minimum ??
+            (schema.ExclusiveMinimum is { } exclusive ? (exclusive > decimal.MaxValue - step ? exclusive : exclusive + step) : integer ? 1m : 1.5m);
         if (schema.Maximum is { } max && value > max)
         {
             value = max;
         }
 
+        if (schema.ExclusiveMaximum is { } exclusiveMax && value >= exclusiveMax)
+        {
+            value = exclusiveMax < decimal.MinValue + step ? exclusiveMax : exclusiveMax - step;
+        }
+
         if (integer)
         {
             value = decimal.Ceiling(value);
+            if (schema.ExclusiveMaximum is { } upper && value >= upper)
+            {
+                value = decimal.Floor(upper) == upper ? upper - 1 : decimal.Floor(upper);
+            }
         }
 
         return new ScalarNode(SourceLocation.None, NodeKind.Number, value.ToString(CultureInfo.InvariantCulture));

@@ -31,6 +31,7 @@ scoped to be reviewable on its own; the working tree has not been committed or s
 | M22 | Advanced generation features | Partly: operation/tag filters, unused-model pruning, multi-contract projects, `x-pagination`, `x-enum-varnames`; custom templates deferred |
 | M23 | Blazor integration (`BlazorApi.Blazor`: `ApiResultView`, `ApiErrorView`, `ApiValidationErrors`; auth registration helpers `AddBearerToken`/`AddApiKey`/`AddBasicAuthentication` in `BlazorApi.Runtime`) | Done |
 | M24 | Documentation, demo, benchmarks, CI workflow, packaging | Done (not published) |
+| M29 | Independent reviews of M25-M28 (runtime, engine, code generation and CLI): 29 confirmed issues fixed with regression tests (2 findings rejected with reasons) | Done |
 | M28 | Intermediate hierarchy classes dispatch to their subtypes (subtree converters with payload classes); conditional-request cache (`AddApiCaching`) | Done |
 | M27 | Other success bodies (`ApiResult.Content`), typed response headers, transfer progress, reconnecting SSE, operation logging with deprecation warnings, `api-gen mock` with example synthesis | Done |
 | M26 | Overlays (1.0-1.2, RFC 9535 JSONPath), OpenAPI 3.2 `additionalOperations` and `querystring`, `durationType=timeSpan`, `generate --watch`, Blazor `ApiStreamView` | Done |
@@ -49,6 +50,7 @@ scoped to be reviewable on its own; the working tree has not been committed or s
 | 2026-11-09 | After documentation-review fixes: 440 tests (net8.0 + net10.0) + 5 demo tests | all passed |
 | 2026-11-09 | demo/BlazorApi.Demo.Tests (5); BlazorApi.Demo.BlazorApp run and checked over HTTP (pages, 401, 404, API key); BlazorApi.Demo.ConsoleClient run against it | passed |
 | 2026-11-17 | After removing the dotnet-query integration: full suite (net8.0 + net10.0) + 5 demo tests | all passed |
+| 2026-11-17 | M29 review fixes, Release build without warnings: OpenApi 207, CodeGeneration 17, Integration 95, SourceGenerator 15, Cli 26, Blazor 11, per framework (net8.0, net10.0); demo 5 | all passed |
 | 2026-11-17 | M28 after review fixes, Release build: OpenApi 199, CodeGeneration 13, Integration 78 (intermediate hierarchies, cache incl. retries, API keys, large chunked bodies), SourceGenerator 14, Cli 24, Blazor 11, per framework (net8.0, net10.0); demo 5 | all passed |
 | 2026-11-17 | M27, Release build: OpenApi 199, CodeGeneration 13, Integration 74 (alternate bodies, headers, progress, reconnection, logging), SourceGenerator 14, Cli 24 (mock server), Blazor 11, per framework (net8.0, net10.0); demo 5 | all passed |
 | 2026-11-17 | M26, Release build: OpenApi 197 (JSONPath RFC 9535 examples, overlays, 3.2), CodeGeneration 13, Integration 68, SourceGenerator 14, Cli 23 (overlays, watch), Blazor 11 (stream view), per framework (net8.0, net10.0); demo 5 | all passed |
@@ -188,6 +190,20 @@ scoped to be reviewable on its own; the working tree has not been committed or s
   list of its configuration file; the CLI ignored top-level defaults next to `contracts`, dropped `--option` errors in
   `validate` and accepted unknown `--fail-on` values. Each fix has a regression test.
 - Packaging: the source generator package carries only the analyzer and MSBuild files (`SuppressDependenciesWhenPacking`).
+
+## Review notes (M29, 2026-11-17)
+
+Three parallel reviews of the M25-M28 code reported 33 findings. Fixed (each with a regression test): out-of-range
+`retry-after-ms`, SSE `retry` and durations throwing; error-body buffer overflow; BOM dropping the first event;
+unbounded streamed lines; blocking disposal of asynchronous test streams; path segments in download file names;
+host-changing server variables; integer enums writing the `Unrecognized` sentinel; absolute operation servers keeping
+the relative base path; colliding header variable names; the JSON context's substring filter; duplicate contract file
+names in the source generator; suffix-matched overlay names; JSONPath regex anchoring escape, non-I-Regexp syntax,
+ReDoS (linear-time engine), lone surrogates, logical functions as values and unbounded overlay growth; example
+synthesis overflow, `exclusiveMaximum`, unbounded `minLength` and document mutation; redirects in remote contract
+downloads; and the mock server's DNS rebinding exposure, missing timeouts, connection and body limits, and empty
+`Prefer` codes. Rejected: retries never buffering streamed uploads (`ContentLength` is computed lazily from seekable
+streams; covered by a test) and overlay partial application on error (loading stops and discards the document).
 
 ## Ecosystem survey and gap inventory (M25, 2026-11-17)
 

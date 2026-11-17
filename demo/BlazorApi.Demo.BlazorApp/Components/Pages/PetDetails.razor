@@ -1,6 +1,7 @@
 @page "/pets/{PetId:long}"
 @using System.Text.Json
 @using BlazorApi.Runtime.Json
+@using BlazorApi.Runtime.Http
 @inject IPetstoreClient Api
 @inject NavigationManager Navigation
 @inject ToastService Toasts
@@ -75,7 +76,13 @@
                         break;
                 }
                 <div><dt>Owner</dt><dd>@(pet.Owner is { } owner ? $"{owner.Name} ({owner.Email})" : "None yet")</dd></div>
+                @* Typed response headers (GetPetResponseHeaders) and the cache marker: reload to see a 304 revalidation. *@
+                <div><dt>ETag</dt><dd class="mono">@(_etag ?? "—")</dd></div>
+                <div><dt>Last load</dt><dd>@(_revalidated ? "304 Not Modified: served from the client cache" : "200 with the full body")</dd></div>
             </dl>
+            <div class="row">
+                <button type="button" class="btn btn-sm" @onclick="ReloadAsync"><Icon Name="refresh" /> Reload (revalidate)</button>
+            </div>
         </section>
 
         <div class="grid-2">
@@ -148,6 +155,32 @@
             </div>
         </div>
 
+        @* Server-sent events read while they arrive: ApiStreamView renders each event; Key restarts the feed. *@
+        <div class="card">
+            <div class="card-header">
+                <div>
+                    <h2>Live activity</h2>
+                    <p><code>StreamPetActivityResultAsync</code> · <code>text/event-stream</code> as <code>ApiStream&lt;ServerSentEvent&lt;PetActivity&gt;&gt;</code></p>
+                </div>
+                <button type="button" class="btn btn-sm" @onclick="() => _activityRun++"><Icon Name="refresh" /> Follow again</button>
+            </div>
+            <div class="card-body">
+                <ApiStreamView TItem="ServerSentEvent<PetActivity>" Load="ct => Api.StreamPetActivityResultAsync(PetId, ct)" Key="(PetId, _activityRun)">
+                    <Loading><p class="muted" aria-busy="true">Connecting to the activity feed…</p></Loading>
+                    <Empty><p class="muted">No activity.</p></Empty>
+                    <ChildContent Context="events">
+                        <ul class="activity">
+                            @foreach (var e in events)
+                            {
+                                var activity = e.GetValue();
+                                <li><span class="chip">@activity.Kind</span> <span class="mono">@activity.At.ToLocalTime().ToString("HH:mm:ss")</span> @activity.Message</li>
+                            }
+                        </ul>
+                    </ChildContent>
+                </ApiStreamView>
+            </div>
+        </div>
+
         <div class="card danger-zone">
             <div class="card-header">
                 <div>
@@ -188,6 +221,7 @@
                 <tr><td>Photo</td><td><code>UploadPetPhotoResultAsync</code>, <code>DownloadPetPhotoResultAsync</code></td><td><code>multipart/form-data</code> with a <code>FileContent</code>; an <code>image/png</code> stream as <code>FileResponse</code></td></tr>
                 <tr><td>Status</td><td><code>UpdatePetResultAsync</code></td><td><code>PUT</code> with the polymorphic <code>Pet</code>: written as <code>Dog</code> or <code>Cat</code></td></tr>
                 <tr><td>Adopt</td><td><code>PlaceOrderResultAsync</code></td><td><code>application/x-www-form-urlencoded</code> from <code>Order</code></td></tr>
+                <tr><td>Live activity</td><td><code>StreamPetActivityResultAsync</code></td><td><code>text/event-stream</code> rendered by <code>ApiStreamView</code> as events arrive</td></tr>
                 <tr><td>Danger zone</td><td><code>DeletePetResultAsync</code></td><td><code>[Obsolete]</code> because the contract marks it deprecated</td></tr>
             </tbody>
         </table>
@@ -244,6 +278,9 @@
     private ApiError? _deleteError;
     private bool _confirmDelete;
     private bool _busy;
+    private string? _etag;
+    private bool _revalidated;
+    private int _activityRun;
     private long _shownFor;
 
     [Parameter]
@@ -263,6 +300,8 @@
     private async Task<ApiResult<Pet>> LoadAsync(CancellationToken cancellationToken)
     {
         var result = await Api.GetPetResultAsync(PetId, cancellationToken);
+        _etag = GetPetResponseHeaders.From(result).ETag;
+        _revalidated = result.GetHeader(ApiCacheHandler.CacheHeader) is not null;
         if (result.Value?.Name != _name)
         {
             // The page title lives outside ApiResultView, so re-render the page for it.

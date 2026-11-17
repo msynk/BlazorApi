@@ -148,6 +148,11 @@ public static class ApiDuration
 
             lastUnit = unit;
             any = true;
+            if (unitTicks > 0 && number > (TimeSpan.MaxValue.Ticks - ticks) / unitTicks)
+            {
+                return false; // Longer than TimeSpan.MaxValue (decimal multiplication would overflow).
+            }
+
             ticks += number * unitTicks;
         }
 

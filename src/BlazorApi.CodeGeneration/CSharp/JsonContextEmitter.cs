@@ -48,7 +48,11 @@ internal sealed class JsonContextEmitter
         void AddType(string csharp)
         {
             var normalized = Normalize(csharp, enumNames);
-            if (normalized.Length > 0 && !normalized.Contains("ApiNoContent") && !normalized.Contains("FileContent") && !normalized.Contains("FileResponse"))
+            // Only the runtime's non-JSON types are left out (by their full names, so user types like FileResponseDto stay).
+            if (normalized.Length > 0 &&
+                !normalized.Contains("global::BlazorApi.Runtime.Http.ApiNoContent") &&
+                !normalized.Contains("global::BlazorApi.Runtime.FileContent") &&
+                !normalized.Contains("global::BlazorApi.Runtime.FileResponse"))
             {
                 types.Add(normalized);
             }

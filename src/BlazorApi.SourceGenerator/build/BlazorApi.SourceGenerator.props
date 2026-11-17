@@ -9,6 +9,7 @@
     <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="BlazorApiConfig" />
     <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="BlazorApiOverlays" />
     <CompilerVisibleProperty Include="RootNamespace" />
+    <CompilerVisibleProperty Include="ProjectDir" />
   </ItemGroup>
 
 </Project>

@@ -166,4 +166,19 @@ public class OverlayTests
         Assert.Equal("New", patched.Document!.Info.Title);
         Assert.Equal("Shop", plain.Document!.Info.Title);
     }
+
+    [Fact]
+    public void Overlays_cannot_grow_the_document_without_bound()
+    {
+        var lines = new List<string> { "overlay: 1.1.0", "info: { title: G, version: '1' }", "actions:" };
+        lines.AddRange(Enumerable.Repeat("  - { target: $.tags, copy: $.tags }", 40));
+        var result = OpenApiLoader.Parse(Contract, "shop.yaml", new OpenApiLoadOptions
+        {
+            Overlays = [new OpenApiOverlay("grow.yaml", string.Join(Environment.NewLine, lines))],
+            Limits = BlazorApi.OpenApi.Syntax.ParserLimits.Default with { MaxExpandedNodes = 10_000 },
+        });
+
+        Assert.Contains("BAPI1002", result.Ids());
+        Assert.Null(result.Document);
+    }
 }

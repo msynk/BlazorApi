@@ -19,8 +19,12 @@ loads it. Add `BlazorApi.Testing` for `GenerateMocks=true`.
 
 ## Items and metadata
 
+Contracts with the same file name in different folders (`v1/petstore.yaml`, `v2/petstore.yaml`) get distinct
+generated file names and, without a `Namespace`, the folder in their default namespace (`MyApp.V1.Petstore`).
+
 Overlays: `Overlays="a.overlay.yaml;b.overlay.yaml"` metadata on `OpenApiContract` applies [overlays](overlays.md) in
-order (they become AdditionalFiles automatically); overlays listed in a `Config` file's `overlays` also need an
+order (they become AdditionalFiles automatically; relative paths are resolved against the project directory, and a
+name matching several files is reported); overlays listed in a `Config` file's `overlays` also need an
 `<OpenApiOverlay Include="..." />` item. A listed overlay that is not an AdditionalFile reports BAPI5003.
 
 

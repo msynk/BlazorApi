@@ -56,8 +56,10 @@ public class ApiClientOptions
     }
 
     /// <summary>
-    /// A timeout for each request, including reading the response body. A request that times out yields an
-    /// <see cref="ApiErrorKind.Timeout"/> error. <see langword="null"/> (the default) relies on
+    /// A timeout for each request, including reading the response body when the client reads it (JSON, text, error
+    /// bodies). Streamed and file bodies (<see cref="ApiStream{T}"/>, <see cref="FileResponse"/>) are read by the caller
+    /// after the call returns and are bounded only by the cancellation token passed while reading them. A request that
+    /// times out yields an <see cref="ApiErrorKind.Timeout"/> error. <see langword="null"/> (the default) relies on
     /// <see cref="HttpClient.Timeout"/>.
     /// </summary>
     public TimeSpan? Timeout { get; set; }

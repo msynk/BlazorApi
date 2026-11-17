@@ -82,8 +82,22 @@ target .NET Standard 2.0.
 - **Caching**: `AddApiCaching()` / `ApiCacheHandler` revalidate GET responses with `If-None-Match` and
   `If-Modified-Since` and answer 304s from a per-user, `Vary`-aware in-memory cache (`ApiResponseCache`).
 
+- **Demo**: the Blazor app uses retries, caching and logging, shows a pet's `ETag` and cache revalidation, and a live
+  activity feed (server-sent events with `ApiStreamView`); the console client shows typed headers and streaming.
+
 ### Fixed
 
+- Issues found by reviews of the new code: resilience values out of range (`retry-after-ms: Infinity`, huge SSE
+  `retry`, ISO durations beyond `TimeSpan`) threw instead of being ignored or rejected; `MaxErrorBodyLength =
+  int.MaxValue` overflowed; a UTF-8 BOM dropped the first server-sent event; streamed lines had no size limit;
+  `ApiStream.From(IAsyncEnumerable)` blocked on disposal; `Content-Disposition` names kept directory segments;
+  server variables could change the host; integer enums wrote the `Unrecognized` sentinel; absolute operation
+  servers kept the document's relative base path; header classes with colliding names did not compile; the JSON
+  context dropped user types named like runtime types; contracts sharing a file name broke the source generator;
+  overlay names were matched by suffix; JSONPath regexes could escape their anchoring or use non-I-Regexp syntax, lone
+  surrogates failed comparisons, logical functions were accepted as values, and overlays could grow documents
+  without bound; example synthesis overflowed on extreme bounds, ignored `exclusiveMaximum` and could change the
+  document; remote contracts followed redirects to other hosts; the mock server had no Host check, timeouts or limits.
 - Values typed as an intermediate class of a discriminated hierarchy (`Car` with a `SportsCar` subtype) were read as
   that class; intermediate classes now get their own converter and dispatch to their subtypes.
 

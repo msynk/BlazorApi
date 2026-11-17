@@ -18,14 +18,25 @@ namespace BlazorApi.Cli;
 internal sealed class MockServer
 {
     private const int MaxHeaderBytes = 64 * 1024;
+    private const long MaxBodyBytes = 16 * 1024 * 1024;
+    private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(30);
+    private readonly SemaphoreSlim _connections = new(64, 64);
+    private readonly HashSet<string> _allowedHosts;
     private readonly ApiModel _model;
     private readonly OpenApiExamples _examples;
     private readonly TextWriter _log;
     private readonly List<(ApiOperation Operation, Regex Pattern)> _routes;
     private readonly string _basePath;
 
-    public MockServer(ApiModel model, TextWriter log)
+    /// <param name="model">The API.</param>
+    /// <param name="log">Receives one line per request.</param>
+    /// <param name="allowedHosts">
+    /// Accepted <c>Host</c> header names (without port), or <see langword="null"/> to accept any: a loopback server
+    /// rejects other names so web pages cannot reach it through DNS rebinding.
+    /// </param>
+    public MockServer(ApiModel model, TextWriter log, IEnumerable<string>? allowedHosts = null)
     {
+        _allowedHosts = allowedHosts is null ? [] : new HashSet<string>(allowedHosts, StringComparer.OrdinalIgnoreCase);
         _model = model;
         _log = log;
         _examples = new OpenApiExamples(model.Document);
@@ -51,14 +62,33 @@ internal sealed class MockServer
                 return;
             }
 
-            _ = Task.Run(() => HandleAsync(client, cancellationToken), CancellationToken.None);
+            if (!await _connections.WaitAsync(0, CancellationToken.None).ConfigureAwait(false))
+            {
+                client.Dispose(); // Too many open connections: refuse rather than queue without bound.
+                continue;
+            }
+
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await HandleAsync(client, cancellationToken).ConfigureAwait(false);
+                }
+                finally
+                {
+                    _connections.Release();
+                }
+            }, CancellationToken.None);
         }
     }
 
     private async Task HandleAsync(TcpClient client, CancellationToken cancellationToken)
     {
         using (client)
+        using (var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
         {
+            timeout.CancelAfter(RequestTimeout); // A client that never finishes its request does not hold the socket.
+            cancellationToken = timeout.Token;
             try
             {
                 var stream = client.GetStream();
@@ -92,6 +122,12 @@ internal sealed class MockServer
     internal Response Respond(Request request)
     {
         var headers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (_allowedHosts.Count > 0 &&
+            !(request.Headers.TryGetValue("Host", out var host) && _allowedHosts.Contains(HostName(host))))
+        {
+            return Problem(421, "The Host header names a host this mock server does not serve (DNS rebinding protection).", null);
+        }
+
         if (request.Method == "OPTIONS" && request.Headers.ContainsKey("Access-Control-Request-Method"))
         {
             return new Response(204, null, [], headers, null);
@@ -123,7 +159,7 @@ internal sealed class MockServer
 
         var prefer = request.Headers.TryGetValue("Prefer", out var preferHeader) ? ParsePrefer(preferHeader) : new Dictionary<string, string>();
         ApiResponse? response;
-        if (prefer.TryGetValue("code", out var code))
+        if (prefer.TryGetValue("code", out var code) && code.Length == 3 && code.All(char.IsDigit))
         {
             response = operation.Responses.FirstOrDefault(r => r.StatusCode == code) ??
                 operation.Responses.FirstOrDefault(r => r.StatusCode.Length == 3 && r.StatusCode[0] == code[0] && r.StatusCode.EndsWith("XX", StringComparison.OrdinalIgnoreCase)) ??
@@ -138,7 +174,7 @@ internal sealed class MockServer
             response = operation.Responses.FirstOrDefault(r => r.IsSuccess) ?? operation.Responses.FirstOrDefault();
         }
 
-        var status = response?.Status ?? (code is not null && int.TryParse(code, NumberStyles.None, CultureInfo.InvariantCulture, out var parsed) ? parsed
+        var status = response?.Status ?? (code is { Length: 3 } && int.TryParse(code, NumberStyles.None, CultureInfo.InvariantCulture, out var parsed) ? parsed
             : response?.StatusClass is { } statusClass ? statusClass * 100 : 200);
         if (response is null)
         {
@@ -245,6 +281,13 @@ internal sealed class MockServer
         return result;
     }
 
+    /// <summary>The host of a Host header without its port (<c>[::1]:4010</c> gives <c>[::1]</c>).</summary>
+    private static string HostName(string host)
+    {
+        var colon = host.LastIndexOf(':');
+        return colon > 0 && host.IndexOf(']', StringComparison.Ordinal) < colon ? host.Substring(0, colon) : host;
+    }
+
     private static Regex Route(string template)
     {
         var pattern = new StringBuilder("^");
@@ -297,6 +340,11 @@ internal sealed class MockServer
         var buffered = received.Length - bodyStart;
         if (headers.TryGetValue("Content-Length", out var lengthText) && long.TryParse(lengthText, NumberStyles.None, CultureInfo.InvariantCulture, out var length))
         {
+            if (length > MaxBodyBytes)
+            {
+                return null; // Not read: the connection is closed.
+            }
+
             var remaining = length - buffered;
             while (remaining > 0)
             {
@@ -312,12 +360,19 @@ internal sealed class MockServer
         else if (headers.TryGetValue("Transfer-Encoding", out var encoding) && encoding.Contains("chunked", StringComparison.OrdinalIgnoreCase))
         {
             var tail = Encoding.ASCII.GetString(received.GetBuffer(), bodyStart, (int)buffered);
+            long consumed = buffered;
             while (!tail.Contains("\r\n0\r\n\r\n", StringComparison.Ordinal) && !tail.StartsWith("0\r\n\r\n", StringComparison.Ordinal))
             {
                 var read = await stream.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
                 if (read == 0)
                 {
                     break;
+                }
+
+                consumed += read;
+                if (consumed > MaxBodyBytes)
+                {
+                    return null;
                 }
 
                 tail = tail.Substring(Math.Max(0, tail.Length - 16)) + Encoding.ASCII.GetString(buffer, 0, read);

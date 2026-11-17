@@ -40,8 +40,16 @@ tags or construct arbitrary objects.
 - `http`/`https` references are rejected unless the policy is `LocalFilesAndRemote`; even then, the built-in
   file-system resolver (CLI) does not download anything, and the source generator only sees MSBuild AdditionalFiles.
 - A contract given to the CLI as a URL is downloaded on purpose. Its references are fetched only from the same
-  origin (scheme, host, port); other hosts and `file:` URIs are refused, so a hostile contract cannot reach internal
-  addresses or local files. Downloads are bounded by a 60-second timeout and the parser's document size limit.
+  origin (scheme, host, port); other hosts and `file:` URIs are refused, and HTTP redirects are not followed (a
+  same-origin redirect to a metadata address is refused), so a hostile contract cannot reach internal addresses or
+  local files. Downloads are bounded by a 60-second timeout and the parser's document size limit.
+- `api-gen mock` listens on loopback by default and then rejects requests whose `Host` is not `localhost`,
+  `127.0.0.1` or `[::1]` (DNS rebinding); it limits connections (64), request time (30 s) and bodies (16 MiB).
+- JSONPath `match`/`search` in overlays accept only I-Regexp syntax and run on .NET's linear-time regex engine with
+  a time limit; overlays that grow the document beyond the parser's node limit fail (BAPI1002).
+- Server-sent events and JSON sequences fail a line, event or record longer than 16 Mi characters, so a server cannot
+  grow client memory without bound. `FileResponse.FileName` drops directory segments from `Content-Disposition`.
+  `ApiServer.Resolve` rejects variable values that would change the host or add a query or fragment.
   Other URI schemes are always rejected.
 - `ExternalReferencePolicy.Disabled` allows only references inside the document.
 - Hosts that need remote documents supply their own `IDocumentResolver`; it is then responsible for allow-listing

@@ -174,7 +174,10 @@ public sealed class ApiRetryHandler : DelegatingHandler
         if (response.Headers.TryGetValues("retry-after-ms", out var values) &&
             double.TryParse(values.FirstOrDefault(), NumberStyles.Float, CultureInfo.InvariantCulture, out var milliseconds) && milliseconds >= 0)
         {
-            return TimeSpan.FromMilliseconds(milliseconds);
+            // Infinity and huge values cannot be a TimeSpan: treat them as longer than any allowed wait.
+            return double.IsFinite(milliseconds) && milliseconds < TimeSpan.MaxValue.TotalMilliseconds
+                ? TimeSpan.FromMilliseconds(milliseconds)
+                : TimeSpan.MaxValue;
         }
 
         if (response.Headers.RetryAfter is { } retryAfter)

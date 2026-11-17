@@ -501,3 +501,7 @@ pre.code {
 }
 #blazor-error-ui a { color: #fff; text-decoration: underline; margin-left: .75rem; }
 #blazor-error-ui .dismiss { float: right; cursor: pointer; }
+
+/* Live activity feed (ApiStreamView) */
+.activity { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.activity li { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }

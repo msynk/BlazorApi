@@ -52,6 +52,9 @@ public static class PetstoreEndpoints
                 : Failure(401, "An API key is required."));
     }
 
+    private static PetActivityKind ToKind(string kind) =>
+        PetActivityKindJsonConverter.TryParse(kind, out var parsed) ? parsed : throw new ArgumentOutOfRangeException(nameof(kind));
+
     private static void MapPets(RouteGroupBuilder pets)
     {
         pets.MapGet("/", (PetStore store, HttpResponse response, int? limit, string? cursor, string? status, string[]? tags) =>
@@ -113,8 +116,54 @@ public static class PetstoreEndpoints
             return Results.Json(store.Add(pet), Json, statusCode: 201);
         });
 
-        pets.MapGet("/{petId:long}", (PetStore store, long petId) =>
-            store.Find(petId) is { } pet ? Results.Json(pet, Json) : NotFound(petId));
+        // The ETag is a hash of the pet's JSON: a client that sends it back in If-None-Match gets 304 while the pet is
+        // unchanged (the generated client's AddApiCaching() does this and answers from its cache).
+        pets.MapGet("/{petId:long}", (PetStore store, long petId, HttpRequest request, HttpResponse response) =>
+        {
+            if (store.Find(petId) is not { } pet)
+            {
+                return NotFound(petId);
+            }
+
+            var json = JsonSerializer.SerializeToUtf8Bytes(pet, Json);
+            var etag = "\"" + Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(json), 0, 8) + "\"";
+            response.Headers.ETag = etag;
+            return request.Headers.IfNoneMatch == etag
+                ? Results.StatusCode(StatusCodes.Status304NotModified)
+                : Results.Bytes(json, "application/json");
+        });
+
+        // Server-sent events: one activity every 700 ms, eight in all, then the stream ends.
+        pets.MapGet("/{petId:long}/activity", async (PetStore store, long petId, HttpResponse response, CancellationToken cancellationToken) =>
+        {
+            if (store.Find(petId) is not { } pet)
+            {
+                return NotFound(petId);
+            }
+
+            response.ContentType = "text/event-stream";
+            response.Headers.CacheControl = "no-store";
+            (string Kind, string Message)[] activities =
+            [
+                ("visit", $"A family came to meet {pet.Name}."),
+                ("play", $"{pet.Name} chased a ball across the yard."),
+                ("meal", $"{pet.Name} finished breakfast."),
+                ("nap", $"{pet.Name} is napping in the sun."),
+                ("visit", "A volunteer stopped by for a walk."),
+                ("play", $"{pet.Name} found a new favorite toy."),
+                ("meal", "Treat time."),
+                ("nap", $"{pet.Name} is asleep. See you tomorrow!"),
+            ];
+            for (var i = 0; i < activities.Length; i++)
+            {
+                var activity = new PetActivity { At = DateTimeOffset.UtcNow, Kind = ToKind(activities[i].Kind), Message = activities[i].Message };
+                await response.WriteAsync($"id: {i + 1}\ndata: {JsonSerializer.Serialize(activity, Json)}\n\n", cancellationToken);
+                await response.Body.FlushAsync(cancellationToken);
+                await Task.Delay(700, cancellationToken);
+            }
+
+            return Results.Empty;
+        });
 
         // PUT replaces the whole pet; the polymorphic body arrives as a Dog or a Cat.
         pets.MapPut("/{petId:long}", async (PetStore store, long petId, HttpRequest request) =>

@@ -179,6 +179,9 @@ api-gen mock https://api.example.com/openapi.yaml --port 5080
 - CORS is open (`Access-Control-Allow-Origin: *`, preflights answered), so a Blazor WebAssembly app on another port
   can call it: `options.BaseAddress = new Uri("http://localhost:4010/")`.
 - Each request is printed (`GET /pets/42 -> 200 (getPet)`). Request bodies are not validated. Ctrl+C stops it.
+- On loopback (the default) requests must use the host `localhost`, `127.0.0.1` or `[::1]` (others get 421, which
+  blocks DNS rebinding); `--host` with another address warns that the server is reachable from other machines.
+  Connections are limited to 64, requests to 30 seconds and bodies to 16 MiB.
 
 ## GitHub Actions
 

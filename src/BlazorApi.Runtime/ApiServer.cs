@@ -67,13 +67,37 @@ public sealed class ApiServer
             }
         }
 
+        var authorityEnd = AuthorityEnd(UrlTemplate);
         foreach (var variable in _defaults)
         {
             var value = variables is not null && variables.TryGetValue(variable.Key, out var given) ? given : variable.Value;
-            url = url.Replace("{" + variable.Key + "}", value, StringComparison.Ordinal);
+            var placeholder = "{" + variable.Key + "}";
+            var index = UrlTemplate.IndexOf(placeholder, StringComparison.Ordinal);
+            var inAuthority = index >= 0 && index < authorityEnd;
+            // A value must not move the request to another host or add a query, fragment or credentials.
+            if (inAuthority ? value.Any(c => !(char.IsLetterOrDigit(c) || c is '-' or '.' or ':' or '[' or ']')) : value.IndexOfAny(['?', '#', '\\']) >= 0 || value.Contains("..", StringComparison.Ordinal))
+            {
+                throw new ArgumentException(
+                    $"'{value}' is not a valid value of the server variable '{variable.Key}' (it would change the {(inAuthority ? "host" : "path")} unexpectedly).", nameof(variables));
+            }
+
+            url = url.Replace(placeholder, value, StringComparison.Ordinal);
         }
 
         return new Uri(url, UriKind.Absolute);
+    }
+
+    /// <summary>The index where the authority (host and port) of a URL template ends.</summary>
+    private static int AuthorityEnd(string template)
+    {
+        var scheme = template.IndexOf("://", StringComparison.Ordinal);
+        if (scheme < 0)
+        {
+            return 0;
+        }
+
+        var slash = template.IndexOf('/', scheme + 3);
+        return slash < 0 ? template.Length : slash;
     }
 
     /// <inheritdoc />

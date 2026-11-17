@@ -50,7 +50,7 @@ internal sealed class CliApp
         }
 
         _http ??= _httpHandler is null
-            ? new HttpClient { Timeout = TimeSpan.FromSeconds(60) }
+            ? new HttpClient(new HttpClientHandler { AllowAutoRedirect = false }) { Timeout = TimeSpan.FromSeconds(60) } // Redirects could leave the origin.
             : new HttpClient(_httpHandler, disposeHandler: false) { Timeout = TimeSpan.FromSeconds(60) };
         var uri = new Uri(contract);
         var resolver = new RemoteDocumentResolver(_http, uri);
@@ -654,7 +654,13 @@ internal sealed class CliApp
         _out.WriteLine($"Mocking {model.Title} ({model.Operations.Count} operations) on http://{(host == "localhost" ? "localhost" : endpoint.Address.ToString())}:{endpoint.Port}/ (Ctrl+C to stop).");
         _out.WriteLine("Choose a response with the header 'Prefer: code=404' or 'Prefer: example=<name>'.");
         MockStarted?.Invoke(endpoint);
-        var server = new MockServer(model, _out);
+        var loopback = System.Net.IPAddress.IsLoopback(address);
+        if (!loopback)
+        {
+            _error.WriteLine($"warning: the mock server listens on {host}, reachable from other machines, with open CORS.");
+        }
+
+        var server = new MockServer(model, _out, loopback ? ["localhost", "127.0.0.1", "[::1]"] : null);
         Task.WhenAll(listeners.Select(l => server.RunAsync(l, Cancellation))).GetAwaiter().GetResult();
         return 0;
     }

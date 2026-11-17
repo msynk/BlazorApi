@@ -73,8 +73,8 @@ public sealed class FileResponse : IDisposable, IAsyncDisposable
         StatusCode = (int)response.StatusCode;
         ContentType = response.Content.Headers.ContentType?.ToString();
         ContentLength = response.Content.Headers.ContentLength;
-        FileName = response.Content.Headers.ContentDisposition?.FileNameStar?.Trim('"') ??
-            response.Content.Headers.ContentDisposition?.FileName?.Trim('"');
+        FileName = SafeFileName(response.Content.Headers.ContentDisposition?.FileNameStar?.Trim('"') ??
+            response.Content.Headers.ContentDisposition?.FileName?.Trim('"'));
         Headers = ApiHeaders.From(response);
     }
 
@@ -90,7 +90,25 @@ public sealed class FileResponse : IDisposable, IAsyncDisposable
     /// <summary>The body length, when known.</summary>
     public long? ContentLength { get; }
 
-    /// <summary>The file name from <c>Content-Disposition</c>, when present.</summary>
+    /// <summary>
+    /// Reduces a server-supplied name to its last segment, so <c>../../etc/passwd</c> becomes <c>passwd</c> and a caller
+    /// combining it with a directory cannot write elsewhere.
+    /// </summary>
+    private static string? SafeFileName(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return null;
+        }
+
+        var last = name!.Replace('\\', '/').Split('/').Last().Trim();
+        return last is "" or "." or ".." ? null : last;
+    }
+
+    /// <summary>
+    /// The file name from <c>Content-Disposition</c>, when present, without directory segments (server text: still
+    /// validate it before using it as a path).
+    /// </summary>
     public string? FileName { get; }
 
     /// <summary>The response headers.</summary>

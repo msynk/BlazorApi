@@ -885,6 +885,7 @@ internal sealed class ClientEmitter
         var url = operation.Servers[0].DefaultUrl;
         if (Uri.TryCreate(url, UriKind.Absolute, out var absolute) && (absolute.Scheme == "http" || absolute.Scheme == "https"))
         {
+            pathPrefix = string.Empty; // The operation's own server replaces the document's relative base path too.
             return url;
         }
 

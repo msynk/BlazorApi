@@ -24,14 +24,21 @@ builder.Services.AddScoped<DemoClients>();
 builder.Services.AddSingleton<DemoSources>();
 builder.Services.AddSingleton<ContractExplorer>();
 
-// The generated client, registered with IHttpClientFactory. Each authentication handler applies only to the operations
-// whose security requirements name its scheme: health stays anonymous, the inventory gets the API key and everything
-// else gets the bearer token. The activity handler is added last, so it sees the headers the others attached.
+// The generated client, registered with IHttpClientFactory. Handlers run in the order they are added:
+// - retries (outermost): idempotent requests are retried on 408/429/5xx and connection failures;
+// - authentication: each handler applies only to the operations whose security requirements name its scheme
+//   (health stays anonymous, the inventory gets the API key, everything else the bearer token);
+// - caching: GETs with an ETag are revalidated with If-None-Match, and a 304 is answered from memory;
+// - logging: one entry per request with the operation id and path template (category "BlazorApi");
+// - the activity handler (innermost), so the traffic panel shows the headers the others attached, and each 304.
 builder.Services
     .AddPetstoreClient(options => options.Timeout = TimeSpan.FromSeconds(15))
     .ConfigureHttpClient((services, http) => http.BaseAddress = services.GetRequiredService<PetstoreApiAddress>().Value)
+    .AddApiRetries()
     .AddBearerToken(_ => new StaticAccessTokenProvider(PetStore.DemoToken), scheme: "bearerAuth")
     .AddApiKey("X-API-Key", ApiKeyLocation.Header, (_, _) => new ValueTask<string?>(PetStore.DemoApiKey), scheme: "apiKey")
+    .AddApiCaching()
+    .AddApiLogging()
     .AddHttpMessageHandler<ApiActivityHandler>();
 
 // A client without credentials, used by the playground to show what the API answers then.

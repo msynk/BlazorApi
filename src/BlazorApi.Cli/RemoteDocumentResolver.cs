@@ -54,6 +54,19 @@ internal sealed class RemoteDocumentResolver : IDocumentResolver
         using var request = new HttpRequestMessage(HttpMethod.Get, uri);
         request.Headers.Accept.ParseAdd("application/vnd.oai.openapi+json, application/json, application/yaml, text/yaml, */*;q=0.5");
         using var response = await _http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
+        // Redirects are not followed (they could lead to another host, such as a cloud metadata address); a handler
+        // that followed one anyway must still have stayed on the origin.
+        if ((int)response.StatusCode is >= 300 and < 400)
+        {
+            throw new HttpRequestException($"GET {uri} redirects to {response.Headers.Location}; redirects are not followed, use the final URL");
+        }
+
+        if (response.RequestMessage?.RequestUri is { } final &&
+            !string.Equals(final.GetLeftPart(UriPartial.Authority), _origin.AbsoluteUri.TrimEnd('/'), StringComparison.OrdinalIgnoreCase))
+        {
+            throw new HttpRequestException($"GET {uri} ended at {final.GetLeftPart(UriPartial.Authority)}, another origin");
+        }
+
         if (!response.IsSuccessStatusCode)
         {
             throw new HttpRequestException($"GET {uri} returned {(int)response.StatusCode} ({response.ReasonPhrase})");

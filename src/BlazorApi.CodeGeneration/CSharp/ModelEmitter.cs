@@ -847,9 +847,19 @@ internal sealed class ModelEmitter
             writer.Doc("summary", "Writes a value.");
             using (writer.Block($"public override void Write({Json}.Utf8JsonWriter writer, {name} value, {Json}.JsonSerializerOptions options)"))
             {
-                writer.Line(isString
-                    ? "writer.WriteStringValue(ToWireValue(value));"
-                    : "writer.WriteNumberValue((long)value);");
+                if (isString)
+                {
+                    writer.Line("writer.WriteStringValue(ToWireValue(value));");
+                }
+                else if (unrecognized is not null)
+                {
+                    // The unrecognized member stands for a value it does not keep: never send its sentinel number.
+                    writer.Line($"writer.WriteNumberValue(value == {name}.{unrecognized} ? throw new global::System.ArgumentOutOfRangeException(nameof(value), value, \"{name}.{unrecognized} has no wire value.\") : (long)value);");
+                }
+                else
+                {
+                    writer.Line("writer.WriteNumberValue((long)value);");
+                }
             }
         }
     }

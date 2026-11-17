@@ -89,4 +89,20 @@ public class JsonPathTests
         Assert.Equal(0, item.Index);
         Assert.IsType<ArrayNode>(item.Parent);
     }
+
+    [Theory]
+    [InlineData("$[?match(@, ')|(.*')]")]
+    [InlineData("$[?match(@, '(?i)ABC')]")]
+    [InlineData(@"$[?search(@, '\\d')]")]
+    [InlineData("$[?match(@, '^abc$')]")]
+    public void Non_i_regexp_patterns_never_match(string query) =>
+        Assert.Empty(Select(query, """["abc", "x1"]"""));
+
+    [Fact]
+    public void Lone_surrogates_compare_without_failing() =>
+        Assert.Equal(["\"b\""], Select("$[?@ < 'c']", """["\ud800", "b"]"""));
+
+    [Fact]
+    public void Logical_functions_are_not_values() =>
+        Assert.False(JsonPath.TryParse("$[?length(match(@.a, 'x')) > 0]", out _, out _));
 }

@@ -21,6 +21,7 @@ public sealed class ApiStream<T> : IAsyncEnumerable<T>, IAsyncDisposable, IDispo
 {
     private readonly Func<CancellationToken, ValueTask<(bool HasItem, T Item)>> _next;
     private readonly IDisposable? _owner;
+    private readonly Func<ValueTask>? _asyncOwner;
     private readonly string? _operationId;
     private int _enumerated;
     private int _disposed;
@@ -29,6 +30,13 @@ public sealed class ApiStream<T> : IAsyncEnumerable<T>, IAsyncDisposable, IDispo
     {
         _next = next;
         _owner = owner;
+        _operationId = operationId;
+    }
+
+    internal ApiStream(Func<CancellationToken, ValueTask<(bool HasItem, T Item)>> next, Func<ValueTask> asyncOwner, string? operationId)
+    {
+        _next = next;
+        _asyncOwner = asyncOwner;
         _operationId = operationId;
     }
 
@@ -60,7 +68,7 @@ public sealed class ApiStream<T> : IAsyncEnumerable<T>, IAsyncDisposable, IDispo
         }
         finally
         {
-            Dispose();
+            await DisposeAsync().ConfigureAwait(false);
         }
     }
 
@@ -76,20 +84,33 @@ public sealed class ApiStream<T> : IAsyncEnumerable<T>, IAsyncDisposable, IDispo
         return items;
     }
 
-    /// <summary>Releases the HTTP response.</summary>
+    /// <summary>
+    /// Releases the HTTP response. Asynchronous sources (<see cref="ApiStream.From{T}(IAsyncEnumerable{T})"/>) are
+    /// released without waiting; prefer <see cref="DisposeAsync"/>.
+    /// </summary>
     public void Dispose()
     {
         if (Interlocked.Exchange(ref _disposed, 1) == 0)
         {
             _owner?.Dispose();
+            if (_asyncOwner is not null)
+            {
+                _ = _asyncOwner().AsTask(); // Never block: Blazor WebAssembly has a single thread.
+            }
         }
     }
 
     /// <summary>Releases the HTTP response.</summary>
-    public ValueTask DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
-        Dispose();
-        return default;
+        if (Interlocked.Exchange(ref _disposed, 1) == 0)
+        {
+            _owner?.Dispose();
+            if (_asyncOwner is not null)
+            {
+                await _asyncOwner().ConfigureAwait(false);
+            }
+        }
     }
 
     private async ValueTask<(bool HasItem, T Item)> NextAsync(CancellationToken cancellationToken)
@@ -154,14 +175,15 @@ public static class ApiStream
                 enumerator ??= items.GetAsyncEnumerator(cancellationToken);
                 return await enumerator.MoveNextAsync().ConfigureAwait(false) ? (true, enumerator.Current) : (false, default!);
             },
-            new DisposeAction(() => enumerator?.DisposeAsync().AsTask().GetAwaiter().GetResult()),
+            () => enumerator?.DisposeAsync() ?? default,
             null);
     }
 
     internal static ApiStream<ServerSentEvent<T>> EventStream<T>(HttpResponseMessage response, Stream stream, JsonSerializerOptions options)
     {
-        var reader = new StreamReader(stream, new UTF8Encoding(false), detectEncodingFromByteOrderMarks: false);
-        var parser = new ServerSentEventParser(reader);
+        // The event stream format is UTF-8; a leading byte order mark is skipped (WHATWG).
+        var reader = new StreamReader(stream, new UTF8Encoding(false), detectEncodingFromByteOrderMarks: true);
+        var parser = new ServerSentEventParser(new LineReader(reader));
         return new ApiStream<ServerSentEvent<T>>(
             async cancellationToken =>
             {
@@ -179,6 +201,7 @@ public static class ApiStream
     internal static ApiStream<T> JsonSequence<T>(HttpResponseMessage response, Stream stream, JsonSerializerOptions options)
     {
         var reader = new StreamReader(stream, new UTF8Encoding(false), detectEncodingFromByteOrderMarks: true);
+        var lines = new LineReader(reader);
         var typeInfo = ApiJson.TypeInfo<T>(options);
         var record = new StringBuilder();
         var sequence = false; // RFC 7464 (json-seq): records start with RS and may span lines.
@@ -187,7 +210,7 @@ public static class ApiStream
             {
                 while (true)
                 {
-                    var line = await ReadLineAsync(reader, cancellationToken).ConfigureAwait(false);
+                    var line = await lines.ReadLineAsync(cancellationToken).ConfigureAwait(false);
                     if (line is null)
                     {
                         if (record.Length > 0)
@@ -216,6 +239,11 @@ public static class ApiStream
                     if (sequence)
                     {
                         record.Append('\n').Append(line);
+                        if (record.Length > LineReader.MaxLength)
+                        {
+                            throw new JsonException($"A record of the streamed response is longer than {LineReader.MaxLength} characters.");
+                        }
+
                         continue;
                     }
 
@@ -233,8 +261,6 @@ public static class ApiStream
             OperationId(response));
     }
 
-    internal static ValueTask<string?> ReadLineAsync(StreamReader reader, CancellationToken cancellationToken) =>
-        reader.ReadLineAsync(cancellationToken);
 
     private static string? OperationId(HttpResponseMessage response) =>
         response.RequestMessage is { } request && request.Options.TryGetValue(ApiRequestOptionKeys.OperationId, out var id) ? id : null;
@@ -332,11 +358,11 @@ public sealed class ServerSentEvent<T>
 /// <summary>Parses the <c>text/event-stream</c> format into events.</summary>
 internal sealed class ServerSentEventParser
 {
-    private readonly StreamReader _reader;
+    private readonly LineReader _reader;
     private readonly StringBuilder _data = new();
     private string? _lastEventId;
 
-    public ServerSentEventParser(StreamReader reader) => _reader = reader;
+    public ServerSentEventParser(LineReader reader) => _reader = reader;
 
     public readonly record struct Event(string Data, string? EventType, string? Id, TimeSpan? Retry);
 
@@ -349,7 +375,7 @@ internal sealed class ServerSentEventParser
         TimeSpan? retry = null;
         while (true)
         {
-            var line = await ApiStream.ReadLineAsync(_reader, cancellationToken).ConfigureAwait(false);
+            var line = await _reader.ReadLineAsync(cancellationToken).ConfigureAwait(false);
             if (line is null)
             {
                 return null;
@@ -390,6 +416,11 @@ internal sealed class ServerSentEventParser
                     }
 
                     _data.Append(value);
+                    if (_data.Length > LineReader.MaxLength)
+                    {
+                        throw new JsonException($"An event of the streamed response is longer than {LineReader.MaxLength} characters.");
+                    }
+
                     hasData = true;
                     break;
                 case "event":
@@ -404,12 +435,85 @@ internal sealed class ServerSentEventParser
                     break;
                 case "retry":
                     if (value.Length > 0 && value.All(c => c is >= '0' and <= '9') &&
-                        long.TryParse(value, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var milliseconds))
+                        long.TryParse(value, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var milliseconds) &&
+                        milliseconds <= (long)TimeSpan.MaxValue.TotalMilliseconds)
                     {
                         retry = TimeSpan.FromMilliseconds(milliseconds);
                     }
 
                     break;
+            }
+        }
+    }
+}
+
+/// <summary>
+/// Reads lines terminated by LF, CR or CRLF asynchronously (never with synchronous reads, which Blazor WebAssembly does
+/// not allow), failing a line longer than <see cref="MaxLength"/> so a server cannot grow memory without bound.
+/// </summary>
+internal sealed class LineReader
+{
+    /// <summary>The longest line, event or record (16 Mi characters).</summary>
+    public const int MaxLength = 16 * 1024 * 1024;
+
+    private readonly TextReader _reader;
+    private readonly char[] _buffer = new char[4096];
+    private int _position;
+    private int _length;
+    private bool _skipLineFeed;
+    private bool _ended;
+
+    public LineReader(TextReader reader) => _reader = reader;
+
+    /// <summary>The next line without its terminator; <see langword="null"/> at the end.</summary>
+    public async ValueTask<string?> ReadLineAsync(CancellationToken cancellationToken)
+    {
+        StringBuilder? line = null;
+        while (true)
+        {
+            if (_position == _length)
+            {
+                if (_ended)
+                {
+                    return line is { Length: > 0 } ? line.ToString() : null;
+                }
+
+                _length = await _reader.ReadAsync(_buffer.AsMemory(), cancellationToken).ConfigureAwait(false);
+                _position = 0;
+                if (_length == 0)
+                {
+                    _ended = true;
+                    return line is { Length: > 0 } ? line.ToString() : null;
+                }
+            }
+
+            if (_skipLineFeed)
+            {
+                _skipLineFeed = false;
+                if (_buffer[_position] == '\n')
+                {
+                    _position++;
+                    continue;
+                }
+            }
+
+            var start = _position;
+            while (_position < _length && _buffer[_position] is not ('\n' or '\r'))
+            {
+                _position++;
+            }
+
+            line ??= new StringBuilder();
+            line.Append(_buffer, start, _position - start);
+            if (line.Length > MaxLength)
+            {
+                throw new System.Text.Json.JsonException($"A line of the streamed response is longer than {MaxLength} characters.");
+            }
+
+            if (_position < _length)
+            {
+                _skipLineFeed = _buffer[_position++] == '\r';
+                return line.ToString();
             }
         }
     }

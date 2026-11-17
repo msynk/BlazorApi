@@ -269,6 +269,56 @@ public sealed class CliTests : IDisposable
         }
     }
 
+    private sealed class RedirectingServer : HttpMessageHandler
+    {
+        public List<Uri> Requests { get; } = [];
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            Requests.Add(request.RequestUri!);
+            var response = new HttpResponseMessage(System.Net.HttpStatusCode.Found);
+            response.Headers.Location = new Uri("http://169.254.169.254/latest/meta-data");
+            return Task.FromResult(response);
+        }
+    }
+
+    [Fact]
+    public void Remote_contracts_do_not_follow_redirects()
+    {
+        var server = new RedirectingServer();
+
+        var (exit, _, error) = RunWith(server, "validate", "https://specs.example.com/petstore.yaml");
+
+        Assert.Equal(1, exit);
+        Assert.Contains("redirects are not followed", error, StringComparison.Ordinal);
+        Assert.DoesNotContain(server.Requests, u => u.Host == "169.254.169.254");
+    }
+
+    [Fact]
+    public async Task Mock_rejects_foreign_host_names_and_tolerates_odd_preferences()
+    {
+        using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+        var started = new TaskCompletionSource<System.Net.IPEndPoint>();
+        var app = new CliApp(TextWriter.Synchronized(new StringWriter()), TextWriter.Synchronized(new StringWriter()), _directory)
+        {
+            Cancellation = cancellation.Token,
+            MockStarted = started.SetResult,
+        };
+        var run = Task.Run(() => app.Run(["mock", "petstore.yaml", "--port", "0"]));
+        var endpoint = await started.Task.WaitAsync(cancellation.Token);
+        using var http = new HttpClient { BaseAddress = new Uri($"http://localhost:{endpoint.Port}/") };
+
+        using var rebound = new HttpRequestMessage(HttpMethod.Get, "pets/1") { Headers = { Host = "attacker.example" } };
+        var foreign = await http.SendAsync(rebound, cancellation.Token);
+        using var odd = new HttpRequestMessage(HttpMethod.Get, "pets/1") { Headers = { { "Prefer", "code=" } } };
+        var tolerated = await http.SendAsync(odd, cancellation.Token);
+        await cancellation.CancelAsync();
+
+        Assert.Equal(System.Net.HttpStatusCode.MisdirectedRequest, foreign.StatusCode);
+        Assert.Equal(System.Net.HttpStatusCode.OK, tolerated.StatusCode);
+        Assert.Equal(0, await run);
+    }
+
     private (int Exit, string Output, string Error) RunWith(HttpMessageHandler handler, params string[] args)
     {
         var output = new StringWriter();

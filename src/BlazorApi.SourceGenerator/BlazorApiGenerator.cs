@@ -40,26 +40,35 @@ public sealed class BlazorApiGenerator : IIncrementalGenerator
             .Where(static file => file.Kind is "Reference" or "Config" or "Overlay")
             .Collect()
             .Select(static (files, _) => new EquatableArray<InputFile>(files.Sort((a, b) => string.CompareOrdinal(a.Path, b.Path))));
-        var rootNamespace = context.AnalyzerConfigOptionsProvider
-            .Select(static (provider, _) => provider.GlobalOptions.TryGetValue("build_property.RootNamespace", out var value) ? value : null);
+        var build = context.AnalyzerConfigOptionsProvider
+            .Select(static (provider, _) => new BuildContext(
+                provider.GlobalOptions.TryGetValue("build_property.RootNamespace", out var rootNamespace) ? rootNamespace : null,
+                provider.GlobalOptions.TryGetValue("build_property.ProjectDir", out var projectDir) && projectDir.Length > 0 ? projectDir : null));
+
+        // Contract file names used more than once (v1/petstore.yaml, v2/petstore.yaml) get distinct hint names.
+        var duplicateNames = contracts
+            .Select(static (file, _) => FileName(file.Path).ToUpperInvariant())
+            .Collect()
+            .Select(static (names, _) => new EquatableArray<string>(names.GroupBy(n => n).Where(g => g.Count() > 1).Select(g => g.Key).OrderBy(n => n, StringComparer.Ordinal).ToImmutableArray()));
 
         var outputs = contracts
             .Combine(documents)
-            .Combine(rootNamespace)
-            .Select(static (input, cancellationToken) => Generate(input.Left.Left, input.Left.Right, input.Right, cancellationToken))
+            .Combine(build.Combine(duplicateNames))
+            .Select(static (input, cancellationToken) => Generate(input.Left.Left, input.Left.Right, input.Right.Left, input.Right.Right, cancellationToken))
             .WithTrackingName(TrackingName);
 
         context.RegisterSourceOutput(outputs, static (spc, output) => Emit(spc, output));
     }
 
-    internal static GenerationOutput Generate(InputFile contract, EquatableArray<InputFile> documents, string? rootNamespace, CancellationToken cancellationToken)
+    internal static GenerationOutput Generate(InputFile contract, EquatableArray<InputFile> documents, BuildContext build, EquatableArray<string> duplicateNames, CancellationToken cancellationToken)
     {
+        var rootNamespace = build.RootNamespace;
         var diagnostics = new DiagnosticBag();
         try
         {
             var configuration = new GenerationConfiguration
             {
-                Options = new GeneratorOptions { Namespace = DefaultNamespace(contract.Path, rootNamespace) },
+                Options = new GeneratorOptions { Namespace = DefaultNamespace(contract.Path, rootNamespace, duplicateNames.Contains(FileName(contract.Path).ToUpperInvariant())) },
             };
 
             string? configPath = null;
@@ -107,8 +116,21 @@ public sealed class BlazorApiGenerator : IIncrementalGenerator
                 .Concat((contract.Overlays ?? string.Empty).Split(';').Select(o => o.Trim()).Where(o => o.Length > 0));
             foreach (var name in overlayNames)
             {
-                var overlay = documents.FirstOrDefault(d => d.Kind == "Overlay" && SamePath(d.Path, Normalize(name)));
-                if (overlay is null)
+                // Relative names are resolved against the project directory and compared exactly; without it, by
+                // suffix, and a suffix that matches several files is reported instead of picking one.
+                var candidates = documents.Where(d => d.Kind == "Overlay").ToList();
+                var matches = !IsRooted(name) && build.ProjectDir is { } projectDir
+                    ? candidates.Where(d => string.Equals(Normalize(d.Path), Normalize(projectDir.TrimEnd('/', '\\') + "/" + name), StringComparison.OrdinalIgnoreCase)).ToList()
+                    : IsRooted(name)
+                        ? candidates.Where(d => string.Equals(Normalize(d.Path), Normalize(name), StringComparison.OrdinalIgnoreCase)).ToList()
+                        : candidates.Where(d => SamePath(d.Path, Normalize(name))).ToList();
+                var overlay = matches.Count == 1 ? matches[0] : null;
+                if (matches.Count > 1)
+                {
+                    diagnostics.Report(CodeGenerationDiagnostics.InvalidConfiguration, new SourceLocation(contract.Path, 0, 0), null,
+                        $"The overlay '{name}' matches several AdditionalFiles ({string.Join(", ", matches.Select(m => m.Path))}); give its path relative to the project");
+                }
+                else if (overlay is null)
                 {
                     diagnostics.Report(CodeGenerationDiagnostics.InvalidConfiguration, new SourceLocation(contract.Path, 0, 0), null,
                         $"The overlay '{name}' is not an AdditionalFile (add it with an OpenApiOverlay item or the Overlays metadata of OpenApiContract)");
@@ -135,7 +157,7 @@ public sealed class BlazorApiGenerator : IIncrementalGenerator
             };
             var result = ApiClientGenerator.Generate(contract.Text, contract.Path, options, loadOptions);
             diagnostics.AddRange(result.Diagnostics);
-            var prefix = HintPrefix(contract.Path);
+            var prefix = HintPrefix(contract.Path, duplicateNames.Contains(FileName(contract.Path).ToUpperInvariant()));
             var files = result.Files
                 .Select(f => new GeneratedSource(prefix + "." + f.Path.Replace('/', '.'), f.Content))
                 .ToImmutableArray();
@@ -212,20 +234,37 @@ public sealed class BlazorApiGenerator : IIncrementalGenerator
             .ToImmutableArray());
     }
 
-    private static string DefaultNamespace(string contractPath, string? rootNamespace)
+    private static string DefaultNamespace(string contractPath, string? rootNamespace, bool duplicate = false)
     {
         var file = FileNameWithoutExtension(contractPath);
         var name = Identifier.Pascal(file);
+        if (duplicate && FileName(DirectoryOf(contractPath).TrimEnd('/', '\\')) is { Length: > 0 } folder)
+        {
+            // Two contracts with the same file name (v1/petstore.yaml, v2/petstore.yaml) get their folder too.
+            name = Identifier.Pascal(folder) + "." + name;
+        }
         return string.IsNullOrEmpty(rootNamespace) ? name : rootNamespace + "." + name;
     }
 
-    private static string HintPrefix(string path)
+    private static string HintPrefix(string path, bool duplicate)
     {
         var name = FileName(path);
         var builder = new StringBuilder(name.Length);
         foreach (var c in name)
         {
             builder.Append(char.IsLetterOrDigit(c) ? c : '_');
+        }
+
+        if (duplicate)
+        {
+            // A stable hash of the full path keeps hint names unique (AddSource rejects duplicates).
+            var hash = 2166136261u;
+            foreach (var c in Normalize(path).ToUpperInvariant())
+            {
+                hash = unchecked((hash ^ c) * 16777619u);
+            }
+
+            builder.Append('_').Append(hash.ToString("x8", System.Globalization.CultureInfo.InvariantCulture));
         }
 
         return builder.ToString();
@@ -309,6 +348,9 @@ internal sealed record InputFile(string Path, string Text, string Kind, string? 
         return text is null ? null : new InputFile(file.Path, text, kind, Metadata("BlazorApiNamespace"), Metadata("BlazorApiClientName"), Metadata("BlazorApiOptions"), Metadata("BlazorApiConfig"), Metadata("BlazorApiOverlays"));
     }
 }
+
+/// <summary>Build properties the generator uses.</summary>
+internal sealed record BuildContext(string? RootNamespace, string? ProjectDir);
 
 /// <summary>A generated source file.</summary>
 internal sealed record GeneratedSource(string HintName, string Content);

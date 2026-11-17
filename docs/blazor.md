@@ -167,6 +167,10 @@ another server. An **API traffic** panel lists every request the generated clien
 it built and which credentials the handlers attached (secrets are never shown). Every demo page has a
 **How this page works** panel with the key code and links to the full files.
 
+The client pipeline uses `AddApiRetries`, the authentication handlers, `AddApiCaching` and `AddApiLogging`. On a pet's
+page, **Reload (revalidate)** shows the typed `ETag` (`GetPetResponseHeaders`) and a 304 answered from the cache, and
+**Live activity** renders a server-sent event stream with `ApiStreamView` as the events arrive.
+
 The app also documents the library from the inside:
 
 - **Overview** (`/`): what the generator produces from the contract, with live counts, and a map of the demo.
