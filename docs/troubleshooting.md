@@ -75,6 +75,11 @@ types, union variants, collections and dictionaries of bodies and parameters), a
 api-gen generate petstore.yaml --output Generated --option generateJsonContext=true
 ```
 
+This path is verified: CI publishes a client generated this way with `PublishAot=true` (trim and AOT warnings as
+errors) and `JsonSerializerIsReflectionEnabledByDefault=false`, and runs it against `api-gen mock`
+(`tests/BlazorApi.AotSmoke`); polymorphic bodies, merge-patch `Optional<T>` properties, maps, query arrays and typed
+error bodies all work without reflection.
+
 To combine the generated context with your own options, pass it to `ApiJson.CreateOptions`:
 
 ```csharp

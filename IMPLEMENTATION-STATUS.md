@@ -31,6 +31,7 @@ scoped to be reviewable on its own; the working tree has not been committed or s
 | M22 | Advanced generation features | Partly: operation/tag filters, unused-model pruning, multi-contract projects, `x-pagination`, `x-enum-varnames`; custom templates deferred |
 | M23 | Blazor integration (`BlazorApi.Blazor`: `ApiResultView`, `ApiErrorView`, `ApiValidationErrors`; auth registration helpers `AddBearerToken`/`AddApiKey`/`AddBasicAuthentication` in `BlazorApi.Runtime`) | Done |
 | M24 | Documentation, demo, benchmarks, CI workflow, packaging | Done (not published) |
+| M31 | Native AOT verified: CLI-generated client with `generateJsonContext` published with `PublishAot` (no trim/AOT warnings) and reflection disabled, run against `api-gen mock`; CI job (`tests/BlazorApi.AotSmoke`) | Done |
 | M30 | Demo showcases (retries, caching, logging, typed ETag, live SSE feed); `{Operation}ResponseBodies` typed views; `typeMappings` | Done |
 | M29 | Independent reviews of M25-M28 (runtime, engine, code generation and CLI): 29 confirmed issues fixed with regression tests (2 findings rejected with reasons) | Done |
 | M28 | Intermediate hierarchy classes dispatch to their subtypes (subtree converters with payload classes); conditional-request cache (`AddApiCaching`) | Done |
@@ -51,6 +52,7 @@ scoped to be reviewable on its own; the working tree has not been committed or s
 | 2026-11-09 | After documentation-review fixes: 440 tests (net8.0 + net10.0) + 5 demo tests | all passed |
 | 2026-11-09 | demo/BlazorApi.Demo.Tests (5); BlazorApi.Demo.BlazorApp run and checked over HTTP (pages, 401, 404, API key); BlazorApi.Demo.ConsoleClient run against it | passed |
 | 2026-11-17 | After removing the dotnet-query integration: full suite (net8.0 + net10.0) + 5 demo tests | all passed |
+| 2026-11-17 | Native AOT smoke test: win-x64 `PublishAot` with `-warnaserror` (0 warnings), 6.7 MB executable, reflection-based JSON disabled, all calls against `api-gen mock` correct (polymorphism, merge patch, maps, query arrays, typed 404) | passed |
 | 2026-11-17 | M30 second review round, Release build without warnings: OpenApi 213, CodeGeneration 20, Integration 97, SourceGenerator 17, Cli 26, Blazor 11, per framework; demo 5 | all passed |
 | 2026-11-17 | M30, Release build without warnings: OpenApi 207, CodeGeneration 19 (type mappings compiled with mocks), Integration 95 (response bodies), SourceGenerator 15, Cli 26, Blazor 11, per framework; demo 5; demo app checked over HTTP (ETag 304, SSE feed) and the console client run against it | all passed |
 | 2026-11-17 | M29 review fixes, Release build without warnings: OpenApi 207, CodeGeneration 17, Integration 95, SourceGenerator 15, Cli 26, Blazor 11, per framework (net8.0, net10.0); demo 5 | all passed |

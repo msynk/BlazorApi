@@ -21,3 +21,6 @@ coverage*.json
 
 ## BenchmarkDotNet output
 BenchmarkDotNet.Artifacts/
+
+# Created by the AOT smoke test step (api-gen generate)
+tests/BlazorApi.AotSmoke/Generated/

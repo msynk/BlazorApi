@@ -89,6 +89,9 @@ target .NET Standard 2.0.
 - **Demo**: the Blazor app uses retries, caching and logging, shows a pet's `ETag` and cache revalidation, and a live
   activity feed (server-sent events with `ApiStreamView`); the console client shows typed headers and streaming.
 
+- **CI**: a native AOT smoke test publishes a CLI-generated client (`generateJsonContext=true`) with `PublishAot` and
+  warnings as errors, and runs it against `api-gen mock` with reflection-based JSON disabled.
+
 ### Fixed
 
 - Issues found by reviews of the new code: resilience values out of range (`retry-after-ms: Infinity`, huge SSE
