@@ -1,10 +1,10 @@
 @page "/docs"
 @page "/docs/getting-started"
 @inject ContractExplorer Explorer
-@inject SampleSources Sources
+@inject DemoSources Sources
 
 <DocPage Href="docs/getting-started" Title="Getting started"
-         Lead="Add an OpenAPI contract to a project, build, and call the API through a typed client. This is exactly how this sample is set up."
+         Lead="Add an OpenAPI contract to a project, build, and call the API through a typed client. This is exactly how this demo is set up."
          Contents="@([("packages", "Packages"), ("contract", "Add the contract"), ("generated", "What you get"), ("register", "Register the client"), ("call", "Call it"), ("options", "Generator options")])">
 
     <section id="packages">
@@ -16,8 +16,8 @@
         </p>
         <CodeBlock Language="xml" Title="MyApp.csproj" Code="@Packages" />
         <Callout Kind="info">
-            Inside this repository the sample uses project references and imports the generator's MSBuild files directly:
-            see <SourceLink Path="Petstore.BlazorApp/Petstore.BlazorApp.csproj" />.
+            Inside this repository the demo uses project references and imports the generator's MSBuild files directly:
+            see <SourceLink Path="BlazorApi.Demo.BlazorApp/BlazorApi.Demo.BlazorApp.csproj" />.
         </Callout>
     </section>
 
@@ -38,7 +38,7 @@
     <section id="generated">
         <h2>3. What you get</h2>
         <p>
-            For this sample's contract, titled <em>@Explorer.Model.Title</em>, the generator produces
+            For this demo's contract, titled <em>@Explorer.Model.Title</em>, the generator produces
             @Explorer.Default.Files.Count files in <code>@ContractExplorer.Namespace</code>:
         </p>
         <div class="table-scroll">
@@ -65,13 +65,13 @@
             with <code>IHttpClientFactory</code>, and returns the <code>IHttpClientBuilder</code> so you can add
             authentication, resilience or logging handlers. This is this app's registration:
         </p>
-        <CodeBlock Language="csharp" Title="Program.cs (excerpt)" SourcePath="Petstore.BlazorApp/Program.cs" Code="@Registration" />
+        <CodeBlock Language="csharp" Title="Program.cs (excerpt)" SourcePath="BlazorApi.Demo.BlazorApp/Program.cs" Code="@Registration" />
         <p>
             The base address comes from <code>ApiClientOptions.BaseAddress</code>, else <code>HttpClient.BaseAddress</code>
             (this app sets it from where Kestrel listens), else the contract's first server URL
             (<code>PetstoreClient.DefaultBaseAddress</code>).
         </p>
-        <p>Without dependency injection, construct the client yourself (from <SourceLink Path="Petstore.ConsoleClient/Program.cs" />):</p>
+        <p>Without dependency injection, construct the client yourself (from <SourceLink Path="BlazorApi.Demo.ConsoleClient/Program.cs" />):</p>
         <CodeBlock Language="csharp" Code="@WithoutDi" />
     </section>
 

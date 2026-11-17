@@ -43,7 +43,7 @@ jobs:
       - name: Build
         run: dotnet build BlazorApi.slnx -c Release --no-restore
 
-      # Unit, golden-file, compilation, integration, source generator, CLI and Blazor tests, plus the sample tests.
+      # Unit, golden-file, compilation, integration, source generator, CLI and Blazor tests, plus the demo tests.
       - name: Test
         run: dotnet test BlazorApi.slnx -c Release --no-build --verbosity normal
 
@@ -53,7 +53,7 @@ jobs:
         shell: bash
         run: |
           dotnet src/BlazorApi.Cli/bin/Release/net10.0/api-gen.dll validate tests/Contracts/petstore.yaml --strict
-          dotnet src/BlazorApi.Cli/bin/Release/net10.0/api-gen.dll diff samples/Contracts/baseline/petstore.yaml samples/Contracts/petstore.yaml --format markdown
+          dotnet src/BlazorApi.Cli/bin/Release/net10.0/api-gen.dll diff demo/Contracts/baseline/petstore.yaml demo/Contracts/petstore.yaml --format markdown
 
       - name: Pack
         if: matrix.os == 'windows-latest'

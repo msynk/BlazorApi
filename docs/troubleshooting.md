@@ -4,7 +4,7 @@
 
 - Check that the contract is an `OpenApiContract` item (not `None` or `Content`) and that the generator's MSBuild
   files are imported: they are with the `BlazorApi.SourceGenerator` package; with a project reference, import
-  `BlazorApi.SourceGenerator.props` and `.targets` yourself, as the samples do.
+  `BlazorApi.SourceGenerator.props` and `.targets` yourself, as the demo projects do.
 - Look for `BAPI` errors in the build output. When loading or validation reports an error, nothing is generated for
   that contract. Run `api-gen validate <contract>` for a quick report.
 - BAPI6004 means the include/exclude filters selected no operation; BAPI6003 names a filter value that matches

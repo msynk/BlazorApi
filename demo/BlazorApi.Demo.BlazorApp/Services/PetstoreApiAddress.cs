@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 
-namespace Petstore.BlazorApp.Services;
+namespace BlazorApi.Demo.BlazorApp.Services;
 
 /// <summary>
 /// The base address of the Petstore API. The app calls the API it hosts itself, so unless the <c>PetstoreApi</c>

@@ -11,7 +11,7 @@
        It also documents itself: an in-app guide, a contract and generated-code explorer, and a source browser. -->
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
-    <RootNamespace>Petstore.BlazorApp</RootNamespace>
+    <RootNamespace>BlazorApi.Demo.BlazorApp</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
@@ -26,17 +26,17 @@
   </ItemGroup>
 
   <ItemGroup>
-    <OpenApiContract Include="..\Contracts\petstore.yaml" Namespace="Petstore.BlazorApp.Api" />
+    <OpenApiContract Include="..\Contracts\petstore.yaml" Namespace="BlazorApi.Demo.BlazorApp.Api" />
   </ItemGroup>
 
-  <!-- The sample's own files, embedded so the source browser and the guide show the code that actually runs. -->
-  <ItemGroup Label="Sample sources">
-    <EmbeddedResource Include="Program.cs;Petstore.BlazorApp.csproj;appsettings.json;wwwroot\*.css;Api\**\*.cs;Services\**\*.cs;Components\**\*.razor;Components\**\*.cs"
-                      LogicalName="sample/Petstore.BlazorApp/%(Identity)" WithCulture="false" />
-    <EmbeddedResource Include="..\Contracts\petstore.yaml" LogicalName="sample/Contracts/petstore.yaml" WithCulture="false" />
-    <EmbeddedResource Include="..\Contracts\baseline\petstore.yaml" LogicalName="sample/Contracts/baseline/petstore.yaml" WithCulture="false" />
-    <EmbeddedResource Include="..\Petstore.Tests\*.cs;..\Petstore.Tests\*.csproj" LogicalName="sample/Petstore.Tests/%(Filename)%(Extension)" WithCulture="false" />
-    <EmbeddedResource Include="..\Petstore.ConsoleClient\Program.cs;..\Petstore.ConsoleClient\*.csproj" LogicalName="sample/Petstore.ConsoleClient/%(Filename)%(Extension)" WithCulture="false" />
+  <!-- The demo's own files, embedded so the source browser and the guide show the code that actually runs. -->
+  <ItemGroup Label="Demo sources">
+    <EmbeddedResource Include="Program.cs;BlazorApi.Demo.BlazorApp.csproj;appsettings.json;wwwroot\*.css;Api\**\*.cs;Services\**\*.cs;Components\**\*.razor;Components\**\*.cs"
+                      LogicalName="demo/BlazorApi.Demo.BlazorApp/%(Identity)" WithCulture="false" />
+    <EmbeddedResource Include="..\Contracts\petstore.yaml" LogicalName="demo/Contracts/petstore.yaml" WithCulture="false" />
+    <EmbeddedResource Include="..\Contracts\baseline\petstore.yaml" LogicalName="demo/Contracts/baseline/petstore.yaml" WithCulture="false" />
+    <EmbeddedResource Include="..\BlazorApi.Demo.Tests\*.cs;..\BlazorApi.Demo.Tests\*.csproj" LogicalName="demo/BlazorApi.Demo.Tests/%(Filename)%(Extension)" WithCulture="false" />
+    <EmbeddedResource Include="..\BlazorApi.Demo.ConsoleClient\Program.cs;..\BlazorApi.Demo.ConsoleClient\*.csproj" LogicalName="demo/BlazorApi.Demo.ConsoleClient/%(Filename)%(Extension)" WithCulture="false" />
   </ItemGroup>
 
   <Import Project="..\..\src\BlazorApi.SourceGenerator\build\BlazorApi.SourceGenerator.targets" />

@@ -126,8 +126,8 @@ else if (result.Error.Kind == ApiErrorKind.Http && result.Error.TryGetContent<Er
 - [Troubleshooting](docs/troubleshooting.md)
 - [Changelog](CHANGELOG.md)
 
-Samples are in [`samples/`](samples): a Blazor Web App (`Petstore.BlazorApp`), a console client
-(`Petstore.ConsoleClient`) and a test project (`Petstore.Tests`).
+Demo projects are in [`demo/`](demo): a Blazor Web App (`BlazorApi.Demo.BlazorApp`), a console client
+(`BlazorApi.Demo.ConsoleClient`) and a test project (`BlazorApi.Demo.Tests`).
 
 ## Project status
 

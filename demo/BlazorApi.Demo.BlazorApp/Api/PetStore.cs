@@ -1,9 +1,9 @@
 using System.Collections.Concurrent;
 
-namespace Petstore.BlazorApp.Api;
+namespace BlazorApi.Demo.BlazorApp.Api;
 
 /// <summary>
-/// The in-memory data behind the sample API, so the sample runs without external services. It stores the generated
+/// The in-memory data behind the demo API, so the demo runs without external services. It stores the generated
 /// models directly, which keeps server and client on the same contract. Data resets when the app restarts.
 /// </summary>
 public sealed class PetStore

@@ -27,7 +27,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <OpenApiContract Include="..\Contracts\petstore.yaml" Namespace="Petstore.Tests.Api" Options="GenerateMocks=true" />
+    <OpenApiContract Include="..\Contracts\petstore.yaml" Namespace="BlazorApi.Demo.Tests.Api" Options="GenerateMocks=true" />
     <None Include="..\Contracts\**\*.yaml" LinkBase="Contracts" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 

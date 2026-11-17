@@ -3,7 +3,7 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
 
-namespace Petstore.BlazorApp.Services;
+namespace BlazorApi.Demo.BlazorApp.Services;
 
 /// <summary>A property of a generated model, as compiled.</summary>
 public sealed record ModelProperty(string Name, string JsonName, string Type, bool Required, bool DeclaredHere, IReadOnlyList<string> Attributes);

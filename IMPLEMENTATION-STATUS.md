@@ -30,7 +30,7 @@ scoped to be reviewable on its own; the working tree has not been committed or s
 | M21 | Contract compatibility analysis (`ContractComparer`) with policies and reports | Done |
 | M22 | Advanced generation features | Partly: operation/tag filters, unused-model pruning, multi-contract projects, `x-pagination`, `x-enum-varnames`; custom templates deferred |
 | M23 | Blazor integration (`BlazorApi.Blazor`: `ApiResultView`, `ApiErrorView`, `ApiValidationErrors`; auth registration helpers `AddBearerToken`/`AddApiKey`/`AddBasicAuthentication` in `BlazorApi.Runtime`) | Done |
-| M24 | Documentation, samples, benchmarks, CI workflow, packaging | Done (not published) |
+| M24 | Documentation, demo, benchmarks, CI workflow, packaging | Done (not published) |
 
 ## Tests executed
 
@@ -39,13 +39,13 @@ scoped to be reviewable on its own; the working tree has not been committed or s
 | 2026-11-09 | `dotnet test tests/BlazorApi.OpenApi.Tests` (net8.0, net10.0) | 104 passed |
 | 2026-11-09 | `dotnet test BlazorApi.slnx` (OpenApi, CodeGeneration, Integration; net8.0 and net10.0) | 310 passed |
 | 2026-11-09 | OpenApi (140), CodeGeneration (7), Integration (32), SourceGenerator (10), Cli (14), Blazor (8) per target framework (net8.0, net10.0) | 422 passed |
-| 2026-11-09 | Full suite after security fixes: 430 tests (net8.0 + net10.0) + 5 sample tests | all passed |
+| 2026-11-09 | Full suite after security fixes: 430 tests (net8.0 + net10.0) + 5 demo tests | all passed |
 | 2026-11-09 | `dotnet pack` of all 8 packages; a scratch net8.0 project consumed the SourceGenerator and Runtime packages from a local feed with warnings as errors | passed |
 | 2026-11-09 | BenchmarkDotNet ShortRun (see docs/performance.md) | recorded |
-| 2026-11-09 | After documentation-review fixes: 440 tests (net8.0 + net10.0) + 5 sample tests | all passed |
-| 2026-11-09 | samples/Petstore.Tests (5); Petstore.BlazorApp run and checked over HTTP (pages, 401, 404, API key); Petstore.ConsoleClient run against it | passed |
-| 2026-11-17 | After removing the dotnet-query integration: full suite (net8.0 + net10.0) + 5 sample tests | all passed |
-| 2026-11-17 | Petstore.BlazorApp rework: every contract operation served; browser end-to-end run in Chrome (list, filter, pagination, create with 422, merge patch, PUT, photo upload/download, order with 409, delete, inventory, 8 playground scenarios, not-found, mobile width, light and dark); full suite + 5 sample tests; console client against the app | all passed |
+| 2026-11-09 | After documentation-review fixes: 440 tests (net8.0 + net10.0) + 5 demo tests | all passed |
+| 2026-11-09 | demo/BlazorApi.Demo.Tests (5); BlazorApi.Demo.BlazorApp run and checked over HTTP (pages, 401, 404, API key); BlazorApi.Demo.ConsoleClient run against it | passed |
+| 2026-11-17 | After removing the dotnet-query integration: full suite (net8.0 + net10.0) + 5 demo tests | all passed |
+| 2026-11-17 | BlazorApi.Demo.BlazorApp rework: every contract operation served; browser end-to-end run in Chrome (list, filter, pagination, create with 422, merge patch, PUT, photo upload/download, order with 409, delete, inventory, 8 playground scenarios, not-found, mobile width, light and dark); full suite + 5 demo tests; console client against the app | all passed |
 
 ## Architectural decisions
 

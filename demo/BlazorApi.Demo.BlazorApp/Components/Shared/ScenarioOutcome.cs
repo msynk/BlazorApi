@@ -1,6 +1,6 @@
 using BlazorApi.Runtime;
 
-namespace Petstore.BlazorApp.Components.Shared;
+namespace BlazorApi.Demo.BlazorApp.Components.Shared;
 
 /// <summary>What a playground scenario observed.</summary>
 public sealed record ScenarioOutcome(bool Success, string Summary, IReadOnlyList<string> Details, ApiError? Error = null, Exception? Exception = null)

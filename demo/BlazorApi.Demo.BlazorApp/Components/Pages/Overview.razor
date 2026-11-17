@@ -1,7 +1,7 @@
 @page "/"
 @inject ContractExplorer Explorer
 
-<PageTitle>BlazorApi sample · Petstore</PageTitle>
+<PageTitle>BlazorApi demo · Petstore</PageTitle>
 
 <section class="hero-panel">
     <h1>A typed C# client from your OpenAPI contract, generated while you build</h1>
@@ -55,10 +55,10 @@
     <p>Exactly what this app does. <a href="docs/getting-started">The full walkthrough →</a></p>
 </div>
 <div class="grid-2">
-    <CodeBlock Title="1. Petstore.BlazorApp.csproj" Language="xml" Compact="true" Code="@ContractItem" />
-    <CodeBlock Title="2. Program.cs" Language="csharp" Compact="true" Code="@Registration" SourcePath="Petstore.BlazorApp/Program.cs" />
+    <CodeBlock Title="1. BlazorApi.Demo.BlazorApp.csproj" Language="xml" Compact="true" Code="@ContractItem" />
+    <CodeBlock Title="2. Program.cs" Language="csharp" Compact="true" Code="@Registration" SourcePath="BlazorApi.Demo.BlazorApp/Program.cs" />
 </div>
-<CodeBlock Title="3. PetDetails.razor" Language="razor" Compact="true" Code="@Component" SourcePath="Petstore.BlazorApp/Components/Pages/PetDetails.razor" />
+<CodeBlock Title="3. PetDetails.razor" Language="razor" Compact="true" Code="@Component" SourcePath="BlazorApi.Demo.BlazorApp/Components/Pages/PetDetails.razor" />
 
 <div class="section-title">
     <h2>What to look at</h2>
@@ -109,7 +109,7 @@
           <PackageReference Include="BlazorApi.Blazor" Version="0.1.0-preview" />
 
           <!-- The contract: one item per API. -->
-          <OpenApiContract Include="..\Contracts\petstore.yaml" Namespace="Petstore.BlazorApp.Api" />
+          <OpenApiContract Include="..\Contracts\petstore.yaml" Namespace="BlazorApi.Demo.BlazorApp.Api" />
         </ItemGroup>
         """;
 

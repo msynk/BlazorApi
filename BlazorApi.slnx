@@ -8,10 +8,10 @@
     <Project Path="src/BlazorApi.SourceGenerator/BlazorApi.SourceGenerator.csproj" />
     <Project Path="src/BlazorApi.Cli/BlazorApi.Cli.csproj" />
   </Folder>
-  <Folder Name="/samples/">
-    <Project Path="samples/Petstore.BlazorApp/Petstore.BlazorApp.csproj" />
-    <Project Path="samples/Petstore.ConsoleClient/Petstore.ConsoleClient.csproj" />
-    <Project Path="samples/Petstore.Tests/Petstore.Tests.csproj" />
+  <Folder Name="/demo/">
+    <Project Path="demo/BlazorApi.Demo.BlazorApp/BlazorApi.Demo.BlazorApp.csproj" />
+    <Project Path="demo/BlazorApi.Demo.ConsoleClient/BlazorApi.Demo.ConsoleClient.csproj" />
+    <Project Path="demo/BlazorApi.Demo.Tests/BlazorApi.Demo.Tests.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/BlazorApi.OpenApi.Tests/BlazorApi.OpenApi.Tests.csproj" />

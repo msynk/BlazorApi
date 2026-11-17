@@ -109,7 +109,7 @@ A policy decides which changes are acceptable:
 - **Accepted kinds**: `--ignore kind1,kind2`, or `report.Without(["enum-value-added"])` in code. For example, an API
   whose clients tolerate unknown enum values can ignore `enum-value-added`.
 
-A common setup keeps the last released contract in the repository (`samples/Contracts/baseline/petstore.yaml` in the
-samples) or reads it from the base branch in CI, and fails pull requests that introduce breaking changes.
+A common setup keeps the last released contract in the repository (`demo/Contracts/baseline/petstore.yaml` in the
+demo) or reads it from the base branch in CI, and fails pull requests that introduce breaking changes.
 
 For server projects, export the server's OpenAPI document in CI and run `api-gen diff` against the published contract.

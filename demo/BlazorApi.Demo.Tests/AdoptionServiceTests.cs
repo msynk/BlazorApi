@@ -4,9 +4,9 @@ using BlazorApi.OpenApi.Compatibility;
 using BlazorApi.OpenApi.Diagnostics;
 using BlazorApi.OpenApi.Model;
 using BlazorApi.Testing;
-using Petstore.Tests.Api;
+using BlazorApi.Demo.Tests.Api;
 
-namespace Petstore.Tests;
+namespace BlazorApi.Demo.Tests;
 
 public class AdoptionServiceTests
 {

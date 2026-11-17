@@ -1,6 +1,6 @@
 {
   "profiles": {
-    "Petstore.BlazorApp": {
+    "BlazorApi.Demo.BlazorApp": {
       "commandName": "Project",
       "launchBrowser": true,
       "applicationUrl": "http://localhost:5080",

@@ -15,7 +15,7 @@
         </p>
         <CodeBlock Language="yaml" Title="petstore.yaml (excerpt)" SourcePath="Contracts/petstore.yaml" Code="@ContractExcerpt" />
         <p>This app registers one handler per scheme:</p>
-        <CodeBlock Language="csharp" Title="Program.cs" SourcePath="Petstore.BlazorApp/Program.cs" Code="@Registration" />
+        <CodeBlock Language="csharp" Title="Program.cs" SourcePath="BlazorApi.Demo.BlazorApp/Program.cs" Code="@Registration" />
         <p>
             Generated clients put each operation's requirements on the request
             (<code>ApiRequestOptionKeys.Security</code>), and the handlers read them. The result, for every operation in
@@ -105,7 +105,7 @@
             <code>ApiKeyLocation</code> is <code>Header</code>, <code>Query</code> or <code>Cookie</code>. A <code>null</code>
             key sends the request without one. Without dependency injection, chain the handlers yourself
             (<code>new BearerTokenHandler(provider, "bearerAuth") { InnerHandler = ... }</code>), as the
-            <SourceLink Path="Petstore.ConsoleClient/Program.cs" Label="console client" /> does.
+            <SourceLink Path="BlazorApi.Demo.ConsoleClient/Program.cs" Label="console client" /> does.
         </p>
     </section>
 

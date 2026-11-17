@@ -1,13 +1,13 @@
 @page "/docs/testing"
 @inject ContractExplorer Explorer
-@inject SampleSources Sources
+@inject DemoSources Sources
 
 <DocPage Href="docs/testing" Title="Testing"
          Lead="Test code that uses a generated client without running a server: generated mocks and fixtures for unit tests, MockApiHandler to run the real client against canned HTTP responses, and a contract check that fails when a change would break clients."
-         Contents="@([("mocks", "Generated mocks"), ("fixtures", "Fixtures"), ("handler", "MockApiHandler"), ("compatibility", "Contract compatibility"), ("sample", "The sample test project")])">
+         Contents="@([("mocks", "Generated mocks"), ("fixtures", "Fixtures"), ("handler", "MockApiHandler"), ("compatibility", "Contract compatibility"), ("demo", "The demo test project")])">
 
     <Callout Kind="info">
-        The examples come from <code>samples/Petstore.Tests</code>, which generates its own copy of the client with
+        The examples come from <code>demo/BlazorApi.Demo.Tests</code>, which generates its own copy of the client with
         <code>GenerateMocks=true</code>. Its files are shown at the bottom of this page.
     </Callout>
 
@@ -19,7 +19,7 @@
             operation and verification helpers:
         </p>
         <CodeBlock Language="xml" Code="@MockItem" />
-        <CodeBlock Language="csharp" Title="AdoptionServiceTests.cs" SourcePath="Petstore.Tests/AdoptionServiceTests.cs" Code="@MockTest" />
+        <CodeBlock Language="csharp" Title="AdoptionServiceTests.cs" SourcePath="BlazorApi.Demo.Tests/AdoptionServiceTests.cs" Code="@MockTest" />
         <p>These are the members generated for this contract (from the generator, run with <code>GenerateMocks=true</code>):</p>
         <CodeBlock Language="csharp" Title="PetstoreClientMock (public members)" MaxHeight="340px" Code="@MockMembers" />
         <div class="table-scroll">
@@ -60,24 +60,24 @@
         <h2>Contract compatibility</h2>
         <p>
             Keep the last released contract in the repository and compare. <code>ContractComparer</code> classifies each
-            change (breaking, risky, safe); the sample test fails on breaking changes. The same check is available as
+            change (breaking, risky, safe); the demo test fails on breaking changes. The same check is available as
             <code>api-gen diff</code> for CI.
         </p>
         <CodeBlock Language="csharp" Code="@Compatibility" />
     </section>
 
-    <section id="sample">
-        <h2>The sample test project</h2>
-        <p>Run it with <code>dotnet test samples/Petstore.Tests</code>.</p>
+    <section id="demo">
+        <h2>The demo test project</h2>
+        <p>Run it with <code>dotnet test demo/BlazorApi.Demo.Tests</code>.</p>
         @foreach (var path in TestFiles)
         {
-            <CodeBlock Language="@SampleSources.LanguageOf(path)" Title="@path" SourcePath="@path" Code="@Sources.Get(path)" LineNumbers="true" MaxHeight="420px" />
+            <CodeBlock Language="@DemoSources.LanguageOf(path)" Title="@path" SourcePath="@path" Code="@Sources.Get(path)" LineNumbers="true" MaxHeight="420px" />
         }
     </section>
 </DocPage>
 
 @code {
-    private static readonly string[] TestFiles = ["Petstore.Tests/AdoptionService.cs", "Petstore.Tests/AdoptionServiceTests.cs", "Petstore.Tests/Petstore.Tests.csproj"];
+    private static readonly string[] TestFiles = ["BlazorApi.Demo.Tests/AdoptionService.cs", "BlazorApi.Demo.Tests/AdoptionServiceTests.cs", "BlazorApi.Demo.Tests/BlazorApi.Demo.Tests.csproj"];
 
     private string? _mockMembers;
 
@@ -102,7 +102,7 @@
     }
 
     private const string MockItem = """
-        <OpenApiContract Include="..\Contracts\petstore.yaml" Namespace="Petstore.Tests.Api" Options="GenerateMocks=true" />
+        <OpenApiContract Include="..\Contracts\petstore.yaml" Namespace="BlazorApi.Demo.Tests.Api" Options="GenerateMocks=true" />
         <PackageReference Include="BlazorApi.Testing" Version="0.1.0-preview" />
         """;
 

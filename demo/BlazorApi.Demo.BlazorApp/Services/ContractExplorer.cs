@@ -2,7 +2,7 @@ using System.Text.RegularExpressions;
 using BlazorApi.CodeGeneration;
 using BlazorApi.OpenApi.Model;
 
-namespace Petstore.BlazorApp.Services;
+namespace BlazorApi.Demo.BlazorApp.Services;
 
 /// <summary>A method of the generated client, read from the generated source.</summary>
 public sealed record GeneratedMethod(string Name, string ReturnType, string Parameters, string? Summary, bool Obsolete, bool IsExtension)
@@ -11,13 +11,13 @@ public sealed record GeneratedMethod(string Name, string ReturnType, string Para
 }
 
 /// <summary>
-/// Runs the BlazorApi generator at runtime on the sample contract: the same engine (<c>ApiClientGenerator</c>) the source
+/// Runs the BlazorApi generator at runtime on the demo contract: the same engine (<c>ApiClientGenerator</c>) the source
 /// generator runs during the build, with the same options, so the files it returns are the code this app compiles.
 /// </summary>
-public sealed partial class ContractExplorer(SampleSources sources)
+public sealed partial class ContractExplorer(DemoSources sources)
 {
     public const string ContractPath = "Contracts/petstore.yaml";
-    public const string Namespace = "Petstore.BlazorApp.Api";
+    public const string Namespace = "BlazorApi.Demo.BlazorApp.Api";
 
     private readonly Lock _lock = new();
     private GenerationResult? _default;
@@ -27,7 +27,7 @@ public sealed partial class ContractExplorer(SampleSources sources)
 
     public string ContractText => sources.Get(ContractPath);
 
-    /// <summary>The generation result for the sample contract with the app's options.</summary>
+    /// <summary>The generation result for the demo contract with the app's options.</summary>
     public GenerationResult Default
     {
         get

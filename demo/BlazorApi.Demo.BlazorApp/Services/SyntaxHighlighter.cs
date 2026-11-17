@@ -2,7 +2,7 @@ using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace Petstore.BlazorApp.Services;
+namespace BlazorApi.Demo.BlazorApp.Services;
 
 /// <summary>
 /// A small regex-based highlighter for the code shown in the guide (C#, Razor, XML, YAML, JSON, CSS, shell). It only

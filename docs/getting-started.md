@@ -34,7 +34,7 @@ Add the folder as a package source (for example in `nuget.config`) and reference
 The source generator package contains only the analyzer and its MSBuild files. The generated code needs
 `BlazorApi.Runtime`, so always reference it as well (the generator package does not declare the dependency).
 
-**Project references.** This is what the samples in `samples/` do: import the generator's MSBuild files and reference
+**Project references.** This is what the demo projects in `demo/` do: import the generator's MSBuild files and reference
 the projects.
 
 ```xml

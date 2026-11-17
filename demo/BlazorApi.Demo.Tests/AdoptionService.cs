@@ -1,6 +1,6 @@
-using Petstore.Tests.Api;
+using BlazorApi.Demo.Tests.Api;
 
-namespace Petstore.Tests;
+namespace BlazorApi.Demo.Tests;
 
 /// <summary>Example application logic that depends on the generated client interface.</summary>
 public sealed class AdoptionService

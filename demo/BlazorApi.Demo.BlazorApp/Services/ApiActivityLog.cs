@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using BlazorApi.Runtime.Http;
 
-namespace Petstore.BlazorApp.Services;
+namespace BlazorApi.Demo.BlazorApp.Services;
 
 /// <summary>One HTTP exchange made by a generated client.</summary>
 public sealed record ApiActivity(

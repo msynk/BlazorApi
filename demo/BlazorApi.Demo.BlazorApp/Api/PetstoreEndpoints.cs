@@ -2,10 +2,10 @@ using System.Globalization;
 using System.Text.Json;
 using BlazorApi.Runtime.Json;
 
-namespace Petstore.BlazorApp.Api;
+namespace BlazorApi.Demo.BlazorApp.Api;
 
 /// <summary>
-/// The sample API: every operation of <c>samples/Contracts/petstore.yaml</c>, under <c>/v1</c> as the contract's server
+/// The demo API: every operation of <c>demo/Contracts/petstore.yaml</c>, under <c>/v1</c> as the contract's server
 /// URL says. It is deliberately small; the interesting part is the generated client that calls it from the pages.
 /// </summary>
 public static class PetstoreEndpoints

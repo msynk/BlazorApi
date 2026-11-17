@@ -38,7 +38,7 @@ target .NET Standard 2.0.
 - **Contract compatibility analysis** (`ContractComparer`) with request/response-aware change classification.
 - **Blazor components**: `ApiResultView`, `ApiErrorView` and `ApiValidationErrors` for server validation errors in
   `EditForm`.
-- Samples (Blazor Web App, console client, tests), documentation and a BenchmarkDotNet suite.
+- Demo projects (Blazor Web App, console client, tests), documentation and a BenchmarkDotNet suite.
 
 ### Known limitations
 

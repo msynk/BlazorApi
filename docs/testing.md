@@ -23,7 +23,7 @@ implementing the client interface) and, once per contract, `{Api}Fixtures` in th
 Mocks are generated next to the client, in the same project, so that project must reference
 `BlazorApi.Testing`. If the client lives in production code, either accept that reference, generate the
 client in a separate library that tests reference, or test at the HTTP level with `MockApiHandler`, which needs no
-generated code. `samples/Petstore.Tests` generates its own copy of the client with mocks.
+generated code. `demo/BlazorApi.Demo.Tests` generates its own copy of the client with mocks.
 
 ```csharp
 var mock = new PetstoreClientMock()
@@ -138,5 +138,5 @@ var report = ContractComparer.Compare(Load("Contracts/baseline/petstore.yaml"), 
 Assert.False(report.HasChangesAtLeast(ChangeSeverity.Breaking), report.ToText());
 ```
 
-See [Compatibility](compatibility.md) for the rules and change kinds. `samples/Petstore.Tests` contains all of the
+See [Compatibility](compatibility.md) for the rules and change kinds. `demo/BlazorApi.Demo.Tests` contains all of the
 above.

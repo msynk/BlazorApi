@@ -1,8 +1,8 @@
 using System.Globalization;
 using BlazorApi.Runtime;
-using Petstore.BlazorApp.Api;
+using BlazorApi.Demo.BlazorApp.Api;
 
-namespace Petstore.BlazorApp.Services;
+namespace BlazorApi.Demo.BlazorApp.Services;
 
 /// <summary>
 /// Generated clients configured to fail on purpose, for the playground. Generated clients are plain classes, so besides

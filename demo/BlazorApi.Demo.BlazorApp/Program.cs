@@ -1,8 +1,8 @@
 using BlazorApi.Runtime.Security;
 using Microsoft.AspNetCore.Diagnostics;
-using Petstore.BlazorApp.Api;
-using Petstore.BlazorApp.Components;
-using Petstore.BlazorApp.Services;
+using BlazorApi.Demo.BlazorApp.Api;
+using BlazorApi.Demo.BlazorApp.Components;
+using BlazorApi.Demo.BlazorApp.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -20,8 +20,8 @@ builder.Services.AddTransient<ApiActivityHandler>();
 builder.Services.AddScoped<ToastService>();
 builder.Services.AddScoped<DemoClients>();
 
-// The in-app guide: the sample's own source files and the generator run at runtime for the code explorer.
-builder.Services.AddSingleton<SampleSources>();
+// The in-app guide: the demo's own source files and the generator run at runtime for the code explorer.
+builder.Services.AddSingleton<DemoSources>();
 builder.Services.AddSingleton<ContractExplorer>();
 
 // The generated client, registered with IHttpClientFactory. Each authentication handler applies only to the operations

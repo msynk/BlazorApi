@@ -70,10 +70,10 @@
     private bool _saving;
 
     [Parameter, EditorRequired]
-    public global::Petstore.BlazorApp.Api.Pet Pet { get; set; } = null!;
+    public global::BlazorApi.Demo.BlazorApp.Api.Pet Pet { get; set; } = null!;
 
     [Parameter]
-    public EventCallback<global::Petstore.BlazorApp.Api.Pet> OnSaved { get; set; }
+    public EventCallback<global::BlazorApi.Demo.BlazorApp.Api.Pet> OnSaved { get; set; }
 
     private PetPatch Patch => new()
     {

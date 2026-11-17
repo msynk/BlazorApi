@@ -119,14 +119,14 @@ Everything else (`@code` bodies, `ApiResultView TValue="Pet"`, expressions in ma
 types such as generated enums (`PetStatus?`) are not affected. With the CLI (`blazorapi generate`) the code is
 ordinary source and this does not apply.
 
-## The sample app
+## The demo app
 
-`samples/Petstore.BlazorApp` is a Blazor Web App (interactive server rendering) that hosts a small in-memory
-implementation of every operation in `samples/Contracts/petstore.yaml` under `/v1`, and consumes it through the
+`demo/BlazorApi.Demo.BlazorApp` is a Blazor Web App (interactive server rendering) that hosts a small in-memory
+implementation of every operation in `demo/Contracts/petstore.yaml` under `/v1`, and consumes it through the
 client generated from that contract.
 
 ```shell
-dotnet run --project samples/Petstore.BlazorApp     # http://localhost:5080
+dotnet run --project demo/BlazorApi.Demo.BlazorApp     # http://localhost:5080
 ```
 
 The app calls the API it hosts, at whatever address Kestrel listens on (`--urls` works); set `PetstoreApi` to call
@@ -136,7 +136,7 @@ it built and which credentials the handlers attached (secrets are never shown). 
 
 The app also documents the library from the inside:
 
-- **Overview** (`/`): what the generator produces from the contract, with live counts, and a map of the sample.
+- **Overview** (`/`): what the generator produces from the contract, with live counts, and a map of the demo.
 - **Guide** (`/docs/...`): getting started, calling operations, handling errors, Blazor components, authentication,
   pagination, models and testing. Each page has highlighted code and live examples that call the hosted API (for
   example the request a `ListPetsResultAsync` call builds, `ApiResultView` in four states, or JSON deserialized into
@@ -144,9 +144,9 @@ The app also documents the library from the inside:
   from the contract and the compiled models, so they stay accurate.
 - **Contract & code** (`/code`): the contract's operations with their generated method signatures, the contract
   itself (editable), the generated files, and the generator's diagnostics. It runs `ApiClientGenerator.Generate`
-  in the app (which is why the sample references `BlazorApi.CodeGeneration`; applications do not need it), so
+  in the app (which is why the demo references `BlazorApi.CodeGeneration`; applications do not need it), so
   changing the generator options or the contract shows the resulting code immediately.
-- **Source browser** (`/source`): every file of the samples, embedded at build time, which the guide links to.
+- **Source browser** (`/source`): every file of the demo projects, embedded at build time, which the guide links to.
 
 - `Program.cs` registers the generated client with `AddPetstoreClient`, a bearer token for the `bearerAuth` scheme,
   an API key for `apiKey` and a logging `DelegatingHandler` added last, so it sees the headers the others attached.
@@ -170,5 +170,5 @@ The app also documents the library from the inside:
 - `Api/PetstoreEndpoints.cs` and `Api/PetStore.cs`: the in-memory API, which uses the generated models for its own
   JSON. Data resets when the app restarts.
 
-`samples/Petstore.ConsoleClient` calls the same API without dependency injection (start the Blazor app first), and
-`samples/Petstore.Tests` shows mocks, fixtures, `MockApiHandler` and a compatibility test.
+`demo/BlazorApi.Demo.ConsoleClient` calls the same API without dependency injection (start the Blazor app first), and
+`demo/BlazorApi.Demo.Tests` shows mocks, fixtures, `MockApiHandler` and a compatibility test.

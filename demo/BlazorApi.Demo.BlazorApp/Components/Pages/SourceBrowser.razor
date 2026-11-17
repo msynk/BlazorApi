@@ -1,6 +1,6 @@
 @page "/source"
 @page "/source/{*Path}"
-@inject SampleSources Sources
+@inject DemoSources Sources
 
 <PageTitle>@(File?.Name ?? "Source") · Source · Petstore</PageTitle>
 
@@ -8,7 +8,7 @@
     <div>
         <h1>Source browser</h1>
         <p class="lead">
-            Every file of the samples, embedded in this app at build time: the Blazor app you are using, the shared
+            Every file of the demo projects, embedded in this app at build time: the Blazor app you are using, the shared
             contract, the console client and the test project. Nothing here is a copy that can drift from the code.
         </p>
     </div>
@@ -41,7 +41,7 @@
                 <div class="empty">
                     <span class="emoji" aria-hidden="true">📄</span>
                     <h2>No such file</h2>
-                    <p><code>@Path</code> is not one of the embedded sample files.</p>
+                    <p><code>@Path</code> is not one of the embedded demo files.</p>
                 </div>
             </div>
         }
@@ -49,32 +49,32 @@
 </div>
 
 @code {
-    private const string DefaultFile = "Petstore.BlazorApp/Program.cs";
+    private const string DefaultFile = "BlazorApi.Demo.BlazorApp/Program.cs";
 
     [Parameter]
     public string? Path { get; set; }
 
-    private SampleFile? File => Sources.Files.FirstOrDefault(f => f.Path.Equals(string.IsNullOrEmpty(Path) ? DefaultFile : Path, StringComparison.OrdinalIgnoreCase));
+    private DemoFile? File => Sources.Files.FirstOrDefault(f => f.Path.Equals(string.IsNullOrEmpty(Path) ? DefaultFile : Path, StringComparison.OrdinalIgnoreCase));
 
     private static string? Describe(string path) => path switch
     {
-        "Petstore.BlazorApp/Program.cs" => "Registers the generated client with its authentication handlers, hosts the in-memory API and maps the Razor components.",
-        "Petstore.BlazorApp/Petstore.BlazorApp.csproj" => "The OpenApiContract item that drives the source generator, and the item group that embeds these files.",
-        "Petstore.BlazorApp/Api/PetstoreEndpoints.cs" => "The in-memory API: every operation of the contract, using the generated models for its own JSON.",
-        "Petstore.BlazorApp/Services/ApiActivityLog.cs" => "The DelegatingHandler behind the API traffic panel; it runs after the authentication handlers.",
-        "Petstore.BlazorApp/Services/DemoClients.cs" => "Generated clients built by hand with other HttpClients and options, for the error playground.",
-        "Petstore.BlazorApp/Services/ContractExplorer.cs" => "Runs ApiClientGenerator at runtime for the Contract & code page.",
-        "Petstore.BlazorApp/Components/Pages/PetList.razor" => "Cursor pagination, a typed status filter and the X-Total-Count header.",
-        "Petstore.BlazorApp/Components/Pages/PetDetails.razor" => "ApiResultView with custom templates, PUT with a polymorphic body, a form-encoded order and the deprecated delete.",
-        "Petstore.BlazorApp/Components/Pets/NewPetForm.razor" => "EditForm with DataAnnotationsValidator and ApiValidationErrors for server-side 422 errors.",
-        "Petstore.BlazorApp/Components/Pets/PetPatchEditor.razor" => "A JSON merge patch with Optional<string?> and a live preview of the body.",
-        "Petstore.BlazorApp/Components/Pets/PetPhotoCard.razor" => "A multipart upload with FileContent and a binary download with FileResponse.",
-        "Petstore.BlazorApp/Components/Pages/Inventory.razor" => "ApiResultView over a dictionary response, authenticated with an API key.",
-        "Petstore.BlazorApp/Components/Pages/Playground.razor" => "Every failure kind, with the ApiError each produces.",
-        "Contracts/petstore.yaml" => "The OpenAPI contract every sample generates its client from.",
+        "BlazorApi.Demo.BlazorApp/Program.cs" => "Registers the generated client with its authentication handlers, hosts the in-memory API and maps the Razor components.",
+        "BlazorApi.Demo.BlazorApp/BlazorApi.Demo.BlazorApp.csproj" => "The OpenApiContract item that drives the source generator, and the item group that embeds these files.",
+        "BlazorApi.Demo.BlazorApp/Api/PetstoreEndpoints.cs" => "The in-memory API: every operation of the contract, using the generated models for its own JSON.",
+        "BlazorApi.Demo.BlazorApp/Services/ApiActivityLog.cs" => "The DelegatingHandler behind the API traffic panel; it runs after the authentication handlers.",
+        "BlazorApi.Demo.BlazorApp/Services/DemoClients.cs" => "Generated clients built by hand with other HttpClients and options, for the error playground.",
+        "BlazorApi.Demo.BlazorApp/Services/ContractExplorer.cs" => "Runs ApiClientGenerator at runtime for the Contract & code page.",
+        "BlazorApi.Demo.BlazorApp/Components/Pages/PetList.razor" => "Cursor pagination, a typed status filter and the X-Total-Count header.",
+        "BlazorApi.Demo.BlazorApp/Components/Pages/PetDetails.razor" => "ApiResultView with custom templates, PUT with a polymorphic body, a form-encoded order and the deprecated delete.",
+        "BlazorApi.Demo.BlazorApp/Components/Pets/NewPetForm.razor" => "EditForm with DataAnnotationsValidator and ApiValidationErrors for server-side 422 errors.",
+        "BlazorApi.Demo.BlazorApp/Components/Pets/PetPatchEditor.razor" => "A JSON merge patch with Optional<string?> and a live preview of the body.",
+        "BlazorApi.Demo.BlazorApp/Components/Pets/PetPhotoCard.razor" => "A multipart upload with FileContent and a binary download with FileResponse.",
+        "BlazorApi.Demo.BlazorApp/Components/Pages/Inventory.razor" => "ApiResultView over a dictionary response, authenticated with an API key.",
+        "BlazorApi.Demo.BlazorApp/Components/Pages/Playground.razor" => "Every failure kind, with the ApiError each produces.",
+        "Contracts/petstore.yaml" => "The OpenAPI contract every demo project generates its client from.",
         "Contracts/baseline/petstore.yaml" => "The last published contract; the test project checks that changes since then are not breaking.",
-        "Petstore.ConsoleClient/Program.cs" => "The generated client without dependency injection: a BearerTokenHandler chained by hand.",
-        "Petstore.Tests/AdoptionServiceTests.cs" => "Generated mocks and fixtures, MockApiHandler and the contract compatibility test.",
+        "BlazorApi.Demo.ConsoleClient/Program.cs" => "The generated client without dependency injection: a BearerTokenHandler chained by hand.",
+        "BlazorApi.Demo.Tests/AdoptionServiceTests.cs" => "Generated mocks and fixtures, MockApiHandler and the contract compatibility test.",
         _ => null,
     };
 }

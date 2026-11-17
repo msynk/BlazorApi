@@ -1,4 +1,4 @@
-namespace Petstore.BlazorApp.Components.Layout;
+namespace BlazorApi.Demo.BlazorApp.Components.Layout;
 
 public sealed record NavItem(string Title, string Href, string Icon, string? Description = null);
 
@@ -29,7 +29,7 @@ public static class SiteMap
     public static IReadOnlyList<NavItem> Explore { get; } =
     [
         new("Contract & code", "code", "code", "The contract, its operations and the generated C#"),
-        new("Source browser", "source", "folder", "Every file of the samples"),
+        new("Source browser", "source", "folder", "Every file of the demo projects"),
     ];
 
     public static IReadOnlyList<NavSection> Sections { get; } =

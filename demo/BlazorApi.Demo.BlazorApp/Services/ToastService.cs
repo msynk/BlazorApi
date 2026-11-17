@@ -1,4 +1,4 @@
-namespace Petstore.BlazorApp.Services;
+namespace BlazorApi.Demo.BlazorApp.Services;
 
 public enum ToastKind
 {

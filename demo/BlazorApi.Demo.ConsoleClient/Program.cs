@@ -1,8 +1,8 @@
 using BlazorApi.Runtime;
 using BlazorApi.Runtime.Security;
-using Petstore.ConsoleClient.Api;
+using BlazorApi.Demo.ConsoleClient.Api;
 
-// The base address of the API hosted by samples/Petstore.BlazorApp (override with the first argument).
+// The base address of the API hosted by demo/BlazorApi.Demo.BlazorApp (override with the first argument).
 var baseAddress = new Uri(args.Length > 0 ? args[0] : "http://localhost:5080/v1/");
 
 // Authentication is a message handler: it adds the token only to operations whose contract requires bearerAuth.
@@ -17,7 +17,7 @@ var health = await client.GetHealthResultAsync();
 if (!health.IsSuccess)
 {
     Console.Error.WriteLine($"The API is not reachable at {baseAddress} ({health.Error.Kind}: {health.Error.Message}).");
-    Console.Error.WriteLine("Start it with: dotnet run --project samples/Petstore.BlazorApp");
+    Console.Error.WriteLine("Start it with: dotnet run --project demo/BlazorApi.Demo.BlazorApp");
     return 1;
 }
 

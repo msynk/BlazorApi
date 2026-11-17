@@ -3,7 +3,7 @@
   <Import Project="..\..\src\BlazorApi.SourceGenerator\build\BlazorApi.SourceGenerator.props" />
 
   <!-- The basic typed client: generated at build time from ../Contracts/petstore.yaml, used without dependency
-       injection. Run samples/Petstore.BlazorApp first; it hosts the API. -->
+       injection. Run demo/BlazorApi.Demo.BlazorApp first; it hosts the API. -->
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
@@ -15,7 +15,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <OpenApiContract Include="..\Contracts\petstore.yaml" Namespace="Petstore.ConsoleClient.Api" />
+    <OpenApiContract Include="..\Contracts\petstore.yaml" Namespace="BlazorApi.Demo.ConsoleClient.Api" />
   </ItemGroup>
 
   <Import Project="..\..\src\BlazorApi.SourceGenerator\build\BlazorApi.SourceGenerator.targets" />
