@@ -80,7 +80,20 @@ internal sealed class HeadersEmitter
             var members = new NameScope(reserved: [name, "From", "Headers"]);
             var properties = headers.Select(h => (h.Header, h.Statuses, Property: members.Allocate(Identifier.Pascal(h.Header.Name)))).ToList();
             var variables = new NameScope(reserved: ["headers"]);
-            var variableNames = properties.ToDictionary(p => p.Header, p => variables.Allocate("h" + p.Property));
+            var variableNames = new Dictionary<ApiHeader, string>();
+            foreach (var p in properties)
+            {
+                var candidate = "h" + p.Property;
+                var suffix = 1;
+                while (variables.IsUsed(candidate) || variables.IsUsed(candidate + "Parsed"))
+                {
+                    candidate = "h" + p.Property + (++suffix).ToString(System.Globalization.CultureInfo.InvariantCulture);
+                }
+
+                variables.Reserve(candidate);
+                variables.Reserve(candidate + "Parsed");
+                variableNames[p.Header] = candidate;
+            }
 
             writer.Doc("summary", "Reads the headers.");
             using (writer.Block($"public {name}({HeaderMap} headers)"))

@@ -27,6 +27,24 @@ public static class ApiBody
     public static HttpContent Form(IEnumerable<KeyValuePair<string, string?>> fields) =>
         new FormUrlEncodedContent(fields.Where(f => f.Value is not null).Select(f => new KeyValuePair<string, string>(f.Key, f.Value!)));
 
+    /// <summary>
+    /// The form fields of a value: its top-level JSON properties, strings as written and other values as JSON text
+    /// (for form bodies of types the generator does not know, such as mapped types).
+    /// </summary>
+    public static IEnumerable<KeyValuePair<string, string?>> FormFields<T>(T value, JsonSerializerOptions options)
+    {
+        var element = JsonSerializer.SerializeToElement(value, ApiJson.TypeInfo<T>(options));
+        if (element.ValueKind != JsonValueKind.Object)
+        {
+            throw new InvalidOperationException($"A form body must be an object, not {element.ValueKind}.");
+        }
+
+        return element.EnumerateObject()
+            .Where(p => p.Value.ValueKind != JsonValueKind.Null)
+            .Select(p => new KeyValuePair<string, string?>(p.Name, p.Value.ValueKind == JsonValueKind.String ? p.Value.GetString() : p.Value.GetRawText()))
+            .ToList();
+    }
+
     // ------------------------------------------------------------------ response bodies
 
     /// <summary>Reads a JSON body.</summary>
@@ -177,6 +195,17 @@ public sealed class ApiMultipart
         if (value is not null)
         {
             _content.Add(ApiBody.Json(value, _options, contentType ?? "application/json"), name);
+        }
+
+        return this;
+    }
+
+    /// <summary>Adds the top-level JSON properties of a value as text fields (see <see cref="ApiBody.FormFields{T}"/>).</summary>
+    public ApiMultipart AddFields<T>(T value)
+    {
+        foreach (var field in ApiBody.FormFields(value, _options))
+        {
+            Add(field.Key, field.Value);
         }
 
         return this;

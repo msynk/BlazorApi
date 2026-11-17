@@ -251,29 +251,77 @@ public sealed class OpenApiExamples
 
     private static ScalarNode NumberValue(OpenApiSchema schema, bool integer)
     {
-        var step = integer ? 1m : 0.5m;
-        var value = schema.Minimum ??
-            (schema.ExclusiveMinimum is { } exclusive ? (exclusive > decimal.MaxValue - step ? exclusive : exclusive + step) : integer ? 1m : 1.5m);
-        if (schema.Maximum is { } max && value > max)
+        // The tightest lower and upper bounds, as inclusive values (integers: whole numbers inside exclusive bounds).
+        decimal? lower = null;
+        decimal? upper = null;
+        var lowerExclusive = false;
+        var upperExclusive = false;
+        if (schema.Minimum is { } minimum)
         {
-            value = max;
+            lower = integer ? decimal.Ceiling(minimum) : minimum;
         }
 
-        if (schema.ExclusiveMaximum is { } exclusiveMax && value >= exclusiveMax)
+        if (schema.ExclusiveMinimum is { } exclusiveMinimum)
         {
-            value = exclusiveMax < decimal.MinValue + step ? exclusiveMax : exclusiveMax - step;
-        }
-
-        if (integer)
-        {
-            value = decimal.Ceiling(value);
-            if (schema.ExclusiveMaximum is { } upper && value >= upper)
+            var candidate = integer ? Saturate(() => decimal.Floor(exclusiveMinimum) + 1, exclusiveMinimum) : exclusiveMinimum;
+            if (lower is null || candidate >= lower)
             {
-                value = decimal.Floor(upper) == upper ? upper - 1 : decimal.Floor(upper);
+                lower = candidate;
+                lowerExclusive = !integer;
             }
         }
 
+        if (schema.Maximum is { } maximum)
+        {
+            upper = integer ? decimal.Floor(maximum) : maximum;
+        }
+
+        if (schema.ExclusiveMaximum is { } exclusiveMaximum)
+        {
+            var candidate = integer ? Saturate(() => decimal.Ceiling(exclusiveMaximum) - 1, exclusiveMaximum) : exclusiveMaximum;
+            if (upper is null || candidate <= upper)
+            {
+                upper = candidate;
+                upperExclusive = !integer;
+            }
+        }
+
+        decimal value;
+        if (lower is { } lo && upper is { } hi)
+        {
+            // Both bounds: the smallest whole number, or the midpoint (inside exclusive bounds too).
+            value = integer || (!lowerExclusive && lo <= hi) ? lo : (lo / 2) + (hi / 2);
+        }
+        else if (lower is { } onlyLower)
+        {
+            value = lowerExclusive ? Saturate(() => onlyLower + 0.5m, onlyLower) : onlyLower;
+        }
+        else if (upper is { } onlyUpper)
+        {
+            var preferred = integer ? 1m : 1.5m;
+            value = upperExclusive
+                ? (preferred < onlyUpper ? preferred : Saturate(() => onlyUpper - 0.5m, onlyUpper))
+                : Math.Min(preferred, onlyUpper);
+        }
+        else
+        {
+            value = integer ? 1m : 1.5m;
+        }
+
         return new ScalarNode(SourceLocation.None, NodeKind.Number, value.ToString(CultureInfo.InvariantCulture));
+    }
+
+    /// <summary>Evaluates arithmetic on contract bounds, keeping the bound itself when it would overflow decimal.</summary>
+    private static decimal Saturate(Func<decimal> compute, decimal fallback)
+    {
+        try
+        {
+            return compute();
+        }
+        catch (OverflowException)
+        {
+            return fallback;
+        }
     }
 
     private static ScalarNode Text(string value) => new(SourceLocation.None, NodeKind.String, value);

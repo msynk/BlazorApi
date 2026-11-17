@@ -221,7 +221,7 @@ internal static class GenerationPlanner
         {
             var inheritable = union.Dispatch == ApiUnionDispatch.Discriminator &&
                 union.Variants.All(v => v.Type is ApiNamedTypeRef { Target: ApiObjectType obj, IsNullable: false } &&
-                    obj.BaseType is null && obj.Discriminator is null && variantUse[obj] == 1);
+                    obj.BaseType is null && obj.Discriminator is null && variantUse[obj] == 1 && plan.MappedType(obj) is null);
             if (inheritable)
             {
                 var polymorphic = new PolymorphicPlan(union, union.DiscriminatorPropertyName!);

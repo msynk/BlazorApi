@@ -102,6 +102,12 @@ target .NET Standard 2.0.
   surrogates failed comparisons, logical functions were accepted as values, and overlays could grow documents
   without bound; example synthesis overflowed on extreme bounds, ignored `exclusiveMaximum` and could change the
   document; remote contracts followed redirects to other hosts; the mock server had no Host check, timeouts or limits.
+- A second review round fixed: example values outside `exclusiveMinimum`/`maximum` bounds (and an overflow); drive-relative
+  download file names (`C:evil.exe`); the cache losing a URL's `Vary` entry when a varying response was replaced;
+  generator crashes or uncompilable code with mapped types in discriminated unions, form bodies and query arrays;
+  `{Operation}ResponseBodies` reading a different media type than the client and setting `default`/range properties
+  for declared statuses; header variable collisions; contracts whose names only collide after sanitizing or that share
+  a parent folder name; a mock server stopping on a connection reset; and the demo reading oversized uploads.
 - Values typed as an intermediate class of a discriminated hierarchy (`Car` with a `SportsCar` subtype) were read as
   that class; intermediate classes now get their own converter and dispatch to their subtypes.
 

@@ -70,6 +70,7 @@ public class ReviewRegressionTests
     [InlineData("..\\..\\boot.ini", "boot.ini")]
     [InlineData("photo.png", "photo.png")]
     [InlineData("..", null)]
+    [InlineData("C:evil.exe", null)]
     public async Task Download_file_names_lose_directory_segments(string name, string? expected)
     {
         var handler = new RecordingHandler().Respond(_ =>
@@ -151,4 +152,29 @@ public class ReviewRegressionTests
     }
 
     private static int LineReaderLimit() => 16 * 1024 * 1024;
+
+    [Fact]
+    public async Task Cache_keeps_revalidating_after_a_varying_response_is_replaced()
+    {
+        HttpResponseMessage Ok(string etag)
+        {
+            var response = new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("""{"id":1,"name":"Rex","kind":"dog"}""", System.Text.Encoding.UTF8, "application/json") };
+            response.Headers.ETag = new System.Net.Http.Headers.EntityTagHeaderValue(etag);
+            response.Headers.Vary.Add("Accept-Language");
+            return response;
+        }
+
+        var handler = new RecordingHandler()
+            .Respond(_ => Task.FromResult(Ok("\"v1\"")))
+            .Respond(_ => Task.FromResult(Ok("\"v2\""))) // changed: the conditional GET gets a new 200
+            .Respond(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotModified)));
+        var client = new PetstoreClient(new HttpClient(new ApiCacheHandler { InnerHandler = handler }));
+
+        await client.GetPetAsync(1);
+        await client.GetPetAsync(1);
+        var third = await client.GetPetResultAsync(1);
+
+        Assert.Equal("\"v2\"", handler.Requests[2].Headers["If-None-Match"]);
+        Assert.Equal("revalidated", third.GetHeader(ApiCacheHandler.CacheHeader));
+    }
 }

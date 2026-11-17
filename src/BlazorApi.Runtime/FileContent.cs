@@ -102,7 +102,8 @@ public sealed class FileResponse : IDisposable, IAsyncDisposable
         }
 
         var last = name!.Replace('\\', '/').Split('/').Last().Trim();
-        return last is "" or "." or ".." ? null : last;
+        // A drive-relative name (C:evil.exe) is rooted on Windows, and Path.Combine would discard the directory.
+        return last is "" or "." or ".." || last.IndexOf(':') >= 0 || last.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0 ? null : last;
     }
 
     /// <summary>

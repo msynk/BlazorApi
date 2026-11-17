@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Http.Features;
 using System.Globalization;
 using System.Text.Json;
 using BlazorApi.Runtime.Json;
@@ -250,7 +251,13 @@ public static class PetstoreEndpoints
                 return Failure(415, "Send the photo as multipart/form-data.");
             }
 
-            var form = await request.ReadFormAsync();
+            // Refuse oversized uploads before reading them (the form, with some room for the other fields).
+            if (request.ContentLength > MaxPhotoSize + (64 * 1024))
+            {
+                return Results.ValidationProblem(new Dictionary<string, string[]> { ["file"] = ["The photo must be 1 MB or smaller."] }, statusCode: 422);
+            }
+
+            var form = await request.ReadFormAsync(new FormOptions { MultipartBodyLengthLimit = MaxPhotoSize + (64 * 1024) }, request.HttpContext.RequestAborted);
             if (form.Files.GetFile("file") is not { Length: > 0 } file)
             {
                 return Results.ValidationProblem(new Dictionary<string, string[]> { ["file"] = ["Choose a photo to upload."] }, statusCode: 422);

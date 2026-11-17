@@ -231,14 +231,7 @@ internal sealed class ClientEmitter
 
     private void BuildResponses(Method method, ApiOperation operation)
     {
-        static int Rank(ApiContent c) => c.Kind switch
-        {
-            ApiBodyKind.Json => 0,
-            ApiBodyKind.Text => 1,
-            ApiBodyKind.Binary => 2,
-            ApiBodyKind.EventStream or ApiBodyKind.JsonSequence => 3,
-            _ => 4,
-        };
+        static int Rank(ApiContent c) => ContentRank(c);
 
         var successes = operation.Responses.Where(r => r.IsSuccess).ToList();
         var primary = successes.FirstOrDefault(r => r.Contents.Count > 0);
@@ -345,6 +338,16 @@ internal sealed class ClientEmitter
             }
         }
     }
+
+    /// <summary>The preference among a response's media types (JSON, text, binary, streams, others).</summary>
+    internal static int ContentRank(ApiContent content) => content.Kind switch
+    {
+        ApiBodyKind.Json => 0,
+        ApiBodyKind.Text => 1,
+        ApiBodyKind.Binary => 2,
+        ApiBodyKind.EventStream or ApiBodyKind.JsonSequence => 3,
+        _ => 4,
+    };
 
     private bool SameBody(ApiContent content, ApiContent? primary) =>
         primary is not null && content.Kind == primary.Kind &&
@@ -673,6 +676,27 @@ internal sealed class ClientEmitter
 
         if (content is null)
         {
+            // A form or multipart body of a mapped type: the fields are the top-level properties of its JSON.
+            if (_plan.MappedType(body.ApiType) is not null || body.ApiType is not ApiNamedTypeRef { Target: ApiObjectType })
+            {
+                var fieldsContent = request.Kind == ApiBodyKind.FormUrlEncoded
+                    ? $"{Http}.ApiBody.Form({Http}.ApiBody.FormFields({access}, {JsonOptions}))"
+                    : $"new {Http}.ApiMultipart({JsonOptions}).AddFields({access}).Build()";
+                if (nullable)
+                {
+                    using (writer.Block($"if ({body.Name} is {{ }} {access})"))
+                    {
+                        writer.Line($"builder.Content = {fieldsContent};");
+                    }
+                }
+                else
+                {
+                    writer.Line($"builder.Content = {fieldsContent};");
+                }
+
+                return;
+            }
+
             // A form or multipart body described by a named model: the fields come from its properties.
             if (body.ApiType is not ApiNamedTypeRef { Target: ApiObjectType obj } || !_plan.IsEmitted(obj))
             {

@@ -311,7 +311,14 @@ internal sealed class GenerationPlan
     };
 
     /// <summary>Whether the C# type of a reference is a value type (so <c>T?</c> is <c>Nullable&lt;T&gt;</c>).</summary>
-    public bool IsValueType(ApiTypeRef type) => type switch
+    private static readonly HashSet<string> KnownValueTypes = new(StringComparer.Ordinal)
+    {
+        "bool", "byte", "sbyte", "short", "ushort", "int", "uint", "long", "ulong", "nint", "nuint", "float", "double",
+        "decimal", "char", "global::System.Guid", "global::System.DateTime", "global::System.DateTimeOffset",
+        "global::System.DateOnly", "global::System.TimeOnly", "global::System.TimeSpan", "global::System.Text.Json.JsonElement",
+    };
+
+    public bool IsValueType(ApiTypeRef type) => MappedType(type) is { } mapped ? KnownValueTypes.Contains(mapped) : type switch
     {
         ApiPrimitiveType p => Primitive(p) is not ("string" or "byte[]" or "global::System.Uri" or "global::BlazorApi.Runtime.FileContent"),
         ApiNamedTypeRef { Target: ApiEnumType } n => IsEmitted(n.Target),

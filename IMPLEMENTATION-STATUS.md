@@ -51,6 +51,7 @@ scoped to be reviewable on its own; the working tree has not been committed or s
 | 2026-11-09 | After documentation-review fixes: 440 tests (net8.0 + net10.0) + 5 demo tests | all passed |
 | 2026-11-09 | demo/BlazorApi.Demo.Tests (5); BlazorApi.Demo.BlazorApp run and checked over HTTP (pages, 401, 404, API key); BlazorApi.Demo.ConsoleClient run against it | passed |
 | 2026-11-17 | After removing the dotnet-query integration: full suite (net8.0 + net10.0) + 5 demo tests | all passed |
+| 2026-11-17 | M30 second review round, Release build without warnings: OpenApi 213, CodeGeneration 20, Integration 97, SourceGenerator 17, Cli 26, Blazor 11, per framework; demo 5 | all passed |
 | 2026-11-17 | M30, Release build without warnings: OpenApi 207, CodeGeneration 19 (type mappings compiled with mocks), Integration 95 (response bodies), SourceGenerator 15, Cli 26, Blazor 11, per framework; demo 5; demo app checked over HTTP (ETag 304, SSE feed) and the console client run against it | all passed |
 | 2026-11-17 | M29 review fixes, Release build without warnings: OpenApi 207, CodeGeneration 17, Integration 95, SourceGenerator 15, Cli 26, Blazor 11, per framework (net8.0, net10.0); demo 5 | all passed |
 | 2026-11-17 | M28 after review fixes, Release build: OpenApi 199, CodeGeneration 13, Integration 78 (intermediate hierarchies, cache incl. retries, API keys, large chunked bodies), SourceGenerator 14, Cli 24, Blazor 11, per framework (net8.0, net10.0); demo 5 | all passed |
@@ -212,6 +213,10 @@ synthesis overflow, `exclusiveMaximum`, unbounded `minLength` and document mutat
 downloads; and the mock server's DNS rebinding exposure, missing timeouts, connection and body limits, and empty
 `Prefer` codes. Rejected: retries never buffering streamed uploads (`ContentLength` is computed lazily from seekable
 streams; covered by a test) and overlay partial application on error (loading stops and discards the document).
+
+A second round (M30) reviewed the M29 fixes and the M30 features: 16 findings, 15 fixed with regression tests;
+response headers of mapped formats staying strings is documented instead (a header cannot be parsed into an arbitrary
+type).
 
 ## Ecosystem survey and gap inventory (M25, 2026-11-17)
 

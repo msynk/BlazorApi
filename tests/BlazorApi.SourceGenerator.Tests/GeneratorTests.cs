@@ -100,6 +100,26 @@ public class GeneratorTests
         Assert.Empty(output.GetDiagnostics().Where(d => d.Severity == DiagnosticSeverity.Error));
     }
 
+    [Theory]
+    [InlineData("api/v1/petstore.yaml", "other/v1/petstore.yaml")]
+    [InlineData("my-api.yaml", "my_api.yaml")]
+    public void Contracts_with_colliding_generated_names_are_told_apart(string first, string second)
+    {
+        var text = File.ReadAllText(Contract("petstore.yaml"));
+        var root = Path.GetDirectoryName(Contract("petstore.yaml"))!;
+        var files = new[] { first, second }
+            .Select(p => new TestAdditionalFile(Path.Combine(root, p.Replace('/', Path.DirectorySeparatorChar)), text, new Dictionary<string, string> { ["BlazorApiKind"] = "Contract" }))
+            .ToArray();
+        var compilation = Compilation("namespace Consumer; public static class Usage { }");
+
+        var driver = Driver(files).RunGeneratorsAndUpdateCompilation(compilation, out var output, out var generatorDiagnostics);
+
+        Assert.Empty(generatorDiagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
+        var hints = driver.GetRunResult().Results.Single().GeneratedSources.Select(s => s.HintName).ToList();
+        Assert.Equal(hints.Count, hints.Distinct(StringComparer.OrdinalIgnoreCase).Count());
+        Assert.Empty(output.GetDiagnostics().Where(d => d.Severity == DiagnosticSeverity.Error));
+    }
+
     [Fact]
     public void Json_context_option_is_reported_and_ignored()
     {

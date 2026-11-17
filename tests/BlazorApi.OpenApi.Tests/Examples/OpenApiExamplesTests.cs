@@ -100,4 +100,23 @@ public class OpenApiExamplesTests
         Assert.Equal("""{"name":"Tom","kind":"Cat"}""", examples.ForSchema(document.Components.Schemas["Pet"]).ToJson());
         Assert.Equal("""[{"name":"Tom"}]""", "[" + document.Components.Schemas["Cat"].Enum[0].ToJson() + "]");
     }
+
+    [Theory]
+    [InlineData("{ type: number, exclusiveMinimum: 0, exclusiveMaximum: 0.3 }", "0.15")]
+    [InlineData("{ type: integer, maximum: 0.5 }", "0")]
+    [InlineData("{ type: integer, minimum: 2.5 }", "3")]
+    [InlineData("{ type: integer, exclusiveMinimum: 4, exclusiveMaximum: 9 }", "5")]
+    [InlineData("{ type: number, maximum: -3 }", "-3")]
+    [InlineData("{ type: integer, exclusiveMaximum: -79228162514264337593543950335 }", "-79228162514264337593543950335")]
+    public void Numbers_stay_inside_their_bounds(string schema, string expected)
+    {
+        var result = TestContracts.LoadYaml(TestContracts.Document("""
+            /a:
+              get:
+                responses:
+                  '200': { description: ok }
+            """, "schemas:\n  N: " + schema, "3.1.0"));
+
+        Assert.Equal(expected, new OpenApiExamples(result.Document!).ForSchema(result.Document!.Components.Schemas["N"]).ToString());
+    }
 }

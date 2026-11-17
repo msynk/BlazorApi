@@ -417,11 +417,12 @@ public sealed class ApiResponseCache
                 return; // Cleared while the response was on its way.
             }
 
-            _vary[baseKey] = vary;
             if (_entries.TryGetValue(key, out var existing))
             {
-                Remove(existing);
+                Remove(existing); // May drop the URL's Vary entry when it was the only variant: set it afterwards.
             }
+
+            _vary[baseKey] = vary;
 
             _entries[key] = _order.AddFirst((key, entry));
             _bytes += entry.Body.LongLength;

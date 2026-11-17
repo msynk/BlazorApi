@@ -140,6 +140,72 @@ public class ReviewRegressionTests
     }
 
     [Fact]
+    public void Mapped_types_in_unions_forms_query_arrays_and_response_views_compile()
+    {
+        const string contract = """
+            openapi: 3.1.0
+            info: { title: Mix, version: '1' }
+            paths:
+              /things:
+                get:
+                  operationId: listThings
+                  parameters:
+                    - name: ids
+                      in: query
+                      schema: { type: array, items: { $ref: '#/components/schemas/Ref' } }
+                  responses:
+                    '200':
+                      description: ok
+                      headers:
+                        X-Foo: { schema: { $ref: '#/components/schemas/Level' } }
+                        X-Foo-Parsed: { schema: { type: string } }
+                      content:
+                        text/plain: { schema: { type: string } }
+                        application/json: { schema: { $ref: '#/components/schemas/Shape' } }
+                    '202':
+                      description: pending
+                      content:
+                        application/json: { schema: { $ref: '#/components/schemas/Ref' } }
+                    2XX:
+                      description: other
+                      content:
+                        application/json: { schema: { type: object, properties: { note: { type: string } } } }
+                post:
+                  operationId: submitThing
+                  requestBody:
+                    required: true
+                    content:
+                      application/x-www-form-urlencoded: { schema: { $ref: '#/components/schemas/Ref' } }
+                  responses: { '204': { description: ok } }
+            components:
+              schemas:
+                Level: { type: string, enum: [low, high] }
+                Ref: { type: object, properties: { id: { type: string } } }
+                Circle: { type: object, required: [kind], properties: { kind: { const: circle }, r: { type: number } } }
+                Shape:
+                  oneOf: [{ $ref: '#/components/schemas/Circle' }, { $ref: '#/components/schemas/Ref' }]
+                  discriminator: { propertyName: kind }
+            """;
+        const string shared = """
+            namespace Shared;
+            public sealed class Ref { public string? Id { get; set; } public override string ToString() => Id ?? ""; }
+            """;
+        var result = GeneratedCode.GenerateYaml(contract, new GeneratorOptions
+        {
+            Namespace = "Mix",
+            GenerateMocks = true,
+            TypeMappings = new Dictionary<string, string> { ["Ref"] = "Shared.Ref" },
+        });
+
+        var client = File(result, "MixClient.g.cs");
+        Assert.Contains("ApiBody.FormFields(body,", client, StringComparison.Ordinal);
+        var bodies = File(result, "MixClientResponseBodies.g.cs");
+        Assert.Contains("result.Content is Shape body0", bodies, StringComparison.Ordinal);       // JSON wins over text/plain
+        Assert.True(bodies.Contains("result.StatusCode / 100 == 2 && result.StatusCode != 200 && result.StatusCode != 202 && result.Content", StringComparison.Ordinal), bodies);
+        GeneratedCode.Compile(result, shared);
+    }
+
+    [Fact]
     public void Type_mappings_are_read_from_key_value_pairs()
     {
         var bag = new BlazorApi.OpenApi.Diagnostics.DiagnosticBag();

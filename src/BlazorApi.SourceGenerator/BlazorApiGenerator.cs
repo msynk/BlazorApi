@@ -45,22 +45,23 @@ public sealed class BlazorApiGenerator : IIncrementalGenerator
                 provider.GlobalOptions.TryGetValue("build_property.RootNamespace", out var rootNamespace) ? rootNamespace : null,
                 provider.GlobalOptions.TryGetValue("build_property.ProjectDir", out var projectDir) && projectDir.Length > 0 ? projectDir : null));
 
-        // Contract file names used more than once (v1/petstore.yaml, v2/petstore.yaml) get distinct hint names.
-        var duplicateNames = contracts
-            .Select(static (file, _) => FileName(file.Path).ToUpperInvariant())
+        // Every contract's path, so contracts whose generated names would collide (v1/petstore.yaml and
+        // v2/petstore.yaml, my-api.yaml and my_api.yaml) can tell themselves apart.
+        var contractPaths = contracts
+            .Select(static (file, _) => file.Path)
             .Collect()
-            .Select(static (names, _) => new EquatableArray<string>(names.GroupBy(n => n).Where(g => g.Count() > 1).Select(g => g.Key).OrderBy(n => n, StringComparer.Ordinal).ToImmutableArray()));
+            .Select(static (paths, _) => new EquatableArray<string>(paths.Sort(StringComparer.Ordinal)));
 
         var outputs = contracts
             .Combine(documents)
-            .Combine(build.Combine(duplicateNames))
+            .Combine(build.Combine(contractPaths))
             .Select(static (input, cancellationToken) => Generate(input.Left.Left, input.Left.Right, input.Right.Left, input.Right.Right, cancellationToken))
             .WithTrackingName(TrackingName);
 
         context.RegisterSourceOutput(outputs, static (spc, output) => Emit(spc, output));
     }
 
-    internal static GenerationOutput Generate(InputFile contract, EquatableArray<InputFile> documents, BuildContext build, EquatableArray<string> duplicateNames, CancellationToken cancellationToken)
+    internal static GenerationOutput Generate(InputFile contract, EquatableArray<InputFile> documents, BuildContext build, EquatableArray<string> contractPaths, CancellationToken cancellationToken)
     {
         var rootNamespace = build.RootNamespace;
         var diagnostics = new DiagnosticBag();
@@ -68,7 +69,7 @@ public sealed class BlazorApiGenerator : IIncrementalGenerator
         {
             var configuration = new GenerationConfiguration
             {
-                Options = new GeneratorOptions { Namespace = DefaultNamespace(contract.Path, rootNamespace, duplicateNames.Contains(FileName(contract.Path).ToUpperInvariant())) },
+                Options = new GeneratorOptions { Namespace = DefaultNamespace(contract.Path, rootNamespace, contractPaths) },
             };
 
             string? configPath = null;
@@ -157,7 +158,7 @@ public sealed class BlazorApiGenerator : IIncrementalGenerator
             };
             var result = ApiClientGenerator.Generate(contract.Text, contract.Path, options, loadOptions);
             diagnostics.AddRange(result.Diagnostics);
-            var prefix = HintPrefix(contract.Path, duplicateNames.Contains(FileName(contract.Path).ToUpperInvariant()));
+            var prefix = HintPrefix(contract.Path, contractPaths);
             var files = result.Files
                 .Select(f => new GeneratedSource(prefix + "." + f.Path.Replace('/', '.'), f.Content))
                 .ToImmutableArray();
@@ -234,40 +235,66 @@ public sealed class BlazorApiGenerator : IIncrementalGenerator
             .ToImmutableArray());
     }
 
-    private static string DefaultNamespace(string contractPath, string? rootNamespace, bool duplicate = false)
+    private static string DefaultNamespace(string contractPath, string? rootNamespace, IEnumerable<string> contractPaths)
     {
-        var file = FileNameWithoutExtension(contractPath);
-        var name = Identifier.Pascal(file);
-        if (duplicate && FileName(DirectoryOf(contractPath).TrimEnd('/', '\\')) is { Length: > 0 } folder)
-        {
-            // Two contracts with the same file name (v1/petstore.yaml, v2/petstore.yaml) get their folder too.
-            name = Identifier.Pascal(folder) + "." + name;
-        }
+        // Contracts whose names give the same namespace get as many of their folders as it takes to differ.
+        var segments = Distinguishing(contractPath, contractPaths, p => Identifier.Pascal(FileNameWithoutExtension(p)));
+        var name = string.Join(".", segments.Select(segment => Identifier.Pascal(segment)).Concat([Identifier.Pascal(FileNameWithoutExtension(contractPath))]));
         return string.IsNullOrEmpty(rootNamespace) ? name : rootNamespace + "." + name;
     }
 
-    private static string HintPrefix(string path, bool duplicate)
+    private static string HintPrefix(string path, IEnumerable<string> contractPaths)
     {
-        var name = FileName(path);
+        // AddSource rejects duplicate hint names: contracts whose sanitized names collide get their folders too.
+        var segments = Distinguishing(path, contractPaths, p => Sanitize(FileName(p)));
+        return string.Join("_", segments.Select(Sanitize).Concat([Sanitize(FileName(path))]));
+    }
+
+    private static string Sanitize(string name)
+    {
         var builder = new StringBuilder(name.Length);
         foreach (var c in name)
         {
             builder.Append(char.IsLetterOrDigit(c) ? c : '_');
         }
 
-        if (duplicate)
-        {
-            // A stable hash of the full path keeps hint names unique (AddSource rejects duplicates).
-            var hash = 2166136261u;
-            foreach (var c in Normalize(path).ToUpperInvariant())
-            {
-                hash = unchecked((hash ^ c) * 16777619u);
-            }
+        return builder.ToString();
+    }
 
-            builder.Append('_').Append(hash.ToString("x8", System.Globalization.CultureInfo.InvariantCulture));
+    /// <summary>
+    /// The fewest trailing folder names of <paramref name="path"/> that tell it apart from the other contracts with
+    /// the same <paramref name="key"/> (none when the key is unique). The paths differ, so some depth always does,
+    /// except for folders that only differ in case or punctuation, where a hash of the path is added.
+    /// </summary>
+    private static IReadOnlyList<string> Distinguishing(string path, IEnumerable<string> contractPaths, Func<string, string> key)
+    {
+        var own = key(path);
+        var peers = contractPaths.Where(p => !string.Equals(p, path, StringComparison.Ordinal) && string.Equals(key(p), own, StringComparison.OrdinalIgnoreCase)).ToList();
+        if (peers.Count == 0)
+        {
+            return [];
         }
 
-        return builder.ToString();
+        static IReadOnlyList<string> Folders(string p) =>
+            DirectoryOf(p).Replace('\\', '/').Split(['/'], StringSplitOptions.RemoveEmptyEntries).AsEnumerable().Reverse().ToList();
+
+        var mine = Folders(path);
+        for (var depth = 1; depth <= mine.Count; depth++)
+        {
+            var candidate = string.Join("/", mine.Take(depth).Select(Sanitize)).ToUpperInvariant();
+            if (peers.All(p => !string.Equals(string.Join("/", Folders(p).Take(depth).Select(Sanitize)).ToUpperInvariant(), candidate, StringComparison.Ordinal)))
+            {
+                return mine.Take(depth).Reverse().ToList();
+            }
+        }
+
+        var hash = 2166136261u;
+        foreach (var c in Normalize(path))
+        {
+            hash = unchecked((hash ^ c) * 16777619u);
+        }
+
+        return [.. mine.Reverse(), "h" + hash.ToString("x8", System.Globalization.CultureInfo.InvariantCulture)];
     }
 
     private static bool SamePath(string fullPath, string relative)

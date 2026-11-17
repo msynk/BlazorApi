@@ -61,6 +61,10 @@ internal sealed class MockServer
             {
                 return;
             }
+            catch (SocketException)
+            {
+                continue; // A client reset its connection while it was accepted: keep serving the others.
+            }
 
             if (!await _connections.WaitAsync(0, CancellationToken.None).ConfigureAwait(false))
             {

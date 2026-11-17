@@ -55,8 +55,9 @@ internal sealed class ResponseBodiesEmitter
         var result = new List<(ApiResponse, string)>();
         foreach (var response in operation.SuccessResponses)
         {
-            var content = response.Contents.FirstOrDefault(c => c.Kind is ApiBodyKind.Json or ApiBodyKind.Text or ApiBodyKind.Other);
-            if (content is null)
+            // The same media type the client reads (ClientEmitter ranks JSON first).
+            var content = response.Contents.OrderBy(ClientEmitter.ContentRank).FirstOrDefault();
+            if (content is null || content.Kind is not (ApiBodyKind.Json or ApiBodyKind.Text or ApiBodyKind.Other))
             {
                 continue;
             }
@@ -84,14 +85,19 @@ internal sealed class ResponseBodiesEmitter
             {
                 writer.Line("global::System.ArgumentNullException.ThrowIfNull(result);");
                 writer.Line("StatusCode = result.StatusCode;");
+                // Statuses match like the client: exact codes, then ranges, then default for what is left.
+                var exact = method.Operation.Operation.Responses.Where(r => r.Status is not null).Select(r => r.Status!.Value).ToList();
+                var ranges = method.Operation.Operation.Responses.Where(r => r.Status is null && r.StatusClass is not null).Select(r => r.StatusClass!.Value).ToList();
+                string NotIn(IEnumerable<string> tests) => string.Concat(tests.Select(t => $"{t} && "));
                 for (var i = 0; i < properties.Count; i++)
                 {
                     var (response, type, property) = properties[i];
+                    var notExact = exact.Select(code => $"result.StatusCode != {code.ToString(CultureInfo.InvariantCulture)}");
                     var condition = response.Status is { } status
                         ? $"result.StatusCode == {status.ToString(CultureInfo.InvariantCulture)} && "
                         : response.StatusClass is { } statusClass
-                            ? $"result.StatusCode / 100 == {statusClass.ToString(CultureInfo.InvariantCulture)} && "
-                            : string.Empty;
+                            ? $"result.StatusCode / 100 == {statusClass.ToString(CultureInfo.InvariantCulture)} && " + NotIn(notExact)
+                            : NotIn(notExact.Concat(ranges.Select(c => $"result.StatusCode / 100 != {c.ToString(CultureInfo.InvariantCulture)}")));
                     writer.Line($"{property} = result.IsSuccess && {condition}result.Content is {type} body{i} ? body{i} : null;");
                 }
             }
