@@ -70,6 +70,8 @@ public static class ApiClientGenerator
 
         var model = ApiModelBuilder.Build(loaded.Document, diagnostics);
         var plan = GenerationPlanner.Create(model, options, diagnostics);
+        var jsonContext = options.GenerateJsonContext ? new JsonContextEmitter(plan) : null;
+        plan.JsonContext = jsonContext?.QualifiedName;
         var files = new List<GeneratedFile>();
         files.AddRange(new ModelEmitter(plan).Emit());
         var clients = new ClientEmitter(plan);
@@ -92,6 +94,11 @@ public static class ApiClientGenerator
                 files.Add(fixtures);
             }
         }
+        if (jsonContext is not null)
+        {
+            files.Add(jsonContext.Emit(files));
+        }
+
         files.Sort((a, b) => string.CompareOrdinal(a.Path, b.Path));
         return new GenerationResult(files, Finish(diagnostics, options), model);
     }

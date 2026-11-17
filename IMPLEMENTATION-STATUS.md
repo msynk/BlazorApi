@@ -31,6 +31,7 @@ scoped to be reviewable on its own; the working tree has not been committed or s
 | M22 | Advanced generation features | Partly: operation/tag filters, unused-model pruning, multi-contract projects, `x-pagination`, `x-enum-varnames`; custom templates deferred |
 | M23 | Blazor integration (`BlazorApi.Blazor`: `ApiResultView`, `ApiErrorView`, `ApiValidationErrors`; auth registration helpers `AddBearerToken`/`AddApiKey`/`AddBasicAuthentication` in `BlazorApi.Runtime`) | Done |
 | M24 | Documentation, demo, benchmarks, CI workflow, packaging | Done (not published) |
+| M25 | Gap closure after an ecosystem survey (see below): streaming, per-call options, servers, retries, telemetry, forward-compatible enums, JSON context, CLI URLs | Done |
 
 ## Tests executed
 
@@ -45,6 +46,7 @@ scoped to be reviewable on its own; the working tree has not been committed or s
 | 2026-11-09 | After documentation-review fixes: 440 tests (net8.0 + net10.0) + 5 demo tests | all passed |
 | 2026-11-09 | demo/BlazorApi.Demo.Tests (5); BlazorApi.Demo.BlazorApp run and checked over HTTP (pages, 401, 404, API key); BlazorApi.Demo.ConsoleClient run against it | passed |
 | 2026-11-17 | After removing the dotnet-query integration: full suite (net8.0 + net10.0) + 5 demo tests | all passed |
+| 2026-11-17 | M25 gap closure: full suite (net8.0 + net10.0): OpenApi 142, CodeGeneration 11, Integration 50, SourceGenerator 12, Cli 21, Blazor 8, demo 5; `dotnet pack` of the source generator checked for the `BlazorApi.Runtime` dependency | all passed |
 | 2026-11-17 | BlazorApi.Demo.BlazorApp rework: every contract operation served; browser end-to-end run in Chrome (list, filter, pagination, create with 422, merge patch, PUT, photo upload/download, order with 409, delete, inventory, 8 playground scenarios, not-found, mobile width, light and dark); full suite + 5 demo tests; console client against the app | all passed |
 
 ## Architectural decisions
@@ -102,6 +104,25 @@ scoped to be reviewable on its own; the working tree has not been committed or s
     potentially breaking because generated enums are strict.
 16. **Conventions follow the sibling `dotnet-query` repository**: `.slnx`, `Directory.Build.props` with warnings as
    errors and analyzers, xunit 2.9, libraries for net8.0/net10.0, Roslyn components for netstandard2.0.
+17. **Retries are safe by default and opt-in.** `ApiRetryHandler` retries only idempotent methods or requests with
+    an idempotency key, honors `Retry-After`, and is added explicitly (`AddApiRetries`). It covers the common case
+    without dependencies; circuit breakers, hedging and rate limiting are left to Microsoft.Extensions.Http.Resilience,
+    whose rejections the runtime maps to results by exception type name (no Polly dependency).
+18. **Per-call options derive a client** (`WithOptions`) instead of adding a parameter to every method: signatures,
+    mocks and positional calls stay unchanged, and the derived client shares the `HttpClient`.
+19. **Telemetry records templates, not values.** Spans and metrics carry `url.template` and the operation id, never
+    URLs, parameters, headers or bodies, so instrumentation cannot leak credentials or personal data.
+20. **Streams are values that own the response.** A streamed operation succeeds when the headers arrive; read
+    failures surface during enumeration as the same `ApiException` family. Sequential media types (OpenAPI 3.2
+    `itemSchema`) are read for every document version.
+21. **Forward-compatible enums are opt-in** (`unknownEnumValues=unrecognized`), keeping decision 15's strict default;
+    the extra member has no wire value.
+22. **The JSON context is generated from the generated code.** The emitter collects the generic arguments of the
+    runtime JSON helpers in the emitted sources plus every parameter, part and property type, so a type serialized
+    anywhere cannot be missing; listing a superset is harmless. It is a CLI feature: source generators cannot feed the
+    System.Text.Json generator (BAPI6005).
+23. **Remote contracts are same-origin.** The CLI downloads URL contracts and their references only from the
+    contract's origin, never local files, bounded by the parser's size limit and a timeout.
 
 ## Known limitations (current)
 
@@ -109,13 +130,15 @@ scoped to be reviewable on its own; the working tree has not been committed or s
   class (for example `Dog` with a `Puppy` subtype) is read as that class, not the subtype.
 - Only the first success response body is typed per operation (BAPI6001 warns when others differ).
 - `format: time` and `format: duration` map to `string` by default (lossless); `TimeType=TimeOnly` is opt-in.
-- Generated JSON uses reflection-based System.Text.Json metadata by default. Trimmed/native AOT apps must supply a
-  `JsonSerializerContext` for the generated types through `ApiClientOptions.JsonSerializerOptions`; the source
-  generator cannot emit one because generators cannot see each other's output.
-- The source generator package does not yet declare its dependency on `BlazorApi.Runtime`; consumers add it.
+- Generated JSON uses reflection-based System.Text.Json metadata by default. The CLI generates a
+  `JsonSerializerContext` with `generateJsonContext=true`; with the source generator, trimmed/native AOT apps must
+  supply one (generators cannot see each other's output).
+- Streams have no automatic reconnection (`Last-Event-ID`); `ServerSentEvent.Id` and `Retry` are exposed for callers
+  that reconnect.
+- No typed response headers, `ETag`/conditional-request helpers or upload/download progress callbacks (headers are
+  available through `ApiResult.Headers` and per-call headers through `WithOptions`).
 - Generated mocks are emitted into the project that generates them (with `GenerateMocks=true`), which must then
   reference `BlazorApi.Testing`; generate mocks in the test project.
-- `api-gen validate` does not read `blazorapi.json` (it takes `--option` and `--strict`).
 
 - YAML: explicit (`?`) and non-scalar mapping keys, anchors on implicit keys, recursive aliases and multi-document
   streams are rejected with BAPI1011. Tags other than the core schema are ignored.
@@ -137,6 +160,33 @@ scoped to be reviewable on its own; the working tree has not been committed or s
   `validate` and accepted unknown `--fail-on` values. Each fix has a regression test.
 - Packaging: the source generator package carries only the analyzer and MSBuild files (`SuppressDependenciesWhenPacking`).
 
+## Ecosystem survey and gap inventory (M25, 2026-11-17)
+
+Compared with .NET (NSwag, Kiota, Refit/Refitter, openapi-generator, Microsoft.Extensions.Http.Resilience), TypeScript
+(openapi-typescript/openapi-fetch, Hey API, Orval), commercial SDK generators (Stainless, Speakeasy, Fern, APIMatic,
+liblab), Go (oapi-codegen, ogen), Rust (progenitor), Python (openapi-python-client) and current standards (OpenAPI 3.2,
+Overlay 1.1, RFC 9457, RFC 9110 `Retry-After`, the Idempotency-Key draft, OpenTelemetry semantic conventions).
+
+| Gap or shortcoming | Found in | Resolution |
+|---|---|---|
+| Resilience-pipeline exceptions (Polly timeout, open circuit, rate limiter) escaped `XxxResultAsync` | runtime bug | Mapped to `Timeout`/`Network` errors |
+| `api-gen validate` ignored `blazorapi.json` (options, reference policy, severity overrides) | CLI | Reads the configuration and `--config` |
+| Source generator package did not declare `BlazorApi.Runtime` | packaging | Explicit `.nuspec` with the dependency |
+| `application/x-ndjson` read as one JSON document | engine bug | Sequential media types are streams |
+| No streaming (SSE, JSON Lines, `json-seq`, OpenAPI 3.2 `itemSchema`) | ST, SE, FE, HA, OGN | `ApiStream<T>`, `ServerSentEvent<T>` |
+| No per-request overrides (headers, timeout, base address) | ST, FE, SE, KI, OC | `WithOptions`, `ApiClientOptions.Clone` |
+| Operation- and path-level `servers` ignored; server variables not exposed | spec, few generators | `ServerAddress`, `OperationBaseAddresses`, `{Client}.Servers` |
+| No retries with `Retry-After`; no idempotency keys | ST, SE, FE, MER | `ApiRetryHandler`, `AddApiRetries` |
+| No OpenTelemetry instrumentation per operation | OGN, KI | `ApiTelemetry` spans and histogram |
+| Strict enums only (new server values break reading) | SE, ST, OG, OC | `unknownEnumValues=unrecognized` |
+| AOT required a hand-written `JsonSerializerContext` | RF, OG generichost | `generateJsonContext` (CLI), runtime context |
+| CLI could not read contracts from URLs | every CLI surveyed | Same-origin URL loading |
+
+Considered and not done (see Known limitations and Deferred features): several typed success responses per
+operation, typed response headers and ETag helpers, upload/download progress, SSE reconnection, Overlay support,
+custom templates and hooks, a mock server, OAuth authorization-code/device flows (delegated to identity libraries such
+as Microsoft.Identity.Web, MSAL or Blazor's `IAccessTokenProvider`), MCP server generation.
+
 ## Deferred features
 
 - Custom code templates (M22): the emitters are internal and not template-driven.
@@ -148,3 +198,6 @@ scoped to be reviewable on its own; the working tree has not been committed or s
 - Generating a `JsonSerializerContext` for trimmed/AOT applications (possible from the CLI output; not from the
   source generator).
 - Publishing: no packages are pushed; versions are `0.1.0-preview`.
+- OpenAPI Overlay 1.1 (applying overlays before generation); needs a JSONPath (RFC 9535) implementation in the
+  dependency-free engine.
+- Several typed success bodies per operation (a generated result union) and typed response headers.

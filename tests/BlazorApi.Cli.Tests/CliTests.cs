@@ -200,4 +200,129 @@ public sealed class CliTests : IDisposable
     {
         Assert.Equal(expected, Run(args).Exit);
     }
+
+    [Fact]
+    public void Validate_reads_the_configuration_file()
+    {
+        File.WriteAllText(Path.Combine(_directory, "odd.yaml"), """
+            openapi: 3.0.3
+            info: { title: Odd, version: '1' }
+            paths:
+              /a:
+                get:
+                  operationId: getA
+                  responses:
+                    '200':
+                      description: ok
+                      content:
+                        application/json:
+                          schema: { type: string, format: shoe-size }
+            """);
+        File.WriteAllText(Path.Combine(_directory, "blazorapi.json"), """
+            {
+              "contracts": [
+                { "contract": "petstore.yaml" },
+                { "contract": "odd.yaml", "diagnostics": { "BAPI4007": "error" } }
+              ]
+            }
+            """);
+
+        var (exit, output, error) = Run("validate");
+        var (plainExit, _, _) = Run("validate", "odd.yaml");
+
+        Assert.Equal(1, exit);
+        Assert.Equal(0, plainExit);
+        Assert.Contains("petstore.yaml: 0 error(s)", output, StringComparison.Ordinal);
+        Assert.Contains("error BAPI4007", error + output, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Validate_with_a_configuration_and_paths_is_a_usage_error()
+    {
+        File.WriteAllText(Path.Combine(_directory, "api.json"), """{ "contract": "petstore.yaml" }""");
+
+        Assert.Equal(0, Run("validate", "--config", "api.json").Exit);
+        Assert.Equal(2, Run("validate", "petstore.yaml", "features-3.1.json", "--config", "api.json").Exit);
+    }
+
+    [Fact]
+    public void Generate_can_emit_a_json_serializer_context()
+    {
+        var (exit, _, _) = Run("generate", "petstore.yaml", "--output", "out", "--option", "generateJsonContext=true");
+
+        Assert.Equal(0, exit);
+        var context = File.ReadAllText(Path.Combine(_directory, "out", "PetstoreJsonContext.g.cs"));
+        Assert.Contains("JsonSerializable(typeof(Pet))", context, StringComparison.Ordinal);
+    }
+
+    private sealed class FileServer(string root) : HttpMessageHandler
+    {
+        public List<Uri> Requests { get; } = [];
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            Requests.Add(request.RequestUri!);
+            var path = Path.Combine(root, request.RequestUri!.AbsolutePath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
+            return Task.FromResult(File.Exists(path)
+                ? new HttpResponseMessage(System.Net.HttpStatusCode.OK) { Content = new StringContent(File.ReadAllText(path)) }
+                : new HttpResponseMessage(System.Net.HttpStatusCode.NotFound));
+        }
+    }
+
+    private (int Exit, string Output, string Error) RunWith(HttpMessageHandler handler, params string[] args)
+    {
+        var output = new StringWriter();
+        var error = new StringWriter();
+        var exit = new CliApp(output, error, _directory, handler).Run(args);
+        return (exit, output.ToString(), error.ToString());
+    }
+
+    [Fact]
+    public void Contracts_can_be_downloaded_with_their_references()
+    {
+        using var server = new FileServer(_directory);
+
+        var (exit, output, error) = RunWith(server, "generate", "https://specs.example.com/external/main.yaml", "--output", "remote");
+
+        Assert.True(exit == 0, output + error);
+        Assert.True(File.Exists(Path.Combine(_directory, "remote", ".blazorapi-manifest")));
+        Assert.Contains(server.Requests, u => u.AbsolutePath == "/external/schemas/item.yaml");
+        Assert.Contains("namespace Main", File.ReadAllText(Directory.GetFiles(Path.Combine(_directory, "remote"), "*Client.g.cs")[0]), StringComparison.Ordinal);
+        Assert.Equal(0, RunWith(server, "validate", "https://specs.example.com/petstore.yaml").Exit);
+        Assert.Equal(0, RunWith(server, "diff", "https://specs.example.com/petstore.yaml", "petstore.yaml").Exit);
+    }
+
+    [Fact]
+    public void Remote_contracts_cannot_reach_other_origins_or_local_files()
+    {
+        File.WriteAllText(Path.Combine(_directory, "evil.yaml"), """
+            openapi: 3.0.3
+            info: { title: Evil, version: '1' }
+            paths:
+              /a:
+                get:
+                  responses:
+                    '200':
+                      description: ok
+                      content:
+                        application/json:
+                          schema: { $ref: 'https://attacker.example.net/x.yaml#/X' }
+              /b:
+                get:
+                  responses:
+                    '200':
+                      description: ok
+                      content:
+                        application/json:
+                          schema: { $ref: 'file:///etc/passwd#/X' }
+            """);
+        using var server = new FileServer(_directory);
+
+        var (exit, output, error) = RunWith(server, "validate", "https://specs.example.com/evil.yaml");
+
+        Assert.Equal(1, exit);
+        Assert.DoesNotContain(server.Requests, u => u.Host == "attacker.example.net");
+        Assert.Contains("BAPI", error + output, StringComparison.Ordinal);
+        Assert.Equal(1, RunWith(server, "validate", "https://specs.example.com/missing.yaml").Exit);
+    }
 }

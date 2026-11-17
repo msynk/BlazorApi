@@ -102,6 +102,12 @@ internal sealed class ClientEmitter
 
         public bool IsFile { get; set; }
 
+        /// <summary>Whether the value is a stream of items (server-sent events or a JSON sequence).</summary>
+        public bool IsStream { get; set; }
+
+        /// <summary>Whether the value keeps the HTTP response open (files and streams) and must be disposed.</summary>
+        public bool OwnsResponse => IsFile || IsStream;
+
         public List<string> HandlerLines { get; } = [];
 
         public List<string> Accept { get; } = [];
@@ -173,8 +179,9 @@ internal sealed class ClientEmitter
                 {
                     apiType = new ApiPrimitiveType(ApiPrimitiveKind.String);
                 }
-                else if (request.Kind == ApiBodyKind.Binary)
+                else if (request.Kind == ApiBodyKind.Binary || request.IsStream)
                 {
+                    // Streamed request bodies (event streams, JSON sequences) are sent as prepared binary content.
                     apiType = new ApiPrimitiveType(ApiPrimitiveKind.Binary);
                 }
 
@@ -229,7 +236,8 @@ internal sealed class ClientEmitter
             ApiBodyKind.Json => 0,
             ApiBodyKind.Text => 1,
             ApiBodyKind.Binary => 2,
-            _ => 3,
+            ApiBodyKind.EventStream or ApiBodyKind.JsonSequence => 3,
+            _ => 4,
         };
 
         var successes = operation.Responses.Where(r => r.IsSuccess).ToList();
@@ -250,6 +258,24 @@ internal sealed class ClientEmitter
                     method.ValueType = "string";
                     reader = $"{Http}.ApiBody.ReadText";
                     break;
+                case ApiBodyKind.EventStream:
+                {
+                    var item = _plan.CSharpType(primaryContent.Type ?? new ApiPrimitiveType(ApiPrimitiveKind.String));
+                    method.ValueType = $"{Runtime}.ApiStream<{Runtime}.ServerSentEvent<{item}>>";
+                    method.IsStream = true;
+                    reader = $"{Http}.ApiBody.ReadEventStream<{item}>";
+                    break;
+                }
+
+                case ApiBodyKind.JsonSequence:
+                {
+                    var item = _plan.CSharpType(primaryContent.Type ?? new ApiPrimitiveType(ApiPrimitiveKind.Any));
+                    method.ValueType = $"{Runtime}.ApiStream<{item}>";
+                    method.IsStream = true;
+                    reader = $"{Http}.ApiBody.ReadJsonSequence<{item}>";
+                    break;
+                }
+
                 default:
                     var type = primaryContent.Type ?? new ApiPrimitiveType(ApiPrimitiveKind.Any);
                     method.ValueType = _plan.CSharpType(type);
@@ -273,7 +299,7 @@ internal sealed class ClientEmitter
                 }
                 else if (ReferenceEquals(response, primary) || SameBody(content, primaryContent))
                 {
-                    method.HandlerLines.Add(method.IsFile ? $".Success({status}, {reader}, ownsResponse: true)" : $".Success({status}, {reader})");
+                    method.HandlerLines.Add(method.OwnsResponse ? $".Success({status}, {reader}, ownsResponse: true)" : $".Success({status}, {reader})");
                 }
                 else
                 {
@@ -308,7 +334,7 @@ internal sealed class ClientEmitter
 
     private bool SameBody(ApiContent content, ApiContent? primary) =>
         primary is not null && content.Kind == primary.Kind &&
-        (content.Kind != ApiBodyKind.Json || (content.Type is not null && primary.Type is not null && _plan.CSharpType(content.Type) == _plan.CSharpType(primary.Type)));
+        (content.Kind is not (ApiBodyKind.Json or ApiBodyKind.EventStream or ApiBodyKind.JsonSequence) || (content.Type is not null && primary.Type is not null && _plan.CSharpType(content.Type) == _plan.CSharpType(primary.Type)));
 
     private static string SecurityInitializer(ApiOperation operation)
     {
@@ -361,7 +387,22 @@ internal sealed class ClientEmitter
                 WriteObsolete(writer, method);
                 writer.Line($"{ResultReturnType(method)} {method.Operation.Name}ResultAsync({method.Signature});");
             }
+
+            if (methods.Count > 0)
+            {
+                writer.Line();
+            }
+
+            WriteWithOptionsDocs(writer);
+            writer.Line($"{client.InterfaceName} WithOptions(global::System.Action<{Runtime}.ApiClientOptions> configure);");
         }
+    }
+
+    private static void WriteWithOptionsDocs(CodeWriter writer)
+    {
+        writer.Doc("summary", "Returns a client that shares this client's HttpClient but uses a modified copy of its options, for per-call settings such as headers, a timeout or a base address.");
+        writer.Doc("param", "Changes the copied options.", "name=\"configure\"");
+        writer.Doc("returns", "A new client; this client is unchanged.");
     }
 
     private void EmitClass(CodeWriter writer, ClientPlan client, List<Method> methods)
@@ -394,12 +435,33 @@ internal sealed class ClientEmitter
             writer.Doc("summary", "Creates a client.");
             using (writer.Block($"public {client.ClassName}(global::System.Net.Http.HttpClient httpClient, {Runtime}.ApiClientOptions? options)"))
             {
-                writer.Line($"_connection = new {Http}.ApiConnection(httpClient, options, DefaultBaseAddress);");
+                writer.Line(_plan.JsonContext is null
+                    ? $"_connection = new {Http}.ApiConnection(httpClient, options, DefaultBaseAddress);"
+                    : $"_connection = new {Http}.ApiConnection(httpClient, options ?? new {Runtime}.ApiClientOptions {{ JsonSerializerOptions = global::BlazorApi.Runtime.Json.ApiJson.CreateOptions({_plan.JsonContext}.Default) }}, DefaultBaseAddress);");
             }
 
             writer.Line();
             writer.Doc("summary", "The connection that sends requests (HTTP client, options and JSON settings).");
             writer.Line($"public {Http}.ApiConnection Connection => _connection;");
+            writer.Line();
+            writer.Doc("summary", "The servers of the OpenAPI document, in document order. Resolve one (with its variables) to set ApiClientOptions.BaseAddress.");
+            writer.Line($"public static global::System.Collections.Generic.IReadOnlyList<{Runtime}.ApiServer> Servers {{ get; }} = {ServersInitializer()};");
+            writer.Line();
+            WriteWithOptionsDocs(writer);
+            using (writer.Block($"public {client.ClassName} WithOptions(global::System.Action<{Runtime}.ApiClientOptions> configure)"))
+            {
+                writer.Line("global::System.ArgumentNullException.ThrowIfNull(configure);");
+                writer.Line("var options = _connection.Options.Clone();");
+                writer.Line("configure(options);");
+                writer.Line($"return new {client.ClassName}(_connection.HttpClient, options);");
+            }
+
+            if (_plan.Options.GenerateInterfaces)
+            {
+                writer.Line();
+                writer.Line("/// <inheritdoc />");
+                writer.Line($"{client.InterfaceName} {client.InterfaceName}.WithOptions(global::System.Action<{Runtime}.ApiClientOptions> configure) => WithOptions(configure);");
+            }
 
             foreach (var method in methods)
             {
@@ -465,11 +527,16 @@ internal sealed class ClientEmitter
                 "TRACE" => "global::System.Net.Http.HttpMethod.Trace",
                 _ => $"new global::System.Net.Http.HttpMethod({Literal.String(operation.Method)})",
             };
+            var serverAddress = OperationServer(operation, ref pathPrefix);
             writer.Line($"var builder = new {Http}.ApiRequestBuilder({httpMethod}, {Literal.String(pathPrefix + operation.Path)}, {Literal.String(method.Operation.Id)})");
             writer.Line("{");
             using (writer.Indent())
             {
                 writer.Line($"Security = {method.SecurityField},");
+                if (serverAddress is not null)
+                {
+                    writer.Line($"ServerAddress = {Literal.String(serverAddress)},");
+                }
             }
 
             writer.Line("};");
@@ -586,7 +653,7 @@ internal sealed class ClientEmitter
         {
             ApiBodyKind.Json => $"{Http}.ApiBody.Json({access}, {JsonOptions}, {mediaType})",
             ApiBodyKind.Text or ApiBodyKind.Other => $"{Http}.ApiBody.Text({access}, {mediaType})",
-            ApiBodyKind.Binary => $"{Http}.ApiBody.File({access}, {mediaType})",
+            ApiBodyKind.Binary or ApiBodyKind.EventStream or ApiBodyKind.JsonSequence => $"{Http}.ApiBody.File({access}, {mediaType})",
             _ => null,
         };
 
@@ -789,6 +856,60 @@ internal sealed class ClientEmitter
         return null;
     }
 
+    /// <summary>
+    /// The server an operation declares for itself (operation- or path-level <c>servers</c>) when it differs from the
+    /// document's first server: an absolute URL is returned; a relative one replaces the path prefix.
+    /// </summary>
+    private string? OperationServer(ApiOperation operation, ref string pathPrefix)
+    {
+        if (operation.Servers.Count == 0 ||
+            operation.Servers[0].DefaultUrl == _plan.Model.Servers.FirstOrDefault()?.DefaultUrl)
+        {
+            return null;
+        }
+
+        var url = operation.Servers[0].DefaultUrl;
+        if (Uri.TryCreate(url, UriKind.Absolute, out var absolute) && (absolute.Scheme == "http" || absolute.Scheme == "https"))
+        {
+            return url;
+        }
+
+        if (url.StartsWith("/", StringComparison.Ordinal))
+        {
+            pathPrefix = url.TrimEnd('/');
+        }
+
+        return null;
+    }
+
+    private string ServersInitializer()
+    {
+        const string server = "global::BlazorApi.Runtime.ApiServer";
+        if (_plan.Model.Servers.Count == 0)
+        {
+            return $"global::System.Array.Empty<{server}>()";
+        }
+
+        var items = _plan.Model.Servers.Select(s =>
+        {
+            var arguments = new List<string> { Literal.String(s.Url), s.Description is null ? "null" : Literal.String(s.Description) };
+            if (s.Variables.Count > 0)
+            {
+                arguments.Add("new global::System.Collections.Generic.Dictionary<string, string> { " +
+                    string.Join(", ", s.Variables.Select(v => $"[{Literal.String(v.Key)}] = {Literal.String(v.Value.Default)}")) + " }");
+                var restricted = s.Variables.Where(v => v.Value.Enum.Count > 0).ToList();
+                if (restricted.Count > 0)
+                {
+                    arguments.Add("new global::System.Collections.Generic.Dictionary<string, global::System.Collections.Generic.IReadOnlyList<string>> { " +
+                        string.Join(", ", restricted.Select(v => $"[{Literal.String(v.Key)}] = new string[] {{ {string.Join(", ", v.Value.Enum.Select(Literal.String))} }}")) + " }");
+                }
+            }
+
+            return $"new {server}({string.Join(", ", arguments)})";
+        });
+        return $"new {server}[] {{ {string.Join(", ", items)} }}";
+    }
+
     // ------------------------------------------------------------------ dependency injection
 
     private string EmitRegistration(ClientPlan client)
@@ -806,7 +927,10 @@ internal sealed class ClientEmitter
             writer.Line($"public static global::Microsoft.Extensions.DependencyInjection.IHttpClientBuilder Add{client.ClassName}(this global::Microsoft.Extensions.DependencyInjection.IServiceCollection services, global::System.Action<{Runtime}.ApiClientOptions>? configure = null) =>");
             using (writer.Indent())
             {
-                writer.Line($"global::Microsoft.Extensions.DependencyInjection.ApiClientServiceCollectionExtensions.AddApiClient<{serviceType}>(services, {Literal.String(client.ClassName)}, static (httpClient, options) => new {client.ClassName}(httpClient, options), configure);");
+                var configure = _plan.JsonContext is null
+                    ? "configure"
+                    : $"options => {{ options.JsonSerializerOptions = global::BlazorApi.Runtime.Json.ApiJson.CreateOptions({_plan.JsonContext}.Default); configure?.Invoke(options); }}";
+                writer.Line($"global::Microsoft.Extensions.DependencyInjection.ApiClientServiceCollectionExtensions.AddApiClient<{serviceType}>(services, {Literal.String(client.ClassName)}, static (httpClient, options) => new {client.ClassName}(httpClient, options), {configure});");
             }
         }
 

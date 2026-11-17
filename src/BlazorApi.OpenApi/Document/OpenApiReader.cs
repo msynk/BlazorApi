@@ -662,7 +662,7 @@ internal sealed class OpenApiReader
                 case "example": media.Example = p.Value; break;
                 case "examples": media.Examples = ReadMap(p.Value, path, (n, ptr, _) => ReadExample(n, ptr)); break;
                 case "encoding": media.Encoding = ReadMap(p.Value, path, (n, ptr, _) => ReadEncoding(n, ptr)); break;
-                case "itemSchema":
+                case "itemSchema": media.ItemSchema = ReadSchema(p.Value, path); break;
                 case "itemEncoding":
                 case "prefixEncoding":
                     Report(DiagnosticDescriptors.FeatureIgnored, p.KeyLocation, path, $"'{p.Name}' (OpenAPI 3.2 sequential media types)");

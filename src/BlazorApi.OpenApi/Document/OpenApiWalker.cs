@@ -134,6 +134,11 @@ public static class OpenApiWalker
                     yield return media.Schema;
                 }
 
+                if (media.ItemSchema is not null)
+                {
+                    yield return media.ItemSchema;
+                }
+
                 foreach (var example in media.Examples.Values)
                 {
                     yield return example;

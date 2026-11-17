@@ -172,6 +172,12 @@ public sealed class OpenApiMediaType : OpenApiElement
     /// <summary>The schema.</summary>
     public OpenApiSchema? Schema { get; internal set; }
 
+    /// <summary>
+    /// The schema of each item of a sequential media type (OpenAPI 3.2 <c>itemSchema</c>): one event of
+    /// <c>text/event-stream</c>, one line of <c>application/jsonl</c>.
+    /// </summary>
+    public OpenApiSchema? ItemSchema { get; internal set; }
+
     /// <summary>An example value.</summary>
     public DocNode? Example { get; internal set; }
 

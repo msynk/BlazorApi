@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Values in $...$ come from NuspecProperties (see BlazorApi.SourceGenerator.csproj). -->
+<package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd">
+  <metadata>
+    <id>$id$</id>
+    <version>$version$</version>
+    <authors>$authors$</authors>
+    <license type="expression">MIT</license>
+    <readme>README.md</readme>
+    <projectUrl>$projectUrl$</projectUrl>
+    <repository type="git" url="$repositoryUrl$" />
+    <description>Generates typed OpenAPI clients, models and mocks at build time from contracts added with &lt;OpenApiContract Include="..." /&gt;. Brings in BlazorApi.Runtime, which the generated code uses.</description>
+    <copyright>$copyright$</copyright>
+    <tags>$tags$</tags>
+    <developmentDependency>false</developmentDependency>
+    <dependencies>
+      <!-- The generated code compiles against the runtime; consumers get it with the generator. -->
+      <group targetFramework="net8.0">
+        <dependency id="BlazorApi.Runtime" version="$version$" />
+      </group>
+    </dependencies>
+  </metadata>
+  <files>
+    <file src="$assembly$" target="analyzers/dotnet/cs" />
+    <file src="build/BlazorApi.SourceGenerator.props" target="build" />
+    <file src="build/BlazorApi.SourceGenerator.targets" target="build" />
+    <file src="$readme$" target="" />
+  </files>
+</package>

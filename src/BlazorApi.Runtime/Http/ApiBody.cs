@@ -60,6 +60,36 @@ public static class ApiBody
         return new FileResponse(response, stream);
     }
 
+    /// <summary>
+    /// Opens a <c>text/event-stream</c> body as a stream of server-sent events whose data is read as
+    /// <typeparamref name="T"/>. The returned <see cref="ApiStream{T}"/> owns the response.
+    /// </summary>
+    public static async ValueTask<ApiStream<ServerSentEvent<T>>> ReadEventStream<T>(HttpResponseMessage response, JsonSerializerOptions options, CancellationToken cancellationToken)
+    {
+        if (response is null)
+        {
+            throw new ArgumentNullException(nameof(response));
+        }
+
+        var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        return ApiStream.EventStream<T>(response, stream, options);
+    }
+
+    /// <summary>
+    /// Opens a JSON sequence body (JSON Lines, NDJSON or RFC 7464 <c>json-seq</c>) as a stream of
+    /// <typeparamref name="T"/> values. The returned <see cref="ApiStream{T}"/> owns the response.
+    /// </summary>
+    public static async ValueTask<ApiStream<T>> ReadJsonSequence<T>(HttpResponseMessage response, JsonSerializerOptions options, CancellationToken cancellationToken)
+    {
+        if (response is null)
+        {
+            throw new ArgumentNullException(nameof(response));
+        }
+
+        var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        return ApiStream.JsonSequence<T>(response, stream, options);
+    }
+
     /// <summary>Reads an error body as JSON of the declared type.</summary>
     public static object? JsonError<T>(string body, JsonSerializerOptions options) =>
         JsonSerializer.Deserialize(body, ApiJson.TypeInfo<T>(options));

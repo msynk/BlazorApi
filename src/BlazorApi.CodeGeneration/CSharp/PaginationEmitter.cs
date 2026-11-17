@@ -56,7 +56,7 @@ internal sealed class PaginationEmitter
 
     private Walk? Analyze(ClientEmitter.Method method)
     {
-        if (method.Operation.Operation.Pagination is not { } pagination || method.ValueType is null || method.IsFile)
+        if (method.Operation.Operation.Pagination is not { } pagination || method.ValueType is null || method.OwnsResponse)
         {
             return null;
         }

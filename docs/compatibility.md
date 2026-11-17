@@ -20,7 +20,8 @@ Types are compared with the direction of data in mind, because generated clients
   breaks (a request property becomes required, an enum value is removed, the value can no longer be null).
 - **Responses**: narrowing is safe (an enum value is removed); widening breaks or may break (a response value can
   now be null, `int32` to `int64`, a required property becomes optional or disappears). New response enum values
-  are potentially breaking because generated enum converters are strict.
+  are potentially breaking because generated enum converters are strict by default (clients generated with
+  `unknownEnumValues=unrecognized` read them as an `Unrecognized` member instead).
 - New discriminator values are non-breaking: older clients read them as `Unrecognized*` types.
 
 Operations are matched by method and path (path variable names are ignored); an operation found under a different

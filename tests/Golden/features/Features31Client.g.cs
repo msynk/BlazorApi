@@ -12,6 +12,56 @@ namespace Features.Client;
 /// <summary>The Features 3.1 API (version 2.0.0).</summary>
 public partial interface IFeatures31Client
 {
+    /// <summary>GET /files/{id}</summary>
+    /// <remarks>GET /files/{id} (getFileInfo)</remarks>
+    /// <param name="id">The 'id' path parameter.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>Info</returns>
+    /// <exception cref="global::BlazorApi.Runtime.ApiException">The call failed; the exception's Error describes the status code, typed error body, network error, timeout or unreadable body.</exception>
+    global::System.Threading.Tasks.Task<string> GetFileInfoAsync(string id, global::System.Threading.CancellationToken cancellationToken = default);
+
+    /// <summary>GET /files/{id}</summary>
+    /// <remarks>
+    /// GET /files/{id} (getFileInfo)
+    /// Failures (error status codes, network errors, timeouts, unreadable bodies) are returned in the result instead of thrown; only cancellation throws.
+    /// </remarks>
+    /// <param name="id">The 'id' path parameter.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>The result: the value on success, or the error.</returns>
+    global::System.Threading.Tasks.Task<global::BlazorApi.Runtime.ApiResult<string>> GetFileInfoResultAsync(string id, global::System.Threading.CancellationToken cancellationToken = default);
+
+    /// <summary>GET /events</summary>
+    /// <remarks>GET /events (streamEvents)</remarks>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>Events</returns>
+    /// <exception cref="global::BlazorApi.Runtime.ApiException">The call failed; the exception's Error describes the status code, typed error body, network error, timeout or unreadable body.</exception>
+    global::System.Threading.Tasks.Task<global::BlazorApi.Runtime.ApiStream<global::BlazorApi.Runtime.ServerSentEvent<Progress>>> StreamEventsAsync(global::System.Threading.CancellationToken cancellationToken = default);
+
+    /// <summary>GET /events</summary>
+    /// <remarks>
+    /// GET /events (streamEvents)
+    /// Failures (error status codes, network errors, timeouts, unreadable bodies) are returned in the result instead of thrown; only cancellation throws.
+    /// </remarks>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>The result: the value on success, or the error.</returns>
+    global::System.Threading.Tasks.Task<global::BlazorApi.Runtime.ApiResult<global::BlazorApi.Runtime.ApiStream<global::BlazorApi.Runtime.ServerSentEvent<Progress>>>> StreamEventsResultAsync(global::System.Threading.CancellationToken cancellationToken = default);
+
+    /// <summary>GET /exports</summary>
+    /// <remarks>GET /exports (exportShapes)</remarks>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>One shape per line</returns>
+    /// <exception cref="global::BlazorApi.Runtime.ApiException">The call failed; the exception's Error describes the status code, typed error body, network error, timeout or unreadable body.</exception>
+    global::System.Threading.Tasks.Task<global::BlazorApi.Runtime.ApiStream<Progress>> ExportShapesAsync(global::System.Threading.CancellationToken cancellationToken = default);
+
+    /// <summary>GET /exports</summary>
+    /// <remarks>
+    /// GET /exports (exportShapes)
+    /// Failures (error status codes, network errors, timeouts, unreadable bodies) are returned in the result instead of thrown; only cancellation throws.
+    /// </remarks>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>The result: the value on success, or the error.</returns>
+    global::System.Threading.Tasks.Task<global::BlazorApi.Runtime.ApiResult<global::BlazorApi.Runtime.ApiStream<Progress>>> ExportShapesResultAsync(global::System.Threading.CancellationToken cancellationToken = default);
+
     /// <summary>GET /shapes</summary>
     /// <remarks>GET /shapes (listShapes)</remarks>
     /// <param name="cancellationToken">Cancels the request.</param>
@@ -45,6 +95,11 @@ public partial interface IFeatures31Client
     /// <param name="cancellationToken">Cancels the request.</param>
     /// <returns>The result: the value on success, or the error.</returns>
     global::System.Threading.Tasks.Task<global::BlazorApi.Runtime.ApiResult<Document>> GetDocumentResultAsync(string id, global::System.Threading.CancellationToken cancellationToken = default);
+
+    /// <summary>Returns a client that shares this client's HttpClient but uses a modified copy of its options, for per-call settings such as headers, a timeout or a base address.</summary>
+    /// <param name="configure">Changes the copied options.</param>
+    /// <returns>A new client; this client is unchanged.</returns>
+    IFeatures31Client WithOptions(global::System.Action<global::BlazorApi.Runtime.ApiClientOptions> configure);
 }
 
 /// <summary>The Features 3.1 API client.</summary>
@@ -52,7 +107,7 @@ public partial interface IFeatures31Client
 public partial class Features31Client : IFeatures31Client
 {
     /// <summary>The base address of the first server in the OpenAPI document, used when none is configured.</summary>
-    public const string DefaultBaseAddress = "";
+    public const string DefaultBaseAddress = "https://eu.features.example.com/v2";
 
     private readonly global::BlazorApi.Runtime.Http.ApiConnection _connection;
 
@@ -70,6 +125,80 @@ public partial class Features31Client : IFeatures31Client
 
     /// <summary>The connection that sends requests (HTTP client, options and JSON settings).</summary>
     public global::BlazorApi.Runtime.Http.ApiConnection Connection => _connection;
+
+    /// <summary>The servers of the OpenAPI document, in document order. Resolve one (with its variables) to set ApiClientOptions.BaseAddress.</summary>
+    public static global::System.Collections.Generic.IReadOnlyList<global::BlazorApi.Runtime.ApiServer> Servers { get; } = new global::BlazorApi.Runtime.ApiServer[] { new global::BlazorApi.Runtime.ApiServer("https://{region}.features.example.com/v2", "Regional", new global::System.Collections.Generic.Dictionary<string, string> { ["region"] = "eu" }, new global::System.Collections.Generic.Dictionary<string, global::System.Collections.Generic.IReadOnlyList<string>> { ["region"] = new string[] { "eu", "us" } }) };
+
+    /// <summary>Returns a client that shares this client's HttpClient but uses a modified copy of its options, for per-call settings such as headers, a timeout or a base address.</summary>
+    /// <param name="configure">Changes the copied options.</param>
+    /// <returns>A new client; this client is unchanged.</returns>
+    public Features31Client WithOptions(global::System.Action<global::BlazorApi.Runtime.ApiClientOptions> configure)
+    {
+        global::System.ArgumentNullException.ThrowIfNull(configure);
+        var options = _connection.Options.Clone();
+        configure(options);
+        return new Features31Client(_connection.HttpClient, options);
+    }
+
+    /// <inheritdoc />
+    IFeatures31Client IFeatures31Client.WithOptions(global::System.Action<global::BlazorApi.Runtime.ApiClientOptions> configure) => WithOptions(configure);
+
+    /// <inheritdoc />
+    public async global::System.Threading.Tasks.Task<string> GetFileInfoAsync(string id, global::System.Threading.CancellationToken cancellationToken = default)
+    {
+        var result = await GetFileInfoResultAsync(id, cancellationToken).ConfigureAwait(false);
+        return result.GetValueOrThrow();
+    }
+
+    /// <inheritdoc />
+    public global::System.Threading.Tasks.Task<global::BlazorApi.Runtime.ApiResult<string>> GetFileInfoResultAsync(string id, global::System.Threading.CancellationToken cancellationToken = default)
+    {
+        global::System.ArgumentNullException.ThrowIfNull(id);
+        var builder = new global::BlazorApi.Runtime.Http.ApiRequestBuilder(global::System.Net.Http.HttpMethod.Get, "/files/{id}", "getFileInfo")
+        {
+            Security = GetFileInfoSecurity,
+            ServerAddress = "https://files.example.com",
+        };
+        builder.Path("id", global::BlazorApi.Runtime.Http.ParameterValue.Scalar(id), global::BlazorApi.Runtime.Http.ParameterStyle.Simple, explode: false);
+        builder.Accept("text/plain");
+        return _connection.SendAsync(builder, GetFileInfoResponses, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async global::System.Threading.Tasks.Task<global::BlazorApi.Runtime.ApiStream<global::BlazorApi.Runtime.ServerSentEvent<Progress>>> StreamEventsAsync(global::System.Threading.CancellationToken cancellationToken = default)
+    {
+        var result = await StreamEventsResultAsync(cancellationToken).ConfigureAwait(false);
+        return result.GetValueOrThrow();
+    }
+
+    /// <inheritdoc />
+    public global::System.Threading.Tasks.Task<global::BlazorApi.Runtime.ApiResult<global::BlazorApi.Runtime.ApiStream<global::BlazorApi.Runtime.ServerSentEvent<Progress>>>> StreamEventsResultAsync(global::System.Threading.CancellationToken cancellationToken = default)
+    {
+        var builder = new global::BlazorApi.Runtime.Http.ApiRequestBuilder(global::System.Net.Http.HttpMethod.Get, "/events", "streamEvents")
+        {
+            Security = StreamEventsSecurity,
+        };
+        builder.Accept("text/event-stream");
+        return _connection.SendAsync(builder, StreamEventsResponses, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async global::System.Threading.Tasks.Task<global::BlazorApi.Runtime.ApiStream<Progress>> ExportShapesAsync(global::System.Threading.CancellationToken cancellationToken = default)
+    {
+        var result = await ExportShapesResultAsync(cancellationToken).ConfigureAwait(false);
+        return result.GetValueOrThrow();
+    }
+
+    /// <inheritdoc />
+    public global::System.Threading.Tasks.Task<global::BlazorApi.Runtime.ApiResult<global::BlazorApi.Runtime.ApiStream<Progress>>> ExportShapesResultAsync(global::System.Threading.CancellationToken cancellationToken = default)
+    {
+        var builder = new global::BlazorApi.Runtime.Http.ApiRequestBuilder(global::System.Net.Http.HttpMethod.Get, "/exports", "exportShapes")
+        {
+            Security = ExportShapesSecurity,
+        };
+        builder.Accept("application/jsonl");
+        return _connection.SendAsync(builder, ExportShapesResponses, cancellationToken);
+    }
 
     /// <inheritdoc />
     public async global::System.Threading.Tasks.Task<global::System.Collections.Generic.IReadOnlyList<Shape>> ListShapesAsync(global::System.Threading.CancellationToken cancellationToken = default)
@@ -108,6 +237,21 @@ public partial class Features31Client : IFeatures31Client
         builder.Accept("application/json");
         return _connection.SendAsync(builder, GetDocumentResponses, cancellationToken);
     }
+
+    private static readonly global::BlazorApi.Runtime.Http.ApiResponseHandler<string> GetFileInfoResponses = new global::BlazorApi.Runtime.Http.ApiResponseHandler<string>()
+        .Success("200", global::BlazorApi.Runtime.Http.ApiBody.ReadText);
+
+    private static readonly global::System.Collections.Generic.IReadOnlyList<global::BlazorApi.Runtime.Http.ApiSecurityRequirement> GetFileInfoSecurity = global::System.Array.Empty<global::BlazorApi.Runtime.Http.ApiSecurityRequirement>();
+
+    private static readonly global::BlazorApi.Runtime.Http.ApiResponseHandler<global::BlazorApi.Runtime.ApiStream<global::BlazorApi.Runtime.ServerSentEvent<Progress>>> StreamEventsResponses = new global::BlazorApi.Runtime.Http.ApiResponseHandler<global::BlazorApi.Runtime.ApiStream<global::BlazorApi.Runtime.ServerSentEvent<Progress>>>()
+        .Success("200", global::BlazorApi.Runtime.Http.ApiBody.ReadEventStream<Progress>, ownsResponse: true);
+
+    private static readonly global::System.Collections.Generic.IReadOnlyList<global::BlazorApi.Runtime.Http.ApiSecurityRequirement> StreamEventsSecurity = global::System.Array.Empty<global::BlazorApi.Runtime.Http.ApiSecurityRequirement>();
+
+    private static readonly global::BlazorApi.Runtime.Http.ApiResponseHandler<global::BlazorApi.Runtime.ApiStream<Progress>> ExportShapesResponses = new global::BlazorApi.Runtime.Http.ApiResponseHandler<global::BlazorApi.Runtime.ApiStream<Progress>>()
+        .Success("200", global::BlazorApi.Runtime.Http.ApiBody.ReadJsonSequence<Progress>, ownsResponse: true);
+
+    private static readonly global::System.Collections.Generic.IReadOnlyList<global::BlazorApi.Runtime.Http.ApiSecurityRequirement> ExportShapesSecurity = global::System.Array.Empty<global::BlazorApi.Runtime.Http.ApiSecurityRequirement>();
 
     private static readonly global::BlazorApi.Runtime.Http.ApiResponseHandler<global::System.Collections.Generic.IReadOnlyList<Shape>> ListShapesResponses = new global::BlazorApi.Runtime.Http.ApiResponseHandler<global::System.Collections.Generic.IReadOnlyList<Shape>>()
         .Success("200", global::BlazorApi.Runtime.Http.ApiBody.ReadJson<global::System.Collections.Generic.IReadOnlyList<Shape>>);

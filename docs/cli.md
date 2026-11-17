@@ -15,7 +15,7 @@ From a clone of the repository: `dotnet run --project src/BlazorApi.Cli -f net10
 ```
 api-gen generate [<contract>] [--config <blazorapi.json>] [--output <dir>] [--namespace <ns>]
                  [--client-name <name>] [--option key=value]... [--dry-run] [--check] [--strict] [--quiet]
-api-gen validate <contract>... [--strict] [--format text|json] [--option key=value]...
+api-gen validate [<contract>...] [--config <blazorapi.json>] [--strict] [--format text|json] [--option key=value]...
 api-gen diff <previous> <current> [--format text|markdown|json] [--fail-on <level>] [--ignore <kind>[,<kind>...]]
              [--report <file>]
 api-gen inspect <contract> [--format text|json]
@@ -23,6 +23,16 @@ api-gen --version | --help
 ```
 
 Options take their value as the next argument or after `=` (`--format=json`).
+
+**Contracts** are file paths or `http`/`https` URLs, in every command and in the `contract` of a configuration file.
+A downloaded contract may reference other documents on the same origin (scheme, host and port), which are downloaded
+too; references to other origins or to local files are refused (BAPI2002 or BAPI1010), so a contract cannot make the
+tool fetch arbitrary addresses. Downloads time out after 60 seconds and are limited to the parser's document size.
+
+```shell
+api-gen generate https://api.example.com/openapi.yaml --output Generated --namespace MyApp.Api
+api-gen diff https://api.example.com/openapi.yaml contracts/openapi.yaml   # published contract vs. the local one
+```
 
 **Exit codes**: `0` success; `1` failure (errors in a contract or configuration, out-of-date output with `--check`,
 changes at the `--fail-on` level); `2` usage error (unknown command, missing argument, option without a value,
@@ -87,8 +97,12 @@ orders.yaml: 1 error(s), 0 warning(s), 0 operation(s), 0 type(s).
 ```
 
 `--format json` prints `{"contract", "errors", "warnings", "diagnostics": [{"id", "severity", "message", "file",
-"line", "column", "pointer"}]}` (an array for several contracts). `--strict` fails on warnings. `validate` does not
-read `blazorapi.json`: references are restricted to the contract's directory and severity overrides do not apply.
+"line", "column", "pointer"}]}` (an array for several contracts). `--strict` fails on warnings.
+
+Without contract paths, `validate` reads `blazorapi.json` (or the file given with `--config`) like `generate`: every
+listed contract is validated with its options, reference policy and severity overrides. With `--config`, one contract
+path replaces the configuration's `contract`. With contract paths only, references are restricted to each contract's
+directory and severity overrides do not apply.
 
 ## diff
 

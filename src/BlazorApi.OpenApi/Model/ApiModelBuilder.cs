@@ -353,6 +353,10 @@ public static class ApiModelBuilder
                         }
 
                         break;
+                    case ApiBodyKind.EventStream:
+                    case ApiBodyKind.JsonSequence:
+                        type = StreamItemType(kind, media, hint);
+                        break;
                     default:
                         type = media.Schema is null ? null : Map(media.Schema, hint);
                         break;
@@ -368,6 +372,26 @@ public static class ApiModelBuilder
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// The item type of a sequential media type: <c>itemSchema</c> (OpenAPI 3.2), else the items of an array
+        /// <c>schema</c> (JSON sequences), else <c>schema</c>; event data defaults to a string, JSON values to any JSON.
+        /// </summary>
+        private ApiTypeRef StreamItemType(ApiBodyKind kind, OpenApiMediaType media, string[] hint)
+        {
+            if (media.ItemSchema is { } itemSchema)
+            {
+                return Map(itemSchema, hint);
+            }
+
+            if (media.Schema is null)
+            {
+                return new ApiPrimitiveType(kind == ApiBodyKind.EventStream ? ApiPrimitiveKind.String : ApiPrimitiveKind.Any);
+            }
+
+            var mapped = Map(media.Schema, hint);
+            return kind == ApiBodyKind.JsonSequence && mapped is ApiArrayType array ? array.Items : mapped;
         }
 
         private static IReadOnlyList<ApiBodyPart> BuildParts(ApiTypeRef type, OpenApiMediaType media)
@@ -397,7 +421,18 @@ public static class ApiModelBuilder
                 ((resolved.Format is "binary") || (resolved.ContentMediaType is not null && resolved.ContentEncoding is null && !resolved.HasType) ||
                  (resolved.ContentMediaType is not null && (resolved.Types & JsonSchemaTypes.String) != 0 && resolved.ContentEncoding is null));
 
-            if (type is "application/json" or "text/json" || type.EndsWith("+json", StringComparison.Ordinal) || type == "application/x-ndjson")
+            if (type == "text/event-stream")
+            {
+                return ApiBodyKind.EventStream;
+            }
+
+            if (type is "application/jsonl" or "application/x-jsonl" or "application/x-ndjson" or "application/ndjson" or
+                "application/x-jsonlines" or "application/jsonlines" or "application/json-seq")
+            {
+                return ApiBodyKind.JsonSequence;
+            }
+
+            if (type is "application/json" or "text/json" || type.EndsWith("+json", StringComparison.Ordinal))
             {
                 return ApiBodyKind.Json;
             }

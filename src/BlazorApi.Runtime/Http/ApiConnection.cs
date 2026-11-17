@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
+using BlazorApi.Runtime.Diagnostics;
 
 namespace BlazorApi.Runtime.Http;
 
@@ -39,6 +40,30 @@ public sealed class ApiConnection
     /// <summary>The effective base address.</summary>
     public Uri? BaseAddress => Options.BaseAddress ?? HttpClient.BaseAddress ?? _defaultBaseAddress;
 
+    /// <summary>
+    /// The base address of one request: an override from <see cref="ApiClientOptions.OperationBaseAddresses"/>, else
+    /// the operation's own server, else <see cref="BaseAddress"/>.
+    /// </summary>
+    public Uri? BaseAddressFor(ApiRequestBuilder builder)
+    {
+        if (builder is null)
+        {
+            throw new ArgumentNullException(nameof(builder));
+        }
+
+        if (Options.OperationBaseAddresses.TryGetValue(builder.OperationId, out var overridden))
+        {
+            return overridden;
+        }
+
+        if (builder.ServerAddress is { } server && Uri.TryCreate(server, UriKind.Absolute, out var operationServer))
+        {
+            return operationServer;
+        }
+
+        return BaseAddress;
+    }
+
     /// <summary>Sends a request and interprets the response.</summary>
     public async Task<ApiResult<T>> SendAsync<T>(ApiRequestBuilder builder, ApiResponseHandler<T> handler, CancellationToken cancellationToken)
     {
@@ -52,11 +77,29 @@ public sealed class ApiConnection
             throw new ArgumentNullException(nameof(handler));
         }
 
+        var telemetry = ApiTelemetry.Start(builder);
+        ApiResult<T> result;
+        try
+        {
+            result = await SendCoreAsync(builder, handler, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            telemetry.Fail(ex);
+            throw;
+        }
+
+        telemetry.Complete(result);
+        return result;
+    }
+
+    private async Task<ApiResult<T>> SendCoreAsync<T>(ApiRequestBuilder builder, ApiResponseHandler<T> handler, CancellationToken cancellationToken)
+    {
         using var timeout = Options.Timeout is { } limit ? new CancellationTokenSource(limit) : null;
         using var linked = timeout is null ? null : CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeout.Token);
         var token = linked?.Token ?? cancellationToken;
 
-        using var request = builder.Build(BaseAddress);
+        using var request = builder.Build(BaseAddressFor(builder));
         foreach (var header in Options.DefaultHeaders)
         {
             if (!request.Headers.Contains(header.Key))
@@ -76,6 +119,8 @@ public sealed class ApiConnection
             }
 
             response = await HttpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, token).ConfigureAwait(false);
+            // Handlers that create responses themselves may leave this unset; readers use it (streams name the operation).
+            response.RequestMessage ??= request;
             if (Options.OnResponse is { } onResponse)
             {
                 await onResponse(response, token).ConfigureAwait(false);
@@ -127,7 +172,17 @@ public sealed class ApiConnection
                 OperationId = builder.OperationId,
             });
         }
-        catch (Exception ex) when (ex is HttpRequestException or IOException)
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested && IsResilienceTimeout(ex))
+        {
+            // A timeout strategy of a resilience pipeline (Microsoft.Extensions.Http.Resilience, Polly) in the handler chain.
+            return ApiResult<T>.Failure(new ApiError(ApiErrorKind.Timeout, $"'{builder.OperationId}' timed out while {stage}: {ex.Message}")
+            {
+                StatusCode = response is null ? null : (int)response.StatusCode,
+                Exception = ex,
+                OperationId = builder.OperationId,
+            });
+        }
+        catch (Exception ex) when (ex is HttpRequestException or IOException || IsResilienceRejection(ex))
         {
             return ApiResult<T>.Failure(new ApiError(ApiErrorKind.Network, $"'{builder.OperationId}' failed while {stage}: {ex.Message}")
             {
@@ -184,6 +239,26 @@ public sealed class ApiConnection
         builder.Method != HttpMethod.Head &&
         response.StatusCode is not (System.Net.HttpStatusCode.NoContent or System.Net.HttpStatusCode.ResetContent or System.Net.HttpStatusCode.NotModified) &&
         response.Content.Headers.ContentLength != 0;
+
+    /// <summary>
+    /// Whether an exception is a rejection by a resilience pipeline in the handler chain (an open circuit, a rate
+    /// limiter, a timeout): the request did not complete. Matched by name so the runtime does not depend on Polly.
+    /// </summary>
+    private static bool IsResilienceRejection(Exception exception)
+    {
+        for (var type = exception.GetType(); type is not null; type = type.BaseType)
+        {
+            if (type.FullName == "Polly.ExecutionRejectedException")
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsResilienceTimeout(Exception exception) =>
+        exception.GetType().FullName == "Polly.Timeout.TimeoutRejectedException";
 
     private static bool IsProblemJson(HttpResponseMessage response) =>
         string.Equals(response.Content.Headers.ContentType?.MediaType, "application/problem+json", StringComparison.OrdinalIgnoreCase);

@@ -618,6 +618,7 @@ internal sealed class ModelEmitter
         var isString = type.UnderlyingKind == ApiPrimitiveKind.String;
         var members = _plan.EnumMembers(type);
         var underlying = isString ? null : type.Members.All(m => m.Value is ScalarNode s && s.TryGetInt64(out var v) && v is >= int.MinValue and <= int.MaxValue) ? null : "long";
+        var unrecognized = _plan.UnrecognizedEnumMember(type);
 
         WriteTypeDocs(writer, type);
         writer.Line($"[{Serialization}.JsonConverter(typeof({converter}))]");
@@ -632,10 +633,22 @@ internal sealed class ModelEmitter
 
                 writer.Line(isString ? memberName + "," : $"{memberName} = {IntegerValue(member)},");
             }
+
+            if (unrecognized is not null)
+            {
+                if (_plan.Options.GenerateDocumentation)
+                {
+                    writer.Doc("summary", "A value the OpenAPI document does not list (sent by a newer server). It cannot be sent.");
+                }
+
+                writer.Line($"{unrecognized} = {UnrecognizedValue(type, underlying is not null)},");
+            }
         }
 
         writer.Line();
-        writer.Doc("summary", $"Converts {name} values to and from their JSON representation. Unknown values fail with a JsonException that names the value.");
+        writer.Doc("summary", unrecognized is null
+            ? $"Converts {name} values to and from their JSON representation. Unknown values fail with a JsonException that names the value."
+            : $"Converts {name} values to and from their JSON representation. Unknown values read as {name}.{unrecognized}.");
         using (writer.Block($"{_plan.Accessibility} sealed class {converter} : {Serialization}.JsonConverter<{name}>"))
         {
             writer.Doc("summary", "Returns the wire value of an enum member.");
@@ -687,7 +700,9 @@ internal sealed class ModelEmitter
                     writer.Line($"var text = reader.TokenType == {Json}.JsonTokenType.Number ? reader.GetInt64().ToString(global::System.Globalization.CultureInfo.InvariantCulture) : throw new {Json}.JsonException({Literal.String($"A {name} value must be a JSON number.")});");
                 }
 
-                writer.Line($"return TryParse(text, out var result) ? result : throw new {Json}.JsonException(\"'\" + text + \"' is not a valid {name} value.\");");
+                writer.Line(unrecognized is null
+                    ? $"return TryParse(text, out var result) ? result : throw new {Json}.JsonException(\"'\" + text + \"' is not a valid {name} value.\");"
+                    : $"return TryParse(text, out var result) ? result : {name}.{unrecognized};");
             }
 
             writer.Line();
@@ -702,6 +717,27 @@ internal sealed class ModelEmitter
     }
 
     // ------------------------------------------------------------------ helpers
+
+    /// <summary>
+    /// The value of the unrecognized member: -1 for string enums (members are numbered from 0), otherwise the
+    /// smallest value of the underlying type that no member uses.
+    /// </summary>
+    private static string UnrecognizedValue(ApiEnumType type, bool isLong)
+    {
+        if (type.UnderlyingKind == ApiPrimitiveKind.String)
+        {
+            return "-1";
+        }
+
+        var used = new HashSet<long>(type.Members.Select(m => m.Value is ScalarNode scalar && scalar.TryGetInt64(out var v) ? v : 0));
+        var candidate = isLong ? long.MinValue : int.MinValue;
+        while (used.Contains(candidate))
+        {
+            candidate++;
+        }
+
+        return candidate == long.MinValue ? "long.MinValue" : candidate.ToString(CultureInfo.InvariantCulture);
+    }
 
     /// <summary>An integer enum value as a C# literal (1e2 in the contract becomes 100).</summary>
     private static string IntegerValue(ApiEnumMember member) =>

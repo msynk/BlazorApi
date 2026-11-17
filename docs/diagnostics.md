@@ -75,6 +75,7 @@ handled in a degraded way. Info never fails anything.
 | BAPI6002 | Info | An operation accepts several request media types; one is used. |
 | BAPI6003 | Warning | An include/exclude filter matches no operation or tag. |
 | BAPI6004 | Warning | No operations were selected for generation. |
+| BAPI6005 | Warning | The source generator ignores an option it cannot honor (`generateJsonContext`; use the CLI). |
 | BAPI9001 | Error | The source generator failed unexpectedly (the message includes the exception). Please report it. |
 
 Contract compatibility analysis does not produce diagnostics; it reports change kinds ([Compatibility](compatibility.md)).
@@ -110,8 +111,8 @@ var options = new GeneratorOptions
 ```
 
 Overrides apply to diagnostics from loading, validation, the model and generation, not to configuration diagnostics
-(BAPI5xxx) reported while the configuration itself is read. `api-gen validate` does not read a configuration file,
-so overrides do not apply there.
+(BAPI5xxx) reported while the configuration itself is read. `api-gen validate` applies them when it reads a
+configuration file (run without contract paths, or with `--config`); with contract paths only, they do not apply.
 
 ## Strict mode
 

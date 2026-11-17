@@ -20,12 +20,51 @@ internal sealed class CliApp
     private readonly TextWriter _out;
     private readonly TextWriter _error;
     private readonly string _directory;
+    private readonly HttpMessageHandler? _httpHandler;
+    private HttpClient? _http;
 
-    public CliApp(TextWriter output, TextWriter error, string currentDirectory)
+    public CliApp(TextWriter output, TextWriter error, string currentDirectory, HttpMessageHandler? httpHandler = null)
     {
         _out = output;
         _error = error;
         _directory = currentDirectory;
+        _httpHandler = httpHandler;
+    }
+
+    /// <summary>
+    /// Loads a contract from a file, or downloads it (with the documents it references on the same origin) when it is
+    /// an http or https URL.
+    /// </summary>
+    private OpenApiLoadResult Load(string contract, OpenApiLoadOptions? options)
+    {
+        options ??= OpenApiLoadOptions.Default;
+        if (!RemoteDocumentResolver.IsUrl(contract))
+        {
+            return OpenApiLoader.LoadFile(contract, options);
+        }
+
+        _http ??= _httpHandler is null
+            ? new HttpClient { Timeout = TimeSpan.FromSeconds(60) }
+            : new HttpClient(_httpHandler, disposeHandler: false) { Timeout = TimeSpan.FromSeconds(60) };
+        var uri = new Uri(contract);
+        var resolver = new RemoteDocumentResolver(_http, uri);
+        if (!resolver.TryRead(uri, out var text, out var error))
+        {
+            throw new IOException($"Could not download '{contract}': {error}");
+        }
+
+        var policy = options.ExternalReferences == ExternalReferencePolicy.Disabled ? ExternalReferencePolicy.Disabled : ExternalReferencePolicy.LocalFilesAndRemote;
+        return OpenApiLoader.Parse(text, uri.AbsoluteUri, options with { DocumentResolver = resolver, ExternalReferences = policy, ReferenceRoot = null });
+    }
+
+    /// <summary>A contract argument as an absolute path, or unchanged when it is a URL.</summary>
+    private static string ContractPath(string baseDirectory, string contract) =>
+        RemoteDocumentResolver.IsUrl(contract) ? contract : Path.GetFullPath(Path.Combine(baseDirectory, contract));
+
+    private static string ContractName(string contract)
+    {
+        var name = Path.GetFileNameWithoutExtension(RemoteDocumentResolver.IsUrl(contract) ? new Uri(contract).AbsolutePath : contract);
+        return string.IsNullOrEmpty(name) ? "Api" : name;
     }
 
     public int Run(string[] args)
@@ -91,7 +130,7 @@ internal sealed class CliApp
         var outOfDate = false;
         foreach (var job in jobs)
         {
-            var result = ApiClientGenerator.Generate(OpenApiLoader.LoadFile(job.Contract, job.LoadOptions), job.Configuration.Options);
+            var result = ApiClientGenerator.Generate(Load(job.Contract, job.LoadOptions), job.Configuration.Options);
             var diagnostics = configDiagnostics.Concat(result.Diagnostics).ToList();
             Print(diagnostics, line.Has("--quiet"));
             if (result.HasErrors || diagnostics.Any(d => d.IsError))
@@ -211,8 +250,8 @@ internal sealed class CliApp
             }
 
             var contract = contractArgument is not null && configurations.Count == 1
-                ? Path.GetFullPath(Path.Combine(_directory, contractArgument))
-                : configuration.Contract is { } relative ? Path.GetFullPath(Path.Combine(baseDirectory, relative)) : null;
+                ? ContractPath(_directory, contractArgument)
+                : configuration.Contract is { } relative ? ContractPath(baseDirectory, relative) : null;
             if (contract is null)
             {
                 bag.Report(CodeGenerationDiagnostics.InvalidConfiguration, new SourceLocation(configPath, 0, 0), null, "The configuration does not name a 'contract'");
@@ -221,7 +260,7 @@ internal sealed class CliApp
 
             if (options.Namespace == new GeneratorOptions().Namespace && configuration.Options.Namespace == options.Namespace && line.Value("--namespace") is null)
             {
-                options = options with { Namespace = CodeGeneration.Naming.Identifier.Pascal(Path.GetFileNameWithoutExtension(contract)) };
+                options = options with { Namespace = CodeGeneration.Naming.Identifier.Pascal(ContractName(contract)) };
             }
 
             var output = line.Value("--output") is { } outputArgument
@@ -310,16 +349,28 @@ internal sealed class CliApp
 
     private int Validate(CommandLine line)
     {
-        if (line.Positional.Count == 0)
+        // Without contract paths (or with one contract and --config), the configuration file supplies the contracts,
+        // reference policies, options and severity overrides, exactly as for 'generate'.
+        var targets = new List<(string Path, GeneratorOptions Options, OpenApiLoadOptions? LoadOptions)>();
+        if (line.Positional.Count == 0 || (line.Positional.Count == 1 && line.Value("--config") is not null))
         {
-            return Usage("validate needs a contract path.");
-        }
+            var jobs = ResolveJobs(line, out var configDiagnostics);
+            if (jobs is null)
+            {
+                Print(configDiagnostics, quiet: false);
+                return configDiagnostics.Any(d => d.IsError) ? 1 : 2;
+            }
 
-        var exit = 0;
-        var reports = new List<string>();
-        foreach (var contract in line.Positional)
+            Print(configDiagnostics, quiet: false);
+            targets.AddRange(jobs.Select(j => (j.Contract, j.Configuration.Options, (OpenApiLoadOptions?)j.LoadOptions)));
+        }
+        else
         {
-            var path = Path.GetFullPath(Path.Combine(_directory, contract));
+            if (line.Value("--config") is not null)
+            {
+                return Usage("validate takes at most one contract path with --config.");
+            }
+
             var optionDiagnostics = new DiagnosticBag();
             var options = new GeneratorOptions { TreatWarningsAsErrors = line.Has("--strict") };
             foreach (var pair in line.Values("--option"))
@@ -336,7 +387,14 @@ internal sealed class CliApp
                 }
             }
 
-            var result = ApiClientGenerator.Generate(OpenApiLoader.LoadFile(path), options);
+            targets.AddRange(line.Positional.Select(c => (ContractPath(_directory, c), options, (OpenApiLoadOptions?)null)));
+        }
+
+        var exit = 0;
+        var reports = new List<string>();
+        foreach (var (path, options, loadOptions) in targets)
+        {
+            var result = ApiClientGenerator.Generate(Load(path, loadOptions), options);
             var errors = result.Diagnostics.Count(d => d.IsError);
             var warnings = result.Diagnostics.Count(d => d.Severity == DiagnosticSeverity.Warning);
             if (line.Value("--format") == "json")
@@ -409,7 +467,7 @@ internal sealed class CliApp
 
     private ApiModel? Model(string contract, out List<ApiDiagnostic> diagnostics)
     {
-        var loaded = OpenApiLoader.LoadFile(Path.GetFullPath(Path.Combine(_directory, contract)), new OpenApiLoadOptions { Validate = false });
+        var loaded = Load(ContractPath(_directory, contract), new OpenApiLoadOptions { Validate = false });
         diagnostics = loaded.Diagnostics.Where(d => d.IsError).ToList();
         if (loaded.Document is null || loaded.HasErrors)
         {
@@ -603,7 +661,7 @@ internal sealed class CliApp
         builder.Append('"');
     }
 
-    private string Relative(string path) => Path.GetRelativePath(_directory, path);
+    private string Relative(string path) => RemoteDocumentResolver.IsUrl(path) ? path : Path.GetRelativePath(_directory, path);
 
     private int Usage(string message)
     {
@@ -617,11 +675,12 @@ internal sealed class CliApp
 
     private const string Help = """
         api-gen: typed C# clients from OpenAPI 3.0/3.1 contracts.
+        Contracts are file paths or http(s) URLs (documents referenced on the same origin are downloaded too).
 
         Usage:
           api-gen generate [<contract>] [--config <blazorapi.json>] [--output <dir>] [--namespace <ns>]
                            [--client-name <name>] [--option key=value]... [--dry-run] [--check] [--strict] [--quiet]
-          api-gen validate <contract>... [--strict] [--format text|json] [--option key=value]...
+          api-gen validate [<contract>...] [--config <blazorapi.json>] [--strict] [--format text|json] [--option key=value]...
           api-gen diff <previous> <current> [--format text|markdown|json] [--fail-on breaking|potentially-breaking|non-breaking|none]
                        [--ignore <kind>[,<kind>...]] [--report <file>]
           api-gen inspect <contract> [--format text|json]

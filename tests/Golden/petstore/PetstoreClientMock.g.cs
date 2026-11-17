@@ -281,4 +281,11 @@ public partial class PetstoreClientMock : global::BlazorApi.Testing.ApiMock, IPe
     /// <inheritdoc />
     public global::System.Threading.Tasks.Task<global::BlazorApi.Runtime.ApiResult<string>> GetHealthResultAsync(global::System.Threading.CancellationToken cancellationToken = default) =>
         InvokeAsync<string>("getHealth", new global::System.Collections.Generic.Dictionary<string, object?>(), cancellationToken);
+
+    /// <summary>Returns this mock: client options (headers, timeouts, base addresses) do not affect a mock.</summary>
+    public IPetstoreClient WithOptions(global::System.Action<global::BlazorApi.Runtime.ApiClientOptions> configure)
+    {
+        global::System.ArgumentNullException.ThrowIfNull(configure);
+        return this;
+    }
 }

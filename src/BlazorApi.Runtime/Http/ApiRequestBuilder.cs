@@ -32,6 +32,13 @@ public sealed class ApiRequestBuilder
     /// <summary>The request body.</summary>
     public HttpContent? Content { get; set; }
 
+    /// <summary>
+    /// The server URL the operation declares for itself (operation- or path-level <c>servers</c> in the OpenAPI
+    /// document). When set, it is used instead of the client's base address, unless
+    /// <see cref="ApiClientOptions.OperationBaseAddresses"/> overrides it.
+    /// </summary>
+    public string? ServerAddress { get; set; }
+
     /// <summary>The security requirements of the operation, consumed by authentication handlers.</summary>
     public IReadOnlyList<ApiSecurityRequirement>? Security { get; set; }
 

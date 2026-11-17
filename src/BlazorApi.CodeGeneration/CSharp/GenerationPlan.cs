@@ -114,6 +114,12 @@ internal sealed class GenerationPlan
 
     public List<ApiNamedType> Types { get; } = [];
 
+    /// <summary>
+    /// The generated JsonSerializerContext, qualified for use from the client namespace, when
+    /// <see cref="GeneratorOptions.GenerateJsonContext"/> is set.
+    /// </summary>
+    public string? JsonContext { get; set; }
+
     public Dictionary<ApiNamedType, PolymorphicPlan> Polymorphic { get; } = new(IdentityComparer.Instance);
 
     public Dictionary<ApiUnionType, UnionWrapperPlan> Wrappers { get; } = new(IdentityComparer.Instance);
@@ -347,6 +353,29 @@ internal sealed class GenerationPlan
         }
 
         return members;
+    }
+
+    private readonly Dictionary<ApiEnumType, string> _unrecognizedMembers = new(IdentityComparer.Instance);
+
+    /// <summary>
+    /// The name of the extra member that unknown values read as (<see cref="UnknownEnumValueHandling.Unrecognized"/>),
+    /// or <see langword="null"/> when unknown values fail.
+    /// </summary>
+    public string? UnrecognizedEnumMember(ApiEnumType type)
+    {
+        if (Options.UnknownEnumValues != UnknownEnumValueHandling.Unrecognized)
+        {
+            return null;
+        }
+
+        if (!_unrecognizedMembers.TryGetValue(type, out var name))
+        {
+            var scope = new NameScope(reserved: [TypeName(type), .. EnumMembers(type).Select(m => m.Name)]);
+            name = scope.Allocate("Unrecognized");
+            _unrecognizedMembers[type] = name;
+        }
+
+        return name;
     }
 
     // ------------------------------------------------------------------ properties

@@ -46,6 +46,8 @@ public partial class PetstoreClient : IPetstoreClient
     public PetstoreClient(HttpClient httpClient);
     public PetstoreClient(HttpClient httpClient, ApiClientOptions? options);
     public ApiConnection Connection { get; }
+    public static IReadOnlyList<ApiServer> Servers { get; }
+    public PetstoreClient WithOptions(Action<ApiClientOptions> configure);
 }
 ```
 
@@ -56,7 +58,8 @@ public partial class PetstoreClient : IPetstoreClient
   reference arguments are checked for `null`.
 - `DefaultBaseAddress` is the first server URL with its variables set to their defaults. The effective base address
   is `ApiClientOptions.BaseAddress`, else `HttpClient.BaseAddress`, else `DefaultBaseAddress`. The base path is kept
-  (`https://host/v1` and `https://host/v1/` behave the same).
+  (`https://host/v1` and `https://host/v1/` behave the same). An operation that declares its own server uses it
+  (see [Servers](#servers)).
 - Deprecated operations are marked `[Obsolete]`.
 - Each request carries the operation id and its security requirements in `HttpRequestMessage.Options`
   (`ApiRequestOptionKeys.OperationId`, `ApiRequestOptionKeys.Security`), which authentication handlers and
@@ -128,6 +131,57 @@ catch (ApiException ex) when (ex.Content is ProblemDetails problem)
 catch (ApiTimeoutException) { /* ApiClientOptions.Timeout or HttpClient.Timeout elapsed */ }
 ```
 
+## Per-call options
+
+`WithOptions` (also on the interface) returns a client that shares the `HttpClient` but uses a modified copy of the
+options; the original client is unchanged. Use it for per-call headers (conditional requests, idempotency keys,
+correlation ids), timeouts or base addresses:
+
+```csharp
+Pet pet = await api.WithOptions(o => o.DefaultHeaders["If-Match"] = etag).UpdatePetAsync(42, changed);
+var slow = api.WithOptions(o => o.Timeout = TimeSpan.FromMinutes(5));
+```
+
+`ApiClientOptions.Clone()` makes the copy (headers and operation base addresses are copied, JSON options and callbacks
+shared); classes derived from `ApiClientOptions` override it. Generated mocks return themselves.
+
+## Servers
+
+`{Client}.Servers` lists the document's servers as `ApiServer` values. `Resolve` fills their variables (checking
+`enum` restrictions; unset variables use their defaults):
+
+```csharp
+builder.Services.AddPetstoreClient(o => o.BaseAddress = PetstoreClient.Servers[0].Resolve(new Dictionary<string, string> { ["region"] = "eu" }));
+```
+
+Operations (or paths) that declare their own `servers` send requests to that server regardless of `BaseAddress`
+(for example an upload host). `ApiClientOptions.OperationBaseAddresses["uploadFile"] = new Uri(...)` overrides it per
+operation, which tests and staging environments need.
+
+## Streamed responses
+
+Operations whose success response is `text/event-stream` or a JSON sequence (`application/jsonl`,
+`application/x-ndjson`, `application/json-seq`) return an `ApiStream<T>`
+([OpenAPI support](openapi-support.md#streamed-responses)). The result arrives when the response headers do; items are
+read as they arrive:
+
+```csharp
+await using ApiStream<ServerSentEvent<Completion>> events = await api.StreamCompletionAsync(request);
+await foreach (ServerSentEvent<Completion> e in events)
+{
+    if (e.Data == "[DONE]") break;
+    Console.Write(e.GetValue().Text);
+}
+```
+
+- A stream can be enumerated once; it owns the HTTP response, which is released when the enumeration ends or the
+  stream is disposed. Dispose streams you do not read to the end.
+- HTTP errors, network failures and timeouts before the first byte are reported like any other call. Failures while
+  items are read are thrown by the enumeration: `ApiNetworkException` (the connection broke) and
+  `ApiDeserializationException` (an item does not match its type). `ApiClientOptions.Timeout` covers only the time to
+  the response headers; cancel the enumeration with a token (`WithCancellation`) to bound it.
+- `ApiStream.From(items)` creates streams for mocks and tests; `ServerSentEvent<T>.FromValue(value)` creates events.
+
 ## ApiClientOptions
 
 | Property | Default | Purpose |
@@ -138,6 +192,7 @@ catch (ApiTimeoutException) { /* ApiClientOptions.Timeout or HttpClient.Timeout 
 | `DefaultHeaders` | empty | Headers added to every request. |
 | `OnRequest`, `OnResponse` | `null` | Callbacks before sending and after the response headers arrive. |
 | `MaxErrorBodyLength` | 65,536 | Characters of an error body kept in `ApiError.Body`. |
+| `OperationBaseAddresses` | empty | Base addresses by operation id; they override the servers operations declare. |
 
 ## Dependency injection
 
@@ -192,6 +247,8 @@ Contract text is escaped, so it cannot break out of the comment.
 
 ## Trimming and native AOT
 
-Generated code uses System.Text.Json with the reflection-based resolver by default. Trimmed and native AOT apps must
-add a `JsonSerializerContext` covering the generated types through `ApiClientOptions.JsonSerializerOptions`; see
+Generated code uses System.Text.Json with the reflection-based resolver by default. With `generateJsonContext=true`
+(CLI) a generated `{Api}JsonContext` covers every serialized type and is used by the generated constructors and
+registration methods, so trimmed, native AOT and WebAssembly apps need no reflection. Otherwise add a
+`JsonSerializerContext` through `ApiClientOptions.JsonSerializerOptions`; see
 [Troubleshooting](troubleshooting.md#trimming-and-native-aot).

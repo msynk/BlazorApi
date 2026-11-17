@@ -226,6 +226,11 @@ public partial interface IPetstoreClient
     /// <param name="cancellationToken">Cancels the request.</param>
     /// <returns>The result: the value on success, or the error.</returns>
     global::System.Threading.Tasks.Task<global::BlazorApi.Runtime.ApiResult<string>> GetHealthResultAsync(global::System.Threading.CancellationToken cancellationToken = default);
+
+    /// <summary>Returns a client that shares this client's HttpClient but uses a modified copy of its options, for per-call settings such as headers, a timeout or a base address.</summary>
+    /// <param name="configure">Changes the copied options.</param>
+    /// <returns>A new client; this client is unchanged.</returns>
+    IPetstoreClient WithOptions(global::System.Action<global::BlazorApi.Runtime.ApiClientOptions> configure);
 }
 
 /// <summary>The Petstore API client.</summary>
@@ -246,11 +251,28 @@ public partial class PetstoreClient : IPetstoreClient
     /// <summary>Creates a client.</summary>
     public PetstoreClient(global::System.Net.Http.HttpClient httpClient, global::BlazorApi.Runtime.ApiClientOptions? options)
     {
-        _connection = new global::BlazorApi.Runtime.Http.ApiConnection(httpClient, options, DefaultBaseAddress);
+        _connection = new global::BlazorApi.Runtime.Http.ApiConnection(httpClient, options ?? new global::BlazorApi.Runtime.ApiClientOptions { JsonSerializerOptions = global::BlazorApi.Runtime.Json.ApiJson.CreateOptions(PetstoreJsonContext.Default) }, DefaultBaseAddress);
     }
 
     /// <summary>The connection that sends requests (HTTP client, options and JSON settings).</summary>
     public global::BlazorApi.Runtime.Http.ApiConnection Connection => _connection;
+
+    /// <summary>The servers of the OpenAPI document, in document order. Resolve one (with its variables) to set ApiClientOptions.BaseAddress.</summary>
+    public static global::System.Collections.Generic.IReadOnlyList<global::BlazorApi.Runtime.ApiServer> Servers { get; } = new global::BlazorApi.Runtime.ApiServer[] { new global::BlazorApi.Runtime.ApiServer("https://{environment}.example.com/v1", null, new global::System.Collections.Generic.Dictionary<string, string> { ["environment"] = "api" }, new global::System.Collections.Generic.Dictionary<string, global::System.Collections.Generic.IReadOnlyList<string>> { ["environment"] = new string[] { "api", "staging" } }) };
+
+    /// <summary>Returns a client that shares this client's HttpClient but uses a modified copy of its options, for per-call settings such as headers, a timeout or a base address.</summary>
+    /// <param name="configure">Changes the copied options.</param>
+    /// <returns>A new client; this client is unchanged.</returns>
+    public PetstoreClient WithOptions(global::System.Action<global::BlazorApi.Runtime.ApiClientOptions> configure)
+    {
+        global::System.ArgumentNullException.ThrowIfNull(configure);
+        var options = _connection.Options.Clone();
+        configure(options);
+        return new PetstoreClient(_connection.HttpClient, options);
+    }
+
+    /// <inheritdoc />
+    IPetstoreClient IPetstoreClient.WithOptions(global::System.Action<global::BlazorApi.Runtime.ApiClientOptions> configure) => WithOptions(configure);
 
     /// <inheritdoc />
     public async global::System.Threading.Tasks.Task<PetPage> ListPetsAsync(int? limit = null, string? cursor = null, global::System.Collections.Generic.IEnumerable<string>? tags = null, PetStatus? status = null, global::System.Guid? xRequestId = null, global::System.Threading.CancellationToken cancellationToken = default)

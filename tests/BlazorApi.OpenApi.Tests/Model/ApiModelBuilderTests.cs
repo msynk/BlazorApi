@@ -475,4 +475,67 @@ public class ApiModelBuilderTests
 
         Assert.Equal(first, second);
     }
+
+    [Fact]
+    public void Sequential_media_types_are_streams_of_their_item_type()
+    {
+        var (model, diagnostics) = BuildYaml("""
+            /events:
+              get:
+                responses:
+                  '200':
+                    description: ok
+                    content:
+                      text/event-stream:
+                        itemSchema: { $ref: '#/components/schemas/Tick' }
+            /raw-events:
+              get:
+                responses:
+                  '200':
+                    description: ok
+                    content:
+                      text/event-stream: {}
+            /lines:
+              get:
+                responses:
+                  '200':
+                    description: ok
+                    content:
+                      application/x-ndjson:
+                        schema: { type: array, items: { $ref: '#/components/schemas/Tick' } }
+            /seq:
+              get:
+                responses:
+                  '200':
+                    description: ok
+                    content:
+                      application/json-seq:
+                        schema: { $ref: '#/components/schemas/Tick' }
+            """, """
+            schemas:
+              Tick:
+                type: object
+                properties:
+                  n: { type: integer }
+            """, "3.1.0");
+
+        Assert.True(diagnostics.Count == 0, string.Join(Environment.NewLine, diagnostics));
+        var contents = model.Operations.Select(o => o.Responses[0].Contents[0]).ToList();
+        Assert.Equal([ApiBodyKind.EventStream, ApiBodyKind.EventStream, ApiBodyKind.JsonSequence, ApiBodyKind.JsonSequence], contents.Select(c => c.Kind));
+        Assert.All(contents, c => Assert.True(c.IsStream));
+        Assert.Equal("Tick", Assert.IsType<ApiNamedTypeRef>(contents[0].Type).Target.Name);
+        Assert.Equal(ApiPrimitiveKind.String, Assert.IsType<ApiPrimitiveType>(contents[1].Type).Kind);
+        Assert.Equal("Tick", Assert.IsType<ApiNamedTypeRef>(contents[2].Type).Target.Name);
+        Assert.Equal("Tick", Assert.IsType<ApiNamedTypeRef>(contents[3].Type).Target.Name);
+    }
+
+    [Fact]
+    public void Operation_and_path_servers_are_kept()
+    {
+        var (model, _) = BuildFile("features-3.1.json");
+
+        var operation = model.Operations.Single(o => o.OperationId == "getFileInfo");
+        Assert.Equal("https://files.example.com", Assert.Single(operation.Servers).DefaultUrl);
+        Assert.Equal("https://eu.features.example.com/v2", model.Servers[0].DefaultUrl);
+    }
 }

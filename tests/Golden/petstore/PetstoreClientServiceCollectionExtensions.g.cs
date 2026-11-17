@@ -17,5 +17,5 @@ public static class PetstoreClientServiceCollectionExtensions
     /// <param name="configure">Configures the client options.</param>
     /// <returns>The HTTP client builder, for adding message handlers.</returns>
     public static global::Microsoft.Extensions.DependencyInjection.IHttpClientBuilder AddPetstoreClient(this global::Microsoft.Extensions.DependencyInjection.IServiceCollection services, global::System.Action<global::BlazorApi.Runtime.ApiClientOptions>? configure = null) =>
-        global::Microsoft.Extensions.DependencyInjection.ApiClientServiceCollectionExtensions.AddApiClient<IPetstoreClient>(services, "PetstoreClient", static (httpClient, options) => new PetstoreClient(httpClient, options), configure);
+        global::Microsoft.Extensions.DependencyInjection.ApiClientServiceCollectionExtensions.AddApiClient<IPetstoreClient>(services, "PetstoreClient", static (httpClient, options) => new PetstoreClient(httpClient, options), options => { options.JsonSerializerOptions = global::BlazorApi.Runtime.Json.ApiJson.CreateOptions(PetstoreJsonContext.Default); configure?.Invoke(options); });
 }

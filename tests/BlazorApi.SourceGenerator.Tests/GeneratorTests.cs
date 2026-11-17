@@ -47,6 +47,20 @@ public class GeneratorTests
     }
 
     [Fact]
+    public void Json_context_option_is_reported_and_ignored()
+    {
+        var compilation = Compilation("namespace Consumer; public static class Usage { }");
+        var driver = Driver(ContractFile("petstore.yaml", new() { ["BlazorApiOptions"] = "GenerateJsonContext=true" }));
+
+        driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out var output, out var generatorDiagnostics);
+
+        var diagnostic = Assert.Single(generatorDiagnostics, d => d.Id == "BAPI6005");
+        Assert.Equal(DiagnosticSeverity.Warning, diagnostic.Severity);
+        Assert.DoesNotContain(driver.GetRunResult().Results.Single().GeneratedSources, s => s.HintName.Contains("JsonContext", StringComparison.Ordinal));
+        Assert.Empty(output.GetDiagnostics().Where(d => d.Severity == DiagnosticSeverity.Error));
+    }
+
+    [Fact]
     public void Generates_compilable_sources_for_a_contract()
     {
         var compilation = Compilation("namespace Consumer; public static class Usage { public static System.Type T => typeof(Consumer.Petstore.PetstoreClient); }");

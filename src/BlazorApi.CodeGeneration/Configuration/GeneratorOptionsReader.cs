@@ -227,6 +227,8 @@ public static class GeneratorOptionsReader
             case "timetype": return options with { TimeType = Enum(options.TimeType) };
             case "collections": return options with { Collections = Enum(options.Collections) };
             case "optionalnullable": return options with { OptionalNullable = Enum(options.OptionalNullable) };
+            case "unknownenumvalues": return options with { UnknownEnumValues = Enum(options.UnknownEnumValues) };
+            case "generatejsoncontext": return options with { GenerateJsonContext = Bool(options.GenerateJsonContext) };
             case "userequiredmembers": return options with { UseRequiredMembers = Bool(options.UseRequiredMembers) };
             case "generateinterfaces": return options with { GenerateInterfaces = Bool(options.GenerateInterfaces) };
             case "generatedependencyinjection": return options with { GenerateDependencyInjection = Bool(options.GenerateDependencyInjection) };

@@ -94,6 +94,22 @@ public enum OptionalNullableStyle
     Optional,
 }
 
+/// <summary>How generated enum converters read values the contract does not list.</summary>
+public enum UnknownEnumValueHandling
+{
+    /// <summary>
+    /// An unknown value fails with a <c>JsonException</c> naming the value (the default: the contract is the whole
+    /// truth, and a new response value is reported by <c>api-gen diff</c> as potentially breaking).
+    /// </summary>
+    Fail,
+
+    /// <summary>
+    /// An unknown value reads as an extra <c>Unrecognized</c> member, so new values the server adds do not break
+    /// deserialization (forward compatible). Sending <c>Unrecognized</c> fails, since it has no wire value.
+    /// </summary>
+    Unrecognized,
+}
+
 /// <summary>Code generation options. Every option has a default suited to most APIs.</summary>
 public sealed record GeneratorOptions
 {
@@ -143,6 +159,18 @@ public sealed record GeneratorOptions
     /// serializer enforce them. Default: true.
     /// </summary>
     public bool UseRequiredMembers { get; init; } = true;
+
+    /// <summary>How enums read values the contract does not list. Default: <see cref="UnknownEnumValueHandling.Fail"/>.</summary>
+    public UnknownEnumValueHandling UnknownEnumValues { get; init; } = UnknownEnumValueHandling.Fail;
+
+    /// <summary>
+    /// Whether to generate a <c>System.Text.Json</c> source-generated <c>JsonSerializerContext</c> covering every type
+    /// the clients serialize, for trimmed, native AOT and Blazor WebAssembly applications without reflection.
+    /// Generated registration methods and default client options use it. Only for generated files compiled by the
+    /// C# compiler (the CLI): the BlazorApi source generator cannot feed the System.Text.Json source generator, so
+    /// it reports BAPI6005 and ignores the option. Default: false.
+    /// </summary>
+    public bool GenerateJsonContext { get; init; }
 
     /// <summary>Whether to generate client interfaces (default: true).</summary>
     public bool GenerateInterfaces { get; init; } = true;

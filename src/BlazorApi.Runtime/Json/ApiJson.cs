@@ -4,6 +4,14 @@ using System.Text.Json.Serialization.Metadata;
 
 namespace BlazorApi.Runtime.Json;
 
+/// <summary>Source-generated metadata for the runtime's own serialized types (no reflection needed).</summary>
+[JsonSerializable(typeof(ApiProblemDetails))]
+[JsonSerializable(typeof(JsonElement))]
+[JsonSerializable(typeof(string))]
+internal sealed partial class RuntimeJsonContext : JsonSerializerContext
+{
+}
+
 /// <summary>JSON helpers used by generated code.</summary>
 public static class ApiJson
 {
@@ -13,9 +21,18 @@ public static class ApiJson
     /// reflection-based metadata resolver when reflection is enabled. Trimmed and native AOT applications add their
     /// <see cref="JsonSerializerContext"/> through <see cref="JsonSerializerOptions.TypeInfoResolver"/>.
     /// </summary>
-    public static JsonSerializerOptions CreateOptions() => new(JsonSerializerDefaults.Web)
+    public static JsonSerializerOptions CreateOptions() => CreateOptions([]);
+
+    /// <summary>
+    /// Creates the default serializer options (see <see cref="CreateOptions()"/>) with metadata from the given
+    /// resolvers first, typically a generated <see cref="JsonSerializerContext"/>
+    /// (<c>ApiJson.CreateOptions(PetstoreJsonContext.Default)</c>). Types they do not cover fall back to the runtime's
+    /// own metadata, then to reflection when it is enabled.
+    /// </summary>
+    public static JsonSerializerOptions CreateOptions(params IJsonTypeInfoResolver[] resolvers) => new(JsonSerializerDefaults.Web)
     {
-        TypeInfoResolver = DefaultResolver(),
+        TypeInfoResolver = JsonTypeInfoResolver.Combine(
+            [.. resolvers ?? [], RuntimeJsonContext.Default, .. DefaultResolver() is { } reflection ? [reflection] : Array.Empty<IJsonTypeInfoResolver>()]),
         PropertyNamingPolicy = null,
         DictionaryKeyPolicy = null,
         NumberHandling = JsonNumberHandling.Strict,

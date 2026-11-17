@@ -247,6 +247,19 @@ public enum ApiBodyKind
 
     /// <summary>A media type without typed support (for example XML); handled as text.</summary>
     Other,
+
+    /// <summary>
+    /// Server-sent events (<c>text/event-stream</c>): a stream of events. The content type is the type of each
+    /// event's data (from <c>itemSchema</c>, else <c>schema</c>; a string when neither is declared).
+    /// </summary>
+    EventStream,
+
+    /// <summary>
+    /// A sequence of JSON values (<c>application/jsonl</c>, <c>application/x-ndjson</c>, <c>application/json-seq</c>):
+    /// the content type is the type of each value (from <c>itemSchema</c>, else the items of an array
+    /// <c>schema</c>, else <c>schema</c>).
+    /// </summary>
+    JsonSequence,
 }
 
 /// <summary>A body representation for one media type.</summary>
@@ -266,8 +279,14 @@ public sealed class ApiContent
     /// <summary>The body kind.</summary>
     public ApiBodyKind Kind { get; }
 
-    /// <summary>The body type, or <see langword="null"/> when no schema is declared.</summary>
+    /// <summary>
+    /// The body type, or <see langword="null"/> when no schema is declared. For streamed kinds
+    /// (<see cref="ApiBodyKind.EventStream"/>, <see cref="ApiBodyKind.JsonSequence"/>) the type of one item.
+    /// </summary>
     public ApiTypeRef? Type { get; }
+
+    /// <summary>Whether the body is a stream of items (<see cref="ApiBodyKind.EventStream"/> or <see cref="ApiBodyKind.JsonSequence"/>).</summary>
+    public bool IsStream => Kind is ApiBodyKind.EventStream or ApiBodyKind.JsonSequence;
 
     /// <summary>The source media type object.</summary>
     public OpenApiMediaType Source { get; }

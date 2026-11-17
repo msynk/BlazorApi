@@ -13,8 +13,8 @@
 
 ## CS0246: the type or namespace 'BlazorApi' could not be found
 
-The generated code uses `BlazorApi.Runtime`, which the generator package does not bring in. Add a reference to
-it. Generated mocks also need `BlazorApi.Testing`.
+The generated code uses `BlazorApi.Runtime`. The generator package brings it in as a dependency; with project
+references (as in the demos) reference the runtime project yourself. Generated mocks also need `BlazorApi.Testing`.
 
 ## CS0400 in a Razor component: 'Pet' could not be found in the global namespace
 
@@ -35,7 +35,8 @@ declarations without seeing other generators' output, so write the type fully qu
 - Source generator: add the file as `<OpenApiReference Include="..." />` (globs work). The generator never reads the
   file system directly.
 - CLI: check the path relative to the referencing document.
-- Remote URLs cannot be read by either; download the document and reference the local copy.
+- Remote URLs referenced from a local contract cannot be read by either; download the document and reference the
+  local copy, or give the CLI the contract's URL (references on the same origin are then downloaded).
 
 ## BAPI2002: reference not allowed
 
@@ -65,9 +66,23 @@ a reduced version) that triggers it. As a workaround, generate with the CLI.
 ## Trimming and native AOT
 
 Generated code uses System.Text.Json with reflection-based metadata by default, which trimmed and native AOT apps
-disable. Supply a `JsonSerializerContext` that covers every type the client reads or writes: models, enums, subtypes
-and `Unrecognized*` types of hierarchies, union wrappers, collection and dictionary response types, and
-`ApiProblemDetails` when problem details are returned without a schema.
+disable. The simplest fix is to generate the client with the CLI and `generateJsonContext=true`: it emits a
+`{Api}JsonContext` that lists every type the client reads or writes (models, enums, subtypes and `Unrecognized*`
+types, union variants, collections and dictionaries of bodies and parameters), and the generated constructors and
+`Add{Client}` methods use it by default. The runtime's own types (`ApiProblemDetails`) are covered by the runtime.
+
+```shell
+api-gen generate petstore.yaml --output Generated --option generateJsonContext=true
+```
+
+To combine the generated context with your own options, pass it to `ApiJson.CreateOptions`:
+
+```csharp
+builder.Services.AddPetstoreClient(options =>
+    options.JsonSerializerOptions = ApiJson.CreateOptions(PetstoreJsonContext.Default, MyOtherContext.Default));
+```
+
+With the source generator, write the context yourself, covering the same types:
 
 ```csharp
 [JsonSerializable(typeof(Pet))]
@@ -81,11 +96,7 @@ and `Unrecognized*` types of hierarchies, union wrappers, collection and diction
 // ... every other generated model
 internal partial class PetstoreJsonContext : JsonSerializerContext;
 
-builder.Services.AddPetstoreClient(options =>
-{
-    options.JsonSerializerOptions = ApiJson.CreateOptions();
-    options.JsonSerializerOptions.TypeInfoResolver = PetstoreJsonContext.Default;
-});
+builder.Services.AddPetstoreClient(options => options.JsonSerializerOptions = ApiJson.CreateOptions(PetstoreJsonContext.Default));
 ```
 
 The System.Text.Json source generator cannot see types produced by another source generator. With the BlazorApi
@@ -99,7 +110,8 @@ contract:
 
 - a required property is missing (the C# `required` modifier is enforced when reading; set
   `UseRequiredMembers=false` only if the server is known to omit it);
-- an enum value the contract does not declare (generated converters are strict; update the contract);
+- an enum value the contract does not declare (generated converters are strict by default; update the contract, or
+  generate with `unknownEnumValues=unrecognized` so new values read as an `Unrecognized` member);
 - a value of the wrong JSON type, or a `format: time` value with an offset when `TimeType=timeOnly`.
 
 `ApiError.Message` names the operation and the problem; `ApiError.Exception` has the `JsonException`.
@@ -117,7 +129,15 @@ contract:
 
 The base address is `ApiClientOptions.BaseAddress`, else `HttpClient.BaseAddress`, else the first server URL of the
 contract (`{Client}.DefaultBaseAddress`). The base path is kept: with `https://host/v1/`, `/pets` goes to
-`https://host/v1/pets`.
+`https://host/v1/pets`. Operations that declare their own `servers` (on the operation or its path) always use that
+server; override it per operation with `ApiClientOptions.OperationBaseAddresses["operationId"]`.
+
+## A resilience handler makes calls throw
+
+Exceptions of a resilience pipeline in the handler chain (Microsoft.Extensions.Http.Resilience or Polly: an open
+circuit, a rate limiter, a timeout strategy) are results like any other failure: a Polly timeout is an
+`ApiErrorKind.Timeout` error, other rejections are `ApiErrorKind.Network` errors with the Polly exception in
+`ApiError.Exception`. `XxxResultAsync` therefore does not throw for them.
 
 ## Other behaviors that surprise
 

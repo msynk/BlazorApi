@@ -1,7 +1,52 @@
 {
   "openapi": "3.1.0",
   "info": { "title": "Features 3.1", "version": "2.0.0" },
+  "servers": [
+    {
+      "url": "https://{region}.features.example.com/v2",
+      "description": "Regional",
+      "variables": { "region": { "default": "eu", "enum": ["eu", "us"] } }
+    }
+  ],
   "paths": {
+    "/files/{id}": {
+      "servers": [{ "url": "https://files.example.com" }],
+      "get": {
+        "operationId": "getFileInfo",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Info", "content": { "text/plain": { "schema": { "type": "string" } } } }
+        }
+      }
+    },
+    "/events": {
+      "get": {
+        "operationId": "streamEvents",
+        "responses": {
+          "200": {
+            "description": "Events",
+            "content": {
+              "text/event-stream": { "itemSchema": { "$ref": "#/components/schemas/Progress" } }
+            }
+          }
+        }
+      }
+    },
+    "/exports": {
+      "get": {
+        "operationId": "exportShapes",
+        "responses": {
+          "200": {
+            "description": "One shape per line",
+            "content": {
+              "application/jsonl": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Progress" } } }
+            }
+          }
+        }
+      }
+    },
     "/shapes": {
       "get": {
         "operationId": "listShapes",
@@ -42,6 +87,15 @@
   },
   "components": {
     "schemas": {
+      "Progress": {
+        "type": "object",
+        "required": ["percent", "stage"],
+        "properties": {
+          "percent": { "type": "integer", "format": "int32" },
+          "stage": { "$ref": "#/components/schemas/Stage" }
+        }
+      },
+      "Stage": { "type": "string", "enum": ["queued", "running", "done"] },
       "Shape": {
         "oneOf": [
           { "$ref": "#/components/schemas/Circle" },

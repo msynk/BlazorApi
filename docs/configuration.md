@@ -26,6 +26,8 @@ Keys are case-insensitive. Enum values are case-insensitive and ignore `-` and `
 | `timeType` | `string` | `format: time`: `string` (lossless) or `timeOnly` (fails on values with an offset). |
 | `collections` | `readOnly` | `readOnly`: `IReadOnlyList<T>`/`IReadOnlyDictionary<string,T>`. `mutable`: `List<T>`/`Dictionary<string,T>`. `array`: `T[]`/`Dictionary<string,T>`. Parameters always accept `IEnumerable<T>`. |
 | `optionalNullable` | `auto` | Optional properties that may be null. `auto`: `Optional<T>` for JSON merge-patch bodies, plain nullable elsewhere. `nullable`: always plain nullable. `optional`: always `Optional<T>`. |
+| `unknownEnumValues` | `fail` | Enum values the contract does not list. `fail`: a `JsonException` naming the value. `unrecognized`: an extra `Unrecognized` enum member, so values a newer server adds do not break reading (it cannot be sent). |
+| `generateJsonContext` | `false` | Generate a System.Text.Json `JsonSerializerContext` (`{Api}JsonContext`) covering every serialized type, used by the generated constructors and `Add{Client}` methods, for trimmed, native AOT and WebAssembly apps. CLI only: the source generator reports BAPI6005 and ignores it. |
 | `useRequiredMembers` | `true` | Required properties use the C# `required` modifier (also enforced by System.Text.Json when reading). |
 | `generateInterfaces` | `true` | Generate `I{Client}` interfaces. |
 | `generateDependencyInjection` | `true` | Generate `Add{Client}` registration methods. |
@@ -90,9 +92,10 @@ api-gen generate petstore.yaml --option GenerateMocks=true --option "dateType=st
 | `diagnostics` | Object mapping diagnostic ids to `none` (also `hidden`, `suppress`), `info` (also `suggestion`), `warning` or `error` ([Diagnostics](diagnostics.md)). |
 | any option name | Any option from the table above, as a string, number or boolean. |
 
-Remote references need a document resolver that can download them; neither the CLI nor the source generator has
-one, so `localFilesAndRemote` only helps programmatic callers with their own `IDocumentResolver`
-(see [OpenAPI support](openapi-support.md#references)).
+For a local contract, remote references need a document resolver that can download them; neither the CLI nor the
+source generator has one, so `localFilesAndRemote` only helps programmatic callers with their own `IDocumentResolver`
+(see [OpenAPI support](openapi-support.md#references)). A contract the CLI downloads from a URL resolves its
+references on the same origin ([CLI](cli.md)); `disabled` still forbids them.
 
 ### Several contracts
 

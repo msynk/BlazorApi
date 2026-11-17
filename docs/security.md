@@ -10,7 +10,8 @@ should not, or inject code into your build. This page describes the threats and 
 |---|---|---|
 | Resource exhaustion by a huge or deeply nested document, or YAML alias expansion ("billion laughs") | parsers | `ParserLimits` |
 | Reading arbitrary files through `$ref` (`../../secrets.yaml`, absolute paths) | reference resolution | reference policy and reference root |
-| Server-side request forgery or network access through `$ref: https://...` | reference resolution | remote references disabled by default; built-in resolvers never download |
+| Server-side request forgery or network access through `$ref: https://...` | reference resolution | remote references disabled by default; built-in resolvers never download, except references of a URL contract on its own origin |
+| Credentials or personal data in telemetry | runtime instrumentation | spans and metrics record path templates and operation ids, never URLs, parameters, headers or bodies |
 | Code injection through names, descriptions, enum values or patterns in the contract | code generation | identifier sanitization, literal and XML doc escaping, header sanitization, option validation |
 | Writing or deleting files outside the output directory | CLI | output path containment, manifest-only deletion |
 | Credential leakage | runtime | tokens in memory only, never logged or included in messages |
@@ -38,6 +39,9 @@ tags or construct arbitrary objects.
   as URIs and checked after normalization, so `..` segments cannot escape the root (BAPI2002).
 - `http`/`https` references are rejected unless the policy is `LocalFilesAndRemote`; even then, the built-in
   file-system resolver (CLI) does not download anything, and the source generator only sees MSBuild AdditionalFiles.
+- A contract given to the CLI as a URL is downloaded on purpose. Its references are fetched only from the same
+  origin (scheme, host, port); other hosts and `file:` URIs are refused, so a hostile contract cannot reach internal
+  addresses or local files. Downloads are bounded by a 60-second timeout and the parser's document size limit.
   Other URI schemes are always rejected.
 - `ExternalReferencePolicy.Disabled` allows only references inside the document.
 - Hosts that need remote documents supply their own `IDocumentResolver`; it is then responsible for allow-listing

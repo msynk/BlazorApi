@@ -13,9 +13,9 @@ the IDE analyzes your code, from contracts declared as MSBuild items. It needs t
 ```
 
 The generator package contains only the analyzer (with the OpenAPI engine compiled in, so it loads no other
-assemblies) and the MSBuild files `build/BlazorApi.SourceGenerator.props` and `.targets`. It does not declare
-a dependency on `BlazorApi.Runtime`; reference the runtime yourself, otherwise the generated code does not
-compile (`CS0246` for `BlazorApi.Runtime`). Add `BlazorApi.Testing` for `GenerateMocks=true`.
+assemblies) and the MSBuild files `build/BlazorApi.SourceGenerator.props` and `.targets`. It declares a package
+dependency on `BlazorApi.Runtime` (same version), which the generated code compiles against; the analyzer itself never
+loads it. Add `BlazorApi.Testing` for `GenerateMocks=true`.
 
 ## Items and metadata
 
@@ -119,6 +119,6 @@ Without `CompilerGeneratedFilesOutputPath` the files go to
 | Contract changes | picked up on build | regenerate, `--check` in CI |
 | Several contracts | one `OpenApiContract` item each | `contracts` array in `blazorapi.json` |
 | Reference root | the contract's directory, or `references.root` of the `Config` file | configurable (`references.root`) |
-| JSON source generation for AOT | not possible in the same project (generators cannot see each other's output) | possible, the files are ordinary sources |
+| JSON source generation for AOT | not possible in the same project (generators cannot see each other's output); `GenerateJsonContext=true` reports BAPI6005 and is ignored | `generateJsonContext=true` emits a `JsonSerializerContext` the clients use by default |
 
 Both use the same engine and options and produce the same code.

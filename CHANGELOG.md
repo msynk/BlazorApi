@@ -39,12 +39,37 @@ target .NET Standard 2.0.
 - **Blazor components**: `ApiResultView`, `ApiErrorView` and `ApiValidationErrors` for server validation errors in
   `EditForm`.
 - Demo projects (Blazor Web App, console client, tests), documentation and a BenchmarkDotNet suite.
+- **Streamed responses**: `text/event-stream` (server-sent events) and JSON sequences (`application/jsonl`,
+  `application/x-ndjson`, `application/json-seq`) become `ApiStream<T>` (`IAsyncEnumerable<T>`) with
+  `ServerSentEvent<T>` items; OpenAPI 3.2 `itemSchema` is read.
+- **Per-call options**: generated `WithOptions(...)` on clients and interfaces, `ApiClientOptions.Clone()`.
+- **Servers**: `{Client}.Servers` (`ApiServer` with variable resolution and `enum` checks); operation- and path-level
+  servers are honored, with `ApiClientOptions.OperationBaseAddresses` overrides.
+- **Retries**: `ApiRetryHandler`/`AddApiRetries()` retry idempotent requests (or requests with an `Idempotency-Key`)
+  on transient statuses and connection failures, honoring `Retry-After` and `retry-after-ms`; optional generated
+  idempotency keys.
+- **Telemetry**: `ActivitySource` and `Meter` named `BlazorApi` with a span per operation and the
+  `blazorapi.client.operation.duration` histogram (`url.template`, operation id, status, `error.type`).
+- **Forward-compatible enums**: `unknownEnumValues=unrecognized` adds an `Unrecognized` member for values the
+  contract does not list.
+- **AOT**: `generateJsonContext=true` (CLI) emits a `JsonSerializerContext` used by default; `ApiJson.CreateOptions`
+  accepts resolvers and the runtime ships metadata for its own types. The source generator reports BAPI6005 for it.
+- **CLI**: contracts can be http(s) URLs (same-origin references are downloaded); `validate` reads `blazorapi.json`
+  and `--config`.
+
+### Fixed
+
+- Exceptions of resilience pipelines (Polly timeouts, open circuits, rate limiters) escaped `XxxResultAsync`; they
+  are now `Timeout` and `Network` errors.
+- `application/x-ndjson` bodies were read as a single JSON document.
+- The source generator package now declares its dependency on `BlazorApi.Runtime`.
+- Generated responses carry their request (`HttpResponseMessage.RequestMessage`) even when a handler created them.
 
 ### Known limitations
 
 - No BlazorApi package has been published yet.
-- The source generator package does not declare its dependency on `BlazorApi.Runtime`.
-- Trimmed and native AOT applications must supply a `JsonSerializerContext` for the generated types.
+- Trimmed and native AOT applications that use the source generator (not the CLI) must supply a
+  `JsonSerializerContext` for the generated types.
 - Polymorphic responses typed as an intermediate class are not dispatched to its subtypes; only the first success
   body of an operation is typed; `format: time` and `duration` map to `string` by default.
 - See `IMPLEMENTATION-STATUS.md` for the complete list.

@@ -9,14 +9,20 @@ stable `BAPIxxxx` diagnostics with file, line and JSON pointer, and produces det
 
 ## Features
 
-- OpenAPI 3.0 and 3.1 in JSON or YAML, local `$ref` across files with a restrictive reference policy.
+- OpenAPI 3.0 and 3.1 in JSON or YAML (3.2 `itemSchema` too), local `$ref` across files with a restrictive
+  reference policy; the CLI also downloads contracts from URLs.
 - Typed models: `required` members, nullability that follows the contract, `Optional<T>` for JSON merge-patch,
-  DataAnnotations from schema constraints, strict enum converters.
+  DataAnnotations from schema constraints, strict or forward-compatible (`Unrecognized`) enum converters.
 - Composition: `allOf` inheritance, discriminated hierarchies with forward-compatible `Unrecognized*` types,
   `oneOf`/`anyOf` unions.
 - Clients with two methods per operation: `XxxAsync` (returns the value, throws `ApiException`) and
   `XxxResultAsync` (returns `ApiResult<T>`, never throws for API failures).
 - Typed error bodies per status code, RFC 9457 problem details, distinct network/timeout/deserialization errors.
+- Streamed responses: server-sent events and JSON Lines/NDJSON/`json-seq` as `IAsyncEnumerable` (`ApiStream<T>`).
+- Per-call options (`WithOptions`), document and operation-level servers with variables (`Servers`).
+- Safe retries (`AddApiRetries`: idempotent requests or idempotency keys, `Retry-After`), compatible with
+  Microsoft.Extensions.Http.Resilience; OpenTelemetry spans and metrics per operation.
+- Trimming and native AOT: an optional generated `JsonSerializerContext` used by default.
 - `IHttpClientFactory` registration, scheme-aware authentication handlers (bearer with refresh, API key, Basic,
   client credentials).
 - Pagination detection (cursor, page, offset, `Link` header, `x-pagination`) with `IAsyncEnumerable` page and item
@@ -114,6 +120,7 @@ else if (result.Error.Kind == ApiErrorKind.Http && result.Error.TryGetContent<Er
 - [Generated code](docs/generated-code.md)
 - [Authentication](docs/authentication.md)
 - [Pagination](docs/pagination.md)
+- [Resilience and telemetry](docs/resilience-and-telemetry.md)
 - [Testing](docs/testing.md)
 - [Source generator](docs/source-generator.md)
 - [CLI](docs/cli.md)

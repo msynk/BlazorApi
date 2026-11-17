@@ -34,6 +34,7 @@ internal sealed class MockEmitter
         [
             name, "Calls", "CallsTo", "Verify", "VerifyNoOtherCalls", "Reset", "Setup", "SetupAsync", "SetupError",
             "SetupNetworkFailure", "SetupTimeout", "SetupException", "SetupDelay", "InvokeAsync", "Operations",
+            "WithOptions",
         ]);
         foreach (var method in methods)
         {
@@ -63,6 +64,17 @@ internal sealed class MockEmitter
                 EmitSetups(writer, method, name, members);
                 writer.Line();
                 EmitImplementation(writer, method);
+            }
+
+            if (_plan.Options.GenerateInterfaces)
+            {
+                writer.Line();
+                writer.Doc("summary", "Returns this mock: client options (headers, timeouts, base addresses) do not affect a mock.");
+                using (writer.Block($"public {client.InterfaceName} WithOptions(global::System.Action<global::BlazorApi.Runtime.ApiClientOptions> configure)"))
+                {
+                    writer.Line("global::System.ArgumentNullException.ThrowIfNull(configure);");
+                    writer.Line("return this;");
+                }
             }
         }
 

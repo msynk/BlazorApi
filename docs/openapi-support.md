@@ -6,7 +6,7 @@
 |---|---|
 | OpenAPI 3.0.x | Supported. Read into the same model as 3.1: `nullable: true` becomes a `null` type, boolean `exclusiveMinimum`/`exclusiveMaximum` become the 3.1 numeric form. |
 | OpenAPI 3.1.x | Supported, including JSON Schema 2020-12 type arrays, `const`, `$defs`, `contentEncoding`, `examples` and `$ref` with sibling keywords. |
-| OpenAPI 3.2.x | Read as 3.1 with a BAPI1003 warning; 3.2-only features (`additionalOperations`, sequential media types) are reported with BAPI3017 and ignored. |
+| OpenAPI 3.2.x | Read as 3.1 with a BAPI1003 warning. `itemSchema` of sequential media types is supported ([streaming](#streamed-responses)); other 3.2-only features (`additionalOperations`, `itemEncoding`, `prefixEncoding`) are reported with BAPI3017 and ignored. |
 | Swagger 2.0 | Rejected with BAPI1003. Convert it first (for example with the `swagger2openapi` tool). |
 | No `openapi` field | BAPI1004. |
 
@@ -44,8 +44,9 @@ External references follow `ExternalReferencePolicy`:
 | `LocalFilesAndRemote` | Also `http`/`https` URLs, if the document resolver can fetch them. |
 
 Other URI schemes are always rejected. A reference outside the policy or the reference root reports BAPI2002; an
-unreadable file reports BAPI1010. The CLI reads referenced files from disk and never downloads; the source generator
-only sees files added as `OpenApiReference` items. Remote documents must be downloaded and referenced locally, or
+unreadable file reports BAPI1010. For local contracts the CLI reads referenced files from disk and never downloads;
+for a contract given as a URL it downloads references on the contract's origin only ([CLI](cli.md)). The source
+generator only sees files added as `OpenApiReference` items. Remote documents must be downloaded and referenced locally, or
 loaded through a custom `IDocumentResolver` passed in `OpenApiLoadOptions.DocumentResolver`.
 
 ## Type mapping
@@ -123,9 +124,12 @@ number, boolean, array, object). Unions whose variants cannot be told apart repo
 
 String enums and integer enums become C# enums with a generated converter (`PetStatusJsonConverter`):
 
-- Converters are strict: an unknown value fails with a `JsonException` naming the value, which a client reports as
-  an `ApiDeserializationException`. New response enum values are therefore potentially breaking
+- Converters are strict by default: an unknown value fails with a `JsonException` naming the value, which a client
+  reports as an `ApiDeserializationException`. New response enum values are therefore potentially breaking
   ([Compatibility](compatibility.md)).
+- With `unknownEnumValues=unrecognized` (forward compatible), each enum gets an extra `Unrecognized` member (-1 for
+  string enums, an unused value for integer enums) that unknown values read as. It has no wire value: sending it
+  throws `ArgumentOutOfRangeException`.
 - `PetStatusJsonConverter.ToWireValue(PetStatus.Available)` returns `"available"`;
   `PetStatusJsonConverter.TryParse("sold", out var status)` parses a wire value.
 - Member names come from `x-enum-varnames` or `x-enumNames` when present; descriptions from `x-enum-descriptions` or
@@ -144,6 +148,25 @@ String enums and integer enums become C# enums with a generated converter (`PetS
   become method parameters. XML bodies are exchanged as strings (BAPI4004); other media types (`image/png`,
   `application/octet-stream`, ...) as binary content (`FileContent` in requests, `FileResponse` in responses).
 - Only the first success response body is typed; other success responses with a different body report BAPI6001.
+- Servers declared on an operation or its path item override the document's servers for that operation (an absolute
+  URL becomes the operation's base address; a relative one replaces the path prefix). The document's servers are
+  listed in `{Client}.Servers` ([Generated code](generated-code.md#servers)).
+
+## Streamed responses
+
+Sequential media types become `ApiStream<T>` values that are read item by item while the response arrives:
+
+| Media type | Value | Item type |
+|---|---|---|
+| `text/event-stream` (server-sent events) | `ApiStream<ServerSentEvent<T>>` | `itemSchema` (OpenAPI 3.2), else `schema`; `string` when neither is declared |
+| `application/jsonl`, `application/x-ndjson`, `application/ndjson`, `application/x-jsonlines`, `application/json-seq` | `ApiStream<T>` | `itemSchema`, else the `items` of an array `schema`, else `schema`; `JsonElement` when neither is declared |
+
+`ServerSentEvent<T>` has `EventType` (`message` by default), `Data` (the raw text, several `data:` lines joined with
+line feeds), `Id` (the last event id, kept across events), `Retry`, and `GetValue()`/`TryGetValue(...)`, which read the
+data as `T` (the text itself for strings, JSON otherwise). Parsing follows the WHATWG specification: comments and
+events without data are skipped, and an event not terminated by a blank line is discarded. JSON sequences accept
+blank lines, CRLF line endings, and RFC 7464 records (which start with the RS character and may span lines).
+Requests with these media types are sent as binary content (`FileContent`).
 
 ## Not used for generation
 
