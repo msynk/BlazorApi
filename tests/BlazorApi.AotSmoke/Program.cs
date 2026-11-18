@@ -10,7 +10,12 @@ if (JsonSerializer.IsReflectionEnabledByDefault)
     return Fail("reflection-based serialization is enabled; the smoke test would prove nothing");
 }
 
-var client = new PetstoreClient(new HttpClient(), new ApiClientOptions
+// The mock validates requests, so the client sends the credentials the contract requires (a bearer token, and the
+// API key of the store operations).
+var http = new HttpClient();
+http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", "smoke-test");
+http.DefaultRequestHeaders.Add("X-API-Key", "smoke-test");
+var client = new PetstoreClient(http, new ApiClientOptions
 {
     BaseAddress = new Uri(args.Length > 0 ? args[0] : "http://localhost:4010/v1/"),
     JsonSerializerOptions = ApiJson.CreateOptions(PetstoreJsonContext.Default),

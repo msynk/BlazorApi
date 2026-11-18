@@ -59,7 +59,7 @@ public static partial class PetstoreFixtures
         {
             Id = (long)1,
             Name = "name",
-            Status = PetStatus.Available,
+            Status = global::Petstore.Client.PetStatus.Available,
             Tag = "tag",
             BirthDate = new global::System.DateOnly(2024, 1, 1),
             CreatedAt = new global::System.DateTimeOffset(2024, 1, 1, 12, 0, 0, global::System.TimeSpan.Zero),
@@ -83,7 +83,7 @@ public static partial class PetstoreFixtures
         {
             Id = (long)1,
             Name = "name",
-            Status = PetStatus.Available,
+            Status = global::Petstore.Client.PetStatus.Available,
             Tag = "tag",
             BirthDate = new global::System.DateOnly(2024, 1, 1),
             CreatedAt = new global::System.DateTimeOffset(2024, 1, 1, 12, 0, 0, global::System.TimeSpan.Zero),
@@ -108,7 +108,7 @@ public static partial class PetstoreFixtures
             Name = "name",
             Kind = "kind",
             Tag = "tag",
-            Status = PetStatus.Available,
+            Status = global::Petstore.Client.PetStatus.Available,
         };
     }
 

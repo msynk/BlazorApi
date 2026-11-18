@@ -132,7 +132,7 @@ public static class OpenApiValidator
         private void ValidatePaths()
         {
             var operationIds = new Dictionary<string, OpenApiOperation>(StringComparer.Ordinal);
-            var normalizedPaths = new Dictionary<string, string>(StringComparer.Ordinal);
+            var normalizedPaths = new Dictionary<string, List<(string Path, OpenApiPathItem Item)>>(StringComparer.Ordinal);
             foreach (var entry in _document.Paths)
             {
                 var pathItem = entry.Value.Resolved;
@@ -145,14 +145,26 @@ public static class OpenApiValidator
                 else
                 {
                     var normalized = NormalizePath(entry.Key);
-                    if (normalizedPaths.TryGetValue(normalized, out var other))
+                    if (!normalizedPaths.TryGetValue(normalized, out var equivalents))
                     {
-                        Report(DiagnosticDescriptors.EquivalentPaths, entry.Value, entry.Key, other);
+                        normalizedPaths[normalized] = equivalents = [];
                     }
-                    else
+
+                    // Ambiguous only when a method is declared twice; otherwise allowed with a warning.
+                    var clash = equivalents
+                        .Select(e => (e.Path, Methods: e.Item.Operations.Keys.Intersect(pathItem.Operations.Keys, StringComparer.Ordinal).ToList()))
+                        .FirstOrDefault(e => e.Methods.Count > 0);
+                    if (clash.Path is not null)
                     {
-                        normalizedPaths[normalized] = entry.Key;
+                        Report(DiagnosticDescriptors.EquivalentPaths, entry.Value, entry.Key, clash.Path,
+                            string.Join(", ", clash.Methods.Select(m => m.ToUpperInvariant())));
                     }
+                    else if (equivalents.Count > 0)
+                    {
+                        Report(DiagnosticDescriptors.EquivalentPathsDistinctMethods, entry.Value, entry.Key, equivalents[0].Path);
+                    }
+
+                    equivalents.Add((entry.Key, pathItem));
                 }
 
                 ValidateServers(pathItem.Servers);

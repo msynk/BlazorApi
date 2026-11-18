@@ -653,10 +653,19 @@ public static class ApiModelBuilder
                 return false;
             }
 
-            if (schema.AllOf.Count == 1 && schema.OneOf.Count == 0 && schema.AnyOf.Count == 0)
+            if (schema.AllOf.Count > 0 && schema.OneOf.Count == 0 && schema.AnyOf.Count == 0)
             {
-                inner = schema.AllOf[0];
-                return true;
+                // allOf: [X, {description: ...}]: members with only annotations (description, title, examples,
+                // nullable) change nothing but the documentation, so the schema is X.
+                var members = schema.AllOf.Where(m => !IsAnnotationOnly(m)).ToList();
+                if (members.Count == 1)
+                {
+                    inner = members[0];
+                    nullable |= schema.AllOf.Any(m => !ReferenceEquals(m, members[0]) && m.IsNullable);
+                    return true;
+                }
+
+                return false;
             }
 
             var variants = schema.OneOf.Count > 0 ? schema.OneOf : schema.AnyOf;
@@ -673,6 +682,11 @@ public static class ApiModelBuilder
 
             return false;
         }
+
+        /// <summary>An inline schema without type or structure: only annotations (and possibly nullable).</summary>
+        private static bool IsAnnotationOnly(OpenApiSchema schema) =>
+            !schema.IsReference && schema.BooleanSchema is null && (schema.Types & ~JsonSchemaTypes.Null) == JsonSchemaTypes.None &&
+            !schema.HasStructuralKeywordsExceptType() && schema.Discriminator is null;
 
         private static bool IsNullOnly(OpenApiSchema schema)
         {
@@ -1204,9 +1218,12 @@ public static class ApiModelBuilder
             for (var i = 0; i < members.Count; i++)
             {
                 var member = members[i];
+                // Inline variants are named after a short title when they have one ('Card' gives PaymentCard).
                 string[] variantHint = ComponentName(member.Resolved) is { } component
                     ? [.. nameHint, component]
-                    : [.. nameHint, "Variant" + (i + 1).ToString(CultureInfo.InvariantCulture)];
+                    : member.Resolved.Title is { Length: > 0 and <= 40 } title && title.Any(char.IsLetter)
+                        ? [.. nameHint, title]
+                        : [.. nameHint, "Variant" + (i + 1).ToString(CultureInfo.InvariantCulture)];
                 variants.Add(new ApiUnionVariant(Map(member, variantHint), null));
             }
 
@@ -1214,6 +1231,10 @@ public static class ApiModelBuilder
             if (union.DiscriminatorPropertyName is { } property)
             {
                 AssignUnionDiscriminatorValues(union, schema, members, property);
+            }
+            else
+            {
+                InferDiscriminator(union, members);
             }
 
             union.Dispatch = DetermineDispatch(union);
@@ -1256,6 +1277,38 @@ public static class ApiModelBuilder
             }
         }
 
+        /// <summary>
+        /// Without a declared discriminator, object variants that each give one property a different constant value
+        /// (a single-value <c>enum</c> or <c>const</c>, such as OpenAI's <c>type</c> or Stripe's <c>object</c>) are told
+        /// apart by that property, as if it were declared.
+        /// </summary>
+        private static void InferDiscriminator(ApiUnionType union, List<OpenApiSchema> members)
+        {
+            var objects = Enumerable.Range(0, members.Count)
+                .Where(i => union.Variants[i].Type is ApiNamedTypeRef { Target: ApiObjectType })
+                .ToList();
+            if (objects.Count < 2)
+            {
+                return;
+            }
+
+            var properties = objects.Select(i => CollectProperties(members[i].Resolved)).ToList();
+            foreach (var candidate in properties[0].Keys)
+            {
+                var values = properties.Select(p => ConstOf(p, candidate)).ToList();
+                if (values.All(v => v is not null) && values.Distinct(StringComparer.Ordinal).Count() == values.Count)
+                {
+                    union.DiscriminatorPropertyName = candidate;
+                    for (var k = 0; k < objects.Count; k++)
+                    {
+                        union.Variants[objects[k]].DiscriminatorValue = values[k];
+                    }
+
+                    return;
+                }
+            }
+        }
+
         private static string? ConstOf(OrderedMap<OpenApiSchema> properties, string property)
         {
             if (!properties.TryGetValue(property, out var schema))
@@ -1282,9 +1335,26 @@ public static class ApiModelBuilder
             }
 
             var kinds = union.Variants.Select(v => JsonKindOf(v.Type)).ToList();
-            return kinds.All(k => k is not null) && kinds.Distinct().Count() == kinds.Count
-                ? ApiUnionDispatch.ValueKind
-                : ApiUnionDispatch.Ambiguous;
+            if (kinds.All(k => k is not null) && kinds.Distinct().Count() == kinds.Count)
+            {
+                return ApiUnionDispatch.ValueKind;
+            }
+
+            // Objects told apart by the discriminator next to variants of other JSON kinds (Stripe's expandable
+            // fields: an id string or one of several objects): the JSON kind first, then the discriminator.
+            if (union.DiscriminatorPropertyName is not null)
+            {
+                var objects = union.Variants.Where(v => v.Type is ApiNamedTypeRef { Target: ApiObjectType }).ToList();
+                var others = union.Variants.Where(v => v.Type is not ApiNamedTypeRef { Target: ApiObjectType }).Select(v => JsonKindOf(v.Type)).ToList();
+                if (objects.All(v => v.DiscriminatorValue is not null) &&
+                    objects.Select(v => v.DiscriminatorValue).Distinct(StringComparer.Ordinal).Count() == objects.Count &&
+                    others.All(k => k is not null && k != "object") && others.Distinct().Count() == others.Count)
+                {
+                    return ApiUnionDispatch.ValueKind;
+                }
+            }
+
+            return ApiUnionDispatch.Ambiguous;
         }
 
         /// <summary>The JSON value kind a type always serializes to, or null when it can vary.</summary>

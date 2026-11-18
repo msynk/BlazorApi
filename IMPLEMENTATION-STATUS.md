@@ -31,6 +31,8 @@ scoped to be reviewable on its own; the working tree has not been committed or s
 | M22 | Advanced generation features | Partly: operation/tag filters, unused-model pruning, multi-contract projects, `x-pagination`, `x-enum-varnames`; custom templates deferred |
 | M23 | Blazor integration (`BlazorApi.Blazor`: `ApiResultView`, `ApiErrorView`, `ApiValidationErrors`; auth registration helpers `AddBearerToken`/`AddApiKey`/`AddBasicAuthentication` in `BlazorApi.Runtime`) | Done |
 | M24 | Documentation, demo, benchmarks, CI workflow, packaging | Done (not published) |
+| M35 | Real-world contract sweep (GitHub 3.0 and 3.1, Stripe, OpenAI, Kubernetes, Twilio, Asana, Jira, Box): all load, generate and compile without errors or warnings, including with `generateJsonContext`, mocks and `unknownEnumValues=unrecognized`. Fixes: equivalent paths with distinct methods are a warning (BAPI3019); annotation-only `allOf` members ignored; ambiguous value-type unions, required deprecated properties and fixtures shadowed by a type name compile; implicit discriminators (single-value `enum`/`const`) and mixed JSON-kind + discriminator dispatch; inline variants named by `title`. `eng/real-world-contracts.sh` | Done |
+| M34 | `api-gen mock` validates requests: credentials (401), content types (415), parameters and JSON bodies against the schema (400 with RFC 9457 `errors`); `--no-validate` | Done |
 | M33 | Server-sent event `id:`/`retry:` fields apply without an event (WHATWG); cache freshness (`UseFreshness`, RFC 9111) and invalidation after unsafe requests; clearer error for sending an `Unrecognized` enum member | Done |
 | M32 | Hand-written JSON metadata context (`JsonMetadataServices`), so `GenerateJsonContext` works in the source generator; AOT smoke test switched to the source generator | Done |
 | M31 | Native AOT verified: CLI-generated client with `generateJsonContext` published with `PublishAot` (no trim/AOT warnings) and reflection disabled, run against `api-gen mock`; CI job (`tests/BlazorApi.AotSmoke`) | Done |
@@ -54,6 +56,8 @@ scoped to be reviewable on its own; the working tree has not been committed or s
 | 2026-11-09 | After documentation-review fixes: 440 tests (net8.0 + net10.0) + 5 demo tests | all passed |
 | 2026-11-09 | demo/BlazorApi.Demo.Tests (5); BlazorApi.Demo.BlazorApp run and checked over HTTP (pages, 401, 404, API key); BlazorApi.Demo.ConsoleClient run against it | passed |
 | 2026-11-17 | After removing the dotnet-query integration: full suite (net8.0 + net10.0) + 5 demo tests | all passed |
+| 2026-11-18 | M35: `eng/real-world-contracts.sh` on GitHub (3.0, 3.1), Stripe, OpenAI, Kubernetes, Twilio, Asana, Jira and Box: all load (0 errors), and 18 builds (default options and with JSON context, mocks and unrecognized enums; up to 9,840 files) compile without errors or warnings. Release build without warnings: OpenApi 214, CodeGeneration 23, Integration 103, SourceGenerator 17, Cli 27, Blazor 11, per framework; demo 5; AOT smoke against the validating mock | all passed |
+| 2026-11-18 | M34, Release build without warnings: OpenApi 213, CodeGeneration 21, Integration 101, SourceGenerator 17, Cli 27 (mock validation: 401, 400 with pointers, 415, chunked bodies), Blazor 11, per framework; demo 5; AOT smoke client (source generator) passes the validating mock (its requests match the contract) | all passed |
 | 2026-11-18 | M33, Release build without warnings: OpenApi 213, CodeGeneration 21, Integration 101 (SSE fields without events, cache freshness and invalidation), SourceGenerator 17, Cli 26, Blazor 11, per framework; demo 5 | all passed |
 | 2026-11-17 | M32 review fixes: Release build without warnings: OpenApi 213, CodeGeneration 21, Integration 99, SourceGenerator 17, Cli 26, Blazor 11, per framework; demo 5; AOT smoke (source generator) republished with 0 warnings and run against `api-gen mock` | all passed |
 | 2026-11-17 | M32: AOT smoke test built by the source generator with `GenerateJsonContext`: win-x64 `PublishAot` with `-warnaserror` (0 warnings), run against `api-gen mock` correct; Release build without warnings: OpenApi 213, CodeGeneration 20, Integration 98 (metadata-only resolver test), SourceGenerator 17, Cli 26, Blazor 11, per framework; demo 5 | all passed |
@@ -176,7 +180,8 @@ scoped to be reviewable on its own; the working tree has not been committed or s
 
 - Only the first success response body is the result's `Value`; other JSON/text success bodies are in
   `ApiResult.Content` and typed by `{Operation}ResponseBodies` (binary and streamed alternatives are not read).
-- `api-gen mock` does not validate requests and serves one example per response (no stateful behavior).
+- `api-gen mock` serves one example per response (no stateful behavior); request validation checks the presence of
+  credentials, not their value, and does not look into form, multipart or object-valued (deepObject) parameters.
 - `format: time` and `format: duration` map to `string` by default (lossless); `timeType=timeOnly` and
   `durationType=timeSpan` are opt-in.
 - Overlays change the root document only, not documents it references with `$ref`.
@@ -290,8 +295,8 @@ as Microsoft.Identity.Web, MSAL or Blazor's `IAccessTokenProvider`), MCP server 
   schema to it); there is no automatic detection of identical schemas.
 - ASP.NET Core contract verification: the recommended approach is to export the server's OpenAPI document in CI and
   run `api-gen diff` against the published contract.
-- A regression suite of large real-world contracts (GitHub, Stripe, Kubernetes): the repository has representative
-  contracts (`tests/Contracts`) and a synthetic 500-schema contract in the benchmarks only.
+- A regression suite of large real-world contracts in CI: they are checked manually with
+  `eng/real-world-contracts.sh` (downloads, validates, generates and compiles; see M35), not on every build.
 - Publishing: no packages are pushed; versions are `0.1.0-preview`.
 - A result type per operation that is a union of its success bodies (an alternative to `{Operation}ResponseBodies`);
   not planned, since it would change every result signature and mock.

@@ -45,106 +45,206 @@ public partial class Features31JsonContext : global::System.Text.Json.Serializat
     /// <inheritdoc />
     global::System.Text.Json.Serialization.Metadata.JsonTypeInfo? global::System.Text.Json.Serialization.Metadata.IJsonTypeInfoResolver.GetTypeInfo(global::System.Type type, global::System.Text.Json.JsonSerializerOptions options)
     {
-        if (type == typeof(Car))
+        if (type == typeof(Bot))
         {
             return Create0(options);
         }
-        if (type == typeof(CarJsonPayload))
+        if (type == typeof(Car))
         {
             return Create1(options);
         }
-        if (type == typeof(Circle))
+        if (type == typeof(CarJsonPayload))
         {
             return Create2(options);
         }
-        if (type == typeof(Document))
+        if (type == typeof(Charge))
         {
             return Create3(options);
         }
-        if (type == typeof(Progress))
+        if (type == typeof(ChargeMethod))
         {
             return Create4(options);
         }
-        if (type == typeof(SearchDocumentsFilter))
+        if (type == typeof(ChargeMethodBankTransfer))
         {
             return Create5(options);
         }
-        if (type == typeof(Shape))
+        if (type == typeof(ChargeMethodCard))
         {
             return Create6(options);
         }
-        if (type == typeof(SportsCar))
+        if (type == typeof(ChargePayer))
         {
             return Create7(options);
         }
-        if (type == typeof(Square))
+        if (type == typeof(Circle))
         {
             return Create8(options);
         }
-        if (type == typeof(Stage))
+        if (type == typeof(Customer))
         {
             return Create9(options);
         }
-        if (type == typeof(UnrecognizedShape))
+        if (type == typeof(Document))
         {
             return Create10(options);
         }
-        if (type == typeof(UnrecognizedVehicle))
+        if (type == typeof(Progress))
         {
             return Create11(options);
         }
-        if (type == typeof(Vehicle))
+        if (type == typeof(SearchDocumentsFilter))
         {
             return Create12(options);
         }
-        if (type == typeof(byte[]))
+        if (type == typeof(Shape))
         {
             return Create13(options);
         }
-        if (type == typeof(double))
+        if (type == typeof(SportsCar))
         {
             return Create14(options);
         }
-        if (type == typeof(double?))
-        {
-            return Create21(options);
-        }
-        if (type == typeof(global::System.Collections.Generic.IDictionary<string, global::System.Text.Json.JsonElement>))
-        {
-            return Create22(options);
-        }
-        if (type == typeof(global::System.Collections.Generic.IReadOnlyList<Document>))
+        if (type == typeof(Square))
         {
             return Create15(options);
         }
-        if (type == typeof(global::System.Collections.Generic.IReadOnlyList<Shape>))
+        if (type == typeof(Stage))
         {
             return Create16(options);
         }
-        if (type == typeof(global::System.Collections.Generic.IReadOnlyList<string>))
+        if (type == typeof(UnrecognizedChargeMethod))
         {
             return Create17(options);
         }
-        if (type == typeof(global::System.Text.Json.JsonElement))
-        {
-            return Create23(options);
-        }
-        if (type == typeof(int))
+        if (type == typeof(UnrecognizedShape))
         {
             return Create18(options);
         }
-        if (type == typeof(int?))
+        if (type == typeof(UnrecognizedVehicle))
+        {
+            return Create19(options);
+        }
+        if (type == typeof(Vehicle))
         {
             return Create20(options);
         }
+        if (type == typeof(byte[]))
+        {
+            return Create21(options);
+        }
+        if (type == typeof(double))
+        {
+            return Create22(options);
+        }
+        if (type == typeof(double?))
+        {
+            return Create29(options);
+        }
+        if (type == typeof(global::System.Collections.Generic.IDictionary<string, global::System.Text.Json.JsonElement>))
+        {
+            return Create30(options);
+        }
+        if (type == typeof(global::System.Collections.Generic.IReadOnlyList<Document>))
+        {
+            return Create23(options);
+        }
+        if (type == typeof(global::System.Collections.Generic.IReadOnlyList<Shape>))
+        {
+            return Create24(options);
+        }
+        if (type == typeof(global::System.Collections.Generic.IReadOnlyList<string>))
+        {
+            return Create25(options);
+        }
+        if (type == typeof(global::System.Text.Json.JsonElement))
+        {
+            return Create31(options);
+        }
+        if (type == typeof(int))
+        {
+            return Create26(options);
+        }
+        if (type == typeof(int?))
+        {
+            return Create28(options);
+        }
         if (type == typeof(string))
         {
-            return Create19(options);
+            return Create27(options);
         }
         return null;
     }
 
-    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<Car> Create0(global::System.Text.Json.JsonSerializerOptions options)
+    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<Bot> Create0(global::System.Text.Json.JsonSerializerOptions options)
+    {
+        if (!TryGetRuntimeConverter<Bot>(options, out var typeInfo))
+        {
+            var objectInfo = new global::System.Text.Json.Serialization.Metadata.JsonObjectInfoValues<Bot>
+            {
+                ObjectCreator = static () => new Bot { Id = default! },
+                PropertyMetadataInitializer = _ =>
+                {
+                    var properties = new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfo[3];
+                    properties[0] = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreatePropertyInfo<string>(options, new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<string>
+                    {
+                        IsProperty = true,
+                        IsPublic = true,
+                        DeclaringType = typeof(Bot),
+                        Converter = null,
+                        Getter = static obj => ((Bot)obj).Object,
+                        Setter = static (obj, value) => ((Bot)obj).Object = value!,
+                        IgnoreCondition = null,
+                        IsExtensionData = false,
+                        PropertyName = "Object",
+                        JsonPropertyName = "object",
+                    });
+            #if NET9_0_OR_GREATER
+                    properties[0].IsGetNullable = false;
+                    properties[0].IsSetNullable = false;
+            #endif
+                    properties[1] = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreatePropertyInfo<string>(options, new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<string>
+                    {
+                        IsProperty = true,
+                        IsPublic = true,
+                        DeclaringType = typeof(Bot),
+                        Converter = null,
+                        Getter = static obj => ((Bot)obj).Id,
+                        Setter = static (obj, value) => ((Bot)obj).Id = value!,
+                        IgnoreCondition = null,
+                        IsExtensionData = false,
+                        PropertyName = "Id",
+                        JsonPropertyName = "id",
+                    });
+                    properties[1].IsRequired = true;
+            #if NET9_0_OR_GREATER
+                    properties[1].IsGetNullable = false;
+                    properties[1].IsSetNullable = false;
+            #endif
+                    properties[2] = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreatePropertyInfo<string?>(options, new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<string?>
+                    {
+                        IsProperty = true,
+                        IsPublic = true,
+                        DeclaringType = typeof(Bot),
+                        Converter = null,
+                        Getter = static obj => ((Bot)obj).Model,
+                        Setter = static (obj, value) => ((Bot)obj).Model = value!,
+                        IgnoreCondition = global::System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+                        IsExtensionData = false,
+                        PropertyName = "Model",
+                        JsonPropertyName = "model",
+                    });
+                    return properties;
+                },
+            };
+            typeInfo = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreateObjectInfo<Bot>(options, objectInfo);
+            typeInfo.NumberHandling = null; // Use the options' number handling, as reflection does.
+        }
+        typeInfo.OriginatingResolver = this;
+        return typeInfo;
+    }
+
+    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<Car> Create1(global::System.Text.Json.JsonSerializerOptions options)
     {
         if (!TryGetRuntimeConverter<Car>(options, out var typeInfo))
         {
@@ -154,7 +254,7 @@ public partial class Features31JsonContext : global::System.Text.Json.Serializat
         return typeInfo;
     }
 
-    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<CarJsonPayload> Create1(global::System.Text.Json.JsonSerializerOptions options)
+    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<CarJsonPayload> Create2(global::System.Text.Json.JsonSerializerOptions options)
     {
         if (!TryGetRuntimeConverter<CarJsonPayload>(options, out var typeInfo))
         {
@@ -218,7 +318,211 @@ public partial class Features31JsonContext : global::System.Text.Json.Serializat
         return typeInfo;
     }
 
-    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<Circle> Create2(global::System.Text.Json.JsonSerializerOptions options)
+    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<Charge> Create3(global::System.Text.Json.JsonSerializerOptions options)
+    {
+        if (!TryGetRuntimeConverter<Charge>(options, out var typeInfo))
+        {
+            var objectInfo = new global::System.Text.Json.Serialization.Metadata.JsonObjectInfoValues<Charge>
+            {
+                ObjectCreator = static () => new Charge { Id = default!, Payer = default!, Method = default! },
+                PropertyMetadataInitializer = _ =>
+                {
+                    var properties = new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfo[3];
+                    properties[0] = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreatePropertyInfo<string>(options, new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<string>
+                    {
+                        IsProperty = true,
+                        IsPublic = true,
+                        DeclaringType = typeof(Charge),
+                        Converter = null,
+                        Getter = static obj => ((Charge)obj).Id,
+                        Setter = static (obj, value) => ((Charge)obj).Id = value!,
+                        IgnoreCondition = null,
+                        IsExtensionData = false,
+                        PropertyName = "Id",
+                        JsonPropertyName = "id",
+                    });
+                    properties[0].IsRequired = true;
+            #if NET9_0_OR_GREATER
+                    properties[0].IsGetNullable = false;
+                    properties[0].IsSetNullable = false;
+            #endif
+                    properties[1] = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreatePropertyInfo<ChargePayer>(options, new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<ChargePayer>
+                    {
+                        IsProperty = true,
+                        IsPublic = true,
+                        DeclaringType = typeof(Charge),
+                        Converter = null,
+                        Getter = static obj => ((Charge)obj).Payer,
+                        Setter = static (obj, value) => ((Charge)obj).Payer = value!,
+                        IgnoreCondition = null,
+                        IsExtensionData = false,
+                        PropertyName = "Payer",
+                        JsonPropertyName = "payer",
+                    });
+                    properties[1].IsRequired = true;
+            #if NET9_0_OR_GREATER
+                    properties[1].IsGetNullable = false;
+                    properties[1].IsSetNullable = false;
+            #endif
+                    properties[2] = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreatePropertyInfo<ChargeMethod>(options, new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<ChargeMethod>
+                    {
+                        IsProperty = true,
+                        IsPublic = true,
+                        DeclaringType = typeof(Charge),
+                        Converter = null,
+                        Getter = static obj => ((Charge)obj).Method,
+                        Setter = static (obj, value) => ((Charge)obj).Method = value!,
+                        IgnoreCondition = null,
+                        IsExtensionData = false,
+                        PropertyName = "Method",
+                        JsonPropertyName = "method",
+                    });
+                    properties[2].IsRequired = true;
+            #if NET9_0_OR_GREATER
+                    properties[2].IsGetNullable = false;
+                    properties[2].IsSetNullable = false;
+            #endif
+                    return properties;
+                },
+            };
+            typeInfo = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreateObjectInfo<Charge>(options, objectInfo);
+            typeInfo.NumberHandling = null; // Use the options' number handling, as reflection does.
+        }
+        typeInfo.OriginatingResolver = this;
+        return typeInfo;
+    }
+
+    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<ChargeMethod> Create4(global::System.Text.Json.JsonSerializerOptions options)
+    {
+        if (!TryGetRuntimeConverter<ChargeMethod>(options, out var typeInfo))
+        {
+            typeInfo = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreateValueInfo<ChargeMethod>(options, Expand(typeof(ChargeMethod), new ChargeMethodJsonConverter(), options));
+        }
+        typeInfo.OriginatingResolver = this;
+        return typeInfo;
+    }
+
+    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<ChargeMethodBankTransfer> Create5(global::System.Text.Json.JsonSerializerOptions options)
+    {
+        if (!TryGetRuntimeConverter<ChargeMethodBankTransfer>(options, out var typeInfo))
+        {
+            var objectInfo = new global::System.Text.Json.Serialization.Metadata.JsonObjectInfoValues<ChargeMethodBankTransfer>
+            {
+                ObjectCreator = static () => new ChargeMethodBankTransfer { Iban = default! },
+                PropertyMetadataInitializer = _ =>
+                {
+                    var properties = new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfo[2];
+                    properties[0] = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreatePropertyInfo<string>(options, new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<string>
+                    {
+                        IsProperty = true,
+                        IsPublic = true,
+                        DeclaringType = typeof(ChargeMethodBankTransfer),
+                        Converter = null,
+                        Getter = static obj => ((ChargeMethodBankTransfer)obj).Type,
+                        Setter = static (obj, value) => ((ChargeMethodBankTransfer)obj).Type = value!,
+                        IgnoreCondition = null,
+                        IsExtensionData = false,
+                        PropertyName = "Type",
+                        JsonPropertyName = "type",
+                    });
+            #if NET9_0_OR_GREATER
+                    properties[0].IsGetNullable = false;
+                    properties[0].IsSetNullable = false;
+            #endif
+                    properties[1] = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreatePropertyInfo<string>(options, new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<string>
+                    {
+                        IsProperty = true,
+                        IsPublic = true,
+                        DeclaringType = typeof(ChargeMethodBankTransfer),
+                        Converter = null,
+                        Getter = static obj => ((ChargeMethodBankTransfer)obj).Iban,
+                        Setter = static (obj, value) => ((ChargeMethodBankTransfer)obj).Iban = value!,
+                        IgnoreCondition = null,
+                        IsExtensionData = false,
+                        PropertyName = "Iban",
+                        JsonPropertyName = "iban",
+                    });
+                    properties[1].IsRequired = true;
+            #if NET9_0_OR_GREATER
+                    properties[1].IsGetNullable = false;
+                    properties[1].IsSetNullable = false;
+            #endif
+                    return properties;
+                },
+            };
+            typeInfo = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreateObjectInfo<ChargeMethodBankTransfer>(options, objectInfo);
+            typeInfo.NumberHandling = null; // Use the options' number handling, as reflection does.
+        }
+        typeInfo.OriginatingResolver = this;
+        return typeInfo;
+    }
+
+    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<ChargeMethodCard> Create6(global::System.Text.Json.JsonSerializerOptions options)
+    {
+        if (!TryGetRuntimeConverter<ChargeMethodCard>(options, out var typeInfo))
+        {
+            var objectInfo = new global::System.Text.Json.Serialization.Metadata.JsonObjectInfoValues<ChargeMethodCard>
+            {
+                ObjectCreator = static () => new ChargeMethodCard { Last4 = default! },
+                PropertyMetadataInitializer = _ =>
+                {
+                    var properties = new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfo[2];
+                    properties[0] = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreatePropertyInfo<string>(options, new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<string>
+                    {
+                        IsProperty = true,
+                        IsPublic = true,
+                        DeclaringType = typeof(ChargeMethodCard),
+                        Converter = null,
+                        Getter = static obj => ((ChargeMethodCard)obj).Type,
+                        Setter = static (obj, value) => ((ChargeMethodCard)obj).Type = value!,
+                        IgnoreCondition = null,
+                        IsExtensionData = false,
+                        PropertyName = "Type",
+                        JsonPropertyName = "type",
+                    });
+            #if NET9_0_OR_GREATER
+                    properties[0].IsGetNullable = false;
+                    properties[0].IsSetNullable = false;
+            #endif
+                    properties[1] = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreatePropertyInfo<string>(options, new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<string>
+                    {
+                        IsProperty = true,
+                        IsPublic = true,
+                        DeclaringType = typeof(ChargeMethodCard),
+                        Converter = null,
+                        Getter = static obj => ((ChargeMethodCard)obj).Last4,
+                        Setter = static (obj, value) => ((ChargeMethodCard)obj).Last4 = value!,
+                        IgnoreCondition = null,
+                        IsExtensionData = false,
+                        PropertyName = "Last4",
+                        JsonPropertyName = "last4",
+                    });
+                    properties[1].IsRequired = true;
+            #if NET9_0_OR_GREATER
+                    properties[1].IsGetNullable = false;
+                    properties[1].IsSetNullable = false;
+            #endif
+                    return properties;
+                },
+            };
+            typeInfo = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreateObjectInfo<ChargeMethodCard>(options, objectInfo);
+            typeInfo.NumberHandling = null; // Use the options' number handling, as reflection does.
+        }
+        typeInfo.OriginatingResolver = this;
+        return typeInfo;
+    }
+
+    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<ChargePayer> Create7(global::System.Text.Json.JsonSerializerOptions options)
+    {
+        if (!TryGetRuntimeConverter<ChargePayer>(options, out var typeInfo))
+        {
+            typeInfo = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreateValueInfo<ChargePayer>(options, Expand(typeof(ChargePayer), new ChargePayerJsonConverter(), options));
+        }
+        typeInfo.OriginatingResolver = this;
+        return typeInfo;
+    }
+
+    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<Circle> Create8(global::System.Text.Json.JsonSerializerOptions options)
     {
         if (!TryGetRuntimeConverter<Circle>(options, out var typeInfo))
         {
@@ -269,7 +573,75 @@ public partial class Features31JsonContext : global::System.Text.Json.Serializat
         return typeInfo;
     }
 
-    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<Document> Create3(global::System.Text.Json.JsonSerializerOptions options)
+    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<Customer> Create9(global::System.Text.Json.JsonSerializerOptions options)
+    {
+        if (!TryGetRuntimeConverter<Customer>(options, out var typeInfo))
+        {
+            var objectInfo = new global::System.Text.Json.Serialization.Metadata.JsonObjectInfoValues<Customer>
+            {
+                ObjectCreator = static () => new Customer { Id = default! },
+                PropertyMetadataInitializer = _ =>
+                {
+                    var properties = new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfo[3];
+                    properties[0] = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreatePropertyInfo<string>(options, new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<string>
+                    {
+                        IsProperty = true,
+                        IsPublic = true,
+                        DeclaringType = typeof(Customer),
+                        Converter = null,
+                        Getter = static obj => ((Customer)obj).Object,
+                        Setter = static (obj, value) => ((Customer)obj).Object = value!,
+                        IgnoreCondition = null,
+                        IsExtensionData = false,
+                        PropertyName = "Object",
+                        JsonPropertyName = "object",
+                    });
+            #if NET9_0_OR_GREATER
+                    properties[0].IsGetNullable = false;
+                    properties[0].IsSetNullable = false;
+            #endif
+                    properties[1] = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreatePropertyInfo<string>(options, new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<string>
+                    {
+                        IsProperty = true,
+                        IsPublic = true,
+                        DeclaringType = typeof(Customer),
+                        Converter = null,
+                        Getter = static obj => ((Customer)obj).Id,
+                        Setter = static (obj, value) => ((Customer)obj).Id = value!,
+                        IgnoreCondition = null,
+                        IsExtensionData = false,
+                        PropertyName = "Id",
+                        JsonPropertyName = "id",
+                    });
+                    properties[1].IsRequired = true;
+            #if NET9_0_OR_GREATER
+                    properties[1].IsGetNullable = false;
+                    properties[1].IsSetNullable = false;
+            #endif
+                    properties[2] = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreatePropertyInfo<string?>(options, new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<string?>
+                    {
+                        IsProperty = true,
+                        IsPublic = true,
+                        DeclaringType = typeof(Customer),
+                        Converter = null,
+                        Getter = static obj => ((Customer)obj).Email,
+                        Setter = static (obj, value) => ((Customer)obj).Email = value!,
+                        IgnoreCondition = global::System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+                        IsExtensionData = false,
+                        PropertyName = "Email",
+                        JsonPropertyName = "email",
+                    });
+                    return properties;
+                },
+            };
+            typeInfo = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreateObjectInfo<Customer>(options, objectInfo);
+            typeInfo.NumberHandling = null; // Use the options' number handling, as reflection does.
+        }
+        typeInfo.OriginatingResolver = this;
+        return typeInfo;
+    }
+
+    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<Document> Create10(global::System.Text.Json.JsonSerializerOptions options)
     {
         if (!TryGetRuntimeConverter<Document>(options, out var typeInfo))
         {
@@ -378,7 +750,7 @@ public partial class Features31JsonContext : global::System.Text.Json.Serializat
         return typeInfo;
     }
 
-    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<Progress> Create4(global::System.Text.Json.JsonSerializerOptions options)
+    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<Progress> Create11(global::System.Text.Json.JsonSerializerOptions options)
     {
         if (!TryGetRuntimeConverter<Progress>(options, out var typeInfo))
         {
@@ -426,7 +798,7 @@ public partial class Features31JsonContext : global::System.Text.Json.Serializat
         return typeInfo;
     }
 
-    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<SearchDocumentsFilter> Create5(global::System.Text.Json.JsonSerializerOptions options)
+    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<SearchDocumentsFilter> Create12(global::System.Text.Json.JsonSerializerOptions options)
     {
         if (!TryGetRuntimeConverter<SearchDocumentsFilter>(options, out var typeInfo))
         {
@@ -472,7 +844,7 @@ public partial class Features31JsonContext : global::System.Text.Json.Serializat
         return typeInfo;
     }
 
-    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<Shape> Create6(global::System.Text.Json.JsonSerializerOptions options)
+    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<Shape> Create13(global::System.Text.Json.JsonSerializerOptions options)
     {
         if (!TryGetRuntimeConverter<Shape>(options, out var typeInfo))
         {
@@ -482,7 +854,7 @@ public partial class Features31JsonContext : global::System.Text.Json.Serializat
         return typeInfo;
     }
 
-    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<SportsCar> Create7(global::System.Text.Json.JsonSerializerOptions options)
+    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<SportsCar> Create14(global::System.Text.Json.JsonSerializerOptions options)
     {
         if (!TryGetRuntimeConverter<SportsCar>(options, out var typeInfo))
         {
@@ -559,7 +931,7 @@ public partial class Features31JsonContext : global::System.Text.Json.Serializat
         return typeInfo;
     }
 
-    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<Square> Create8(global::System.Text.Json.JsonSerializerOptions options)
+    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<Square> Create15(global::System.Text.Json.JsonSerializerOptions options)
     {
         if (!TryGetRuntimeConverter<Square>(options, out var typeInfo))
         {
@@ -610,7 +982,7 @@ public partial class Features31JsonContext : global::System.Text.Json.Serializat
         return typeInfo;
     }
 
-    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<Stage> Create9(global::System.Text.Json.JsonSerializerOptions options)
+    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<Stage> Create16(global::System.Text.Json.JsonSerializerOptions options)
     {
         if (!TryGetRuntimeConverter<Stage>(options, out var typeInfo))
         {
@@ -620,7 +992,40 @@ public partial class Features31JsonContext : global::System.Text.Json.Serializat
         return typeInfo;
     }
 
-    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<UnrecognizedShape> Create10(global::System.Text.Json.JsonSerializerOptions options)
+    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<UnrecognizedChargeMethod> Create17(global::System.Text.Json.JsonSerializerOptions options)
+    {
+        if (!TryGetRuntimeConverter<UnrecognizedChargeMethod>(options, out var typeInfo))
+        {
+            var objectInfo = new global::System.Text.Json.Serialization.Metadata.JsonObjectInfoValues<UnrecognizedChargeMethod>
+            {
+                ObjectCreator = static () => new UnrecognizedChargeMethod(),
+                PropertyMetadataInitializer = _ =>
+                {
+                    var properties = new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfo[1];
+                    properties[0] = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreatePropertyInfo<global::System.Collections.Generic.IDictionary<string, global::System.Text.Json.JsonElement>>(options, new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<global::System.Collections.Generic.IDictionary<string, global::System.Text.Json.JsonElement>>
+                    {
+                        IsProperty = true,
+                        IsPublic = true,
+                        DeclaringType = typeof(UnrecognizedChargeMethod),
+                        Converter = null,
+                        Getter = static obj => ((UnrecognizedChargeMethod)obj).AdditionalProperties,
+                        Setter = static (obj, value) => ((UnrecognizedChargeMethod)obj).AdditionalProperties = value!,
+                        IgnoreCondition = null,
+                        IsExtensionData = true,
+                        PropertyName = "AdditionalProperties",
+                        JsonPropertyName = null,
+                    });
+                    return properties;
+                },
+            };
+            typeInfo = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreateObjectInfo<UnrecognizedChargeMethod>(options, objectInfo);
+            typeInfo.NumberHandling = null; // Use the options' number handling, as reflection does.
+        }
+        typeInfo.OriginatingResolver = this;
+        return typeInfo;
+    }
+
+    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<UnrecognizedShape> Create18(global::System.Text.Json.JsonSerializerOptions options)
     {
         if (!TryGetRuntimeConverter<UnrecognizedShape>(options, out var typeInfo))
         {
@@ -653,7 +1058,7 @@ public partial class Features31JsonContext : global::System.Text.Json.Serializat
         return typeInfo;
     }
 
-    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<UnrecognizedVehicle> Create11(global::System.Text.Json.JsonSerializerOptions options)
+    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<UnrecognizedVehicle> Create19(global::System.Text.Json.JsonSerializerOptions options)
     {
         if (!TryGetRuntimeConverter<UnrecognizedVehicle>(options, out var typeInfo))
         {
@@ -716,7 +1121,7 @@ public partial class Features31JsonContext : global::System.Text.Json.Serializat
         return typeInfo;
     }
 
-    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<Vehicle> Create12(global::System.Text.Json.JsonSerializerOptions options)
+    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<Vehicle> Create20(global::System.Text.Json.JsonSerializerOptions options)
     {
         if (!TryGetRuntimeConverter<Vehicle>(options, out var typeInfo))
         {
@@ -726,7 +1131,7 @@ public partial class Features31JsonContext : global::System.Text.Json.Serializat
         return typeInfo;
     }
 
-    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<byte[]> Create13(global::System.Text.Json.JsonSerializerOptions options)
+    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<byte[]> Create21(global::System.Text.Json.JsonSerializerOptions options)
     {
         if (!TryGetRuntimeConverter<byte[]>(options, out var typeInfo))
         {
@@ -736,7 +1141,7 @@ public partial class Features31JsonContext : global::System.Text.Json.Serializat
         return typeInfo;
     }
 
-    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<double> Create14(global::System.Text.Json.JsonSerializerOptions options)
+    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<double> Create22(global::System.Text.Json.JsonSerializerOptions options)
     {
         if (!TryGetRuntimeConverter<double>(options, out var typeInfo))
         {
@@ -746,7 +1151,7 @@ public partial class Features31JsonContext : global::System.Text.Json.Serializat
         return typeInfo;
     }
 
-    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<global::System.Collections.Generic.IReadOnlyList<Document>> Create15(global::System.Text.Json.JsonSerializerOptions options)
+    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<global::System.Collections.Generic.IReadOnlyList<Document>> Create23(global::System.Text.Json.JsonSerializerOptions options)
     {
         if (!TryGetRuntimeConverter<global::System.Collections.Generic.IReadOnlyList<Document>>(options, out var typeInfo))
         {
@@ -761,7 +1166,7 @@ public partial class Features31JsonContext : global::System.Text.Json.Serializat
         return typeInfo;
     }
 
-    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<global::System.Collections.Generic.IReadOnlyList<Shape>> Create16(global::System.Text.Json.JsonSerializerOptions options)
+    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<global::System.Collections.Generic.IReadOnlyList<Shape>> Create24(global::System.Text.Json.JsonSerializerOptions options)
     {
         if (!TryGetRuntimeConverter<global::System.Collections.Generic.IReadOnlyList<Shape>>(options, out var typeInfo))
         {
@@ -776,7 +1181,7 @@ public partial class Features31JsonContext : global::System.Text.Json.Serializat
         return typeInfo;
     }
 
-    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<global::System.Collections.Generic.IReadOnlyList<string>> Create17(global::System.Text.Json.JsonSerializerOptions options)
+    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<global::System.Collections.Generic.IReadOnlyList<string>> Create25(global::System.Text.Json.JsonSerializerOptions options)
     {
         if (!TryGetRuntimeConverter<global::System.Collections.Generic.IReadOnlyList<string>>(options, out var typeInfo))
         {
@@ -791,7 +1196,7 @@ public partial class Features31JsonContext : global::System.Text.Json.Serializat
         return typeInfo;
     }
 
-    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<int> Create18(global::System.Text.Json.JsonSerializerOptions options)
+    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<int> Create26(global::System.Text.Json.JsonSerializerOptions options)
     {
         if (!TryGetRuntimeConverter<int>(options, out var typeInfo))
         {
@@ -801,7 +1206,7 @@ public partial class Features31JsonContext : global::System.Text.Json.Serializat
         return typeInfo;
     }
 
-    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<string> Create19(global::System.Text.Json.JsonSerializerOptions options)
+    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<string> Create27(global::System.Text.Json.JsonSerializerOptions options)
     {
         if (!TryGetRuntimeConverter<string>(options, out var typeInfo))
         {
@@ -811,7 +1216,7 @@ public partial class Features31JsonContext : global::System.Text.Json.Serializat
         return typeInfo;
     }
 
-    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<int?> Create20(global::System.Text.Json.JsonSerializerOptions options)
+    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<int?> Create28(global::System.Text.Json.JsonSerializerOptions options)
     {
         if (!TryGetRuntimeConverter<int?>(options, out var typeInfo))
         {
@@ -821,7 +1226,7 @@ public partial class Features31JsonContext : global::System.Text.Json.Serializat
         return typeInfo;
     }
 
-    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<double?> Create21(global::System.Text.Json.JsonSerializerOptions options)
+    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<double?> Create29(global::System.Text.Json.JsonSerializerOptions options)
     {
         if (!TryGetRuntimeConverter<double?>(options, out var typeInfo))
         {
@@ -831,7 +1236,7 @@ public partial class Features31JsonContext : global::System.Text.Json.Serializat
         return typeInfo;
     }
 
-    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<global::System.Collections.Generic.IDictionary<string, global::System.Text.Json.JsonElement>> Create22(global::System.Text.Json.JsonSerializerOptions options)
+    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<global::System.Collections.Generic.IDictionary<string, global::System.Text.Json.JsonElement>> Create30(global::System.Text.Json.JsonSerializerOptions options)
     {
         if (!TryGetRuntimeConverter<global::System.Collections.Generic.IDictionary<string, global::System.Text.Json.JsonElement>>(options, out var typeInfo))
         {
@@ -846,7 +1251,7 @@ public partial class Features31JsonContext : global::System.Text.Json.Serializat
         return typeInfo;
     }
 
-    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<global::System.Text.Json.JsonElement> Create23(global::System.Text.Json.JsonSerializerOptions options)
+    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<global::System.Text.Json.JsonElement> Create31(global::System.Text.Json.JsonSerializerOptions options)
     {
         if (!TryGetRuntimeConverter<global::System.Text.Json.JsonElement>(options, out var typeInfo))
         {

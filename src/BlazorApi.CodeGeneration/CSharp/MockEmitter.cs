@@ -217,6 +217,9 @@ internal sealed class MockEmitter
         return new GeneratedFile("Models/" + name + ".g.cs", writer.ToString());
     }
 
+    /// <summary>A generated type name usable in expressions inside the fixtures class, whose methods may shadow it.</summary>
+    private string Qualified(string typeName) => "global::" + _plan.ModelsNamespace + "." + typeName;
+
     private void EmitFixture(CodeWriter writer, ApiNamedType type)
     {
         var typeName = _plan.TypeName(type);
@@ -242,7 +245,8 @@ internal sealed class MockEmitter
                 case ApiUnionType union:
                     var wrapper = _plan.Wrappers[union];
                     var (variant, variantName) = wrapper.Variants[0];
-                    writer.Line($"return {typeName}.From{variantName}({Value(variant.Type, "value", null, "depth")});");
+                    // Qualified: a fixture method can have the type's name (Create + EvalItem is CreateEvalItem).
+                    writer.Line($"return {Qualified(typeName)}.From{variantName}({Value(variant.Type, "value", null, "depth")});");
                     break;
                 case ApiObjectType obj:
                     writer.Line($"return new {typeName}");
@@ -301,7 +305,7 @@ internal sealed class MockEmitter
             case ApiMapType map:
                 return $"new global::System.Collections.Generic.Dictionary<string, {_plan.CSharpType(map.Values)}> {{ [\"key\"] = {Value(map.Values, hint, null, depth)} }}";
             case ApiNamedTypeRef { Target: ApiEnumType enumType } when _plan.IsEmitted(enumType):
-                return $"{_plan.NamedType(enumType)}.{_plan.EnumMembers(enumType)[0].Name}";
+                return $"{Qualified(_plan.TypeName(enumType))}.{_plan.EnumMembers(enumType)[0].Name}";
             case ApiNamedTypeRef named when _plan.IsEmitted(named.Target):
                 return $"Create{_plan.TypeName(named.Target)}Core({depth})";
             default:

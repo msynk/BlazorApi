@@ -21,7 +21,7 @@ api-gen validate [<contract>...] [--config <blazorapi.json>] [--strict] [--forma
 api-gen diff <previous> <current> [--format text|markdown|json] [--fail-on <level>] [--ignore <kind>[,<kind>...]]
              [--report <file>]
 api-gen inspect <contract> [--format text|json]
-api-gen mock <contract> [--port 4010] [--host localhost] [--overlay <file>]...
+api-gen mock <contract> [--port 4010] [--host localhost] [--overlay <file>]... [--no-validate]
 api-gen --version | --help
 ```
 
@@ -178,7 +178,21 @@ api-gen mock https://api.example.com/openapi.yaml --port 5080
   headers get placeholder values.
 - CORS is open (`Access-Control-Allow-Origin: *`, preflights answered), so a Blazor WebAssembly app on another port
   can call it: `options.BaseAddress = new Uri("http://localhost:4010/")`.
-- Each request is printed (`GET /pets/42 -> 200 (getPet)`). Request bodies are not validated. Ctrl+C stops it.
+- Requests are validated against the contract before the response is chosen, so client bugs show up during
+  development rather than against the real API:
+  - an operation with `security` answers 401 (with `WWW-Authenticate`) when no listed scheme has its credential
+    (the `Authorization` header with the right scheme, or the API key header, query parameter or cookie); the value
+    is not checked;
+  - a body with a content type the operation does not declare answers 415;
+  - otherwise problems answer 400 as problem details with an `errors` list of `{pointer, detail}` (RFC 9457), for
+    example `{"pointer": "/body/name", "detail": "Required."}` or `{"pointer": "/query/limit", "detail": "Must be at
+    most 100."}`: missing required parameters and bodies, scalar parameter formats (integers, numbers, booleans,
+    enums, dates, UUIDs, arrays), invalid JSON, and JSON bodies against the schema (types, required, read-only and
+    unknown properties when `additionalProperties: false`, enums, `const`, formats, length, pattern, range, item
+    counts, unique items, discriminated hierarchies and unions). At most 20 problems are listed.
+
+  `--no-validate` turns validation off.
+- Each request is printed (`GET /pets/42 -> 200 (getPet)`). Ctrl+C stops it.
 - On loopback (the default) requests must use the host `localhost`, `127.0.0.1` or `[::1]` (others get 421, which
   blocks DNS rebinding); `--host` with another address warns that the server is reachable from other machines.
   Connections are limited to 64, requests to 30 seconds and bodies to 16 MiB.

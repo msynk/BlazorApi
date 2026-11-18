@@ -123,9 +123,16 @@ public static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor DiscriminatorPropertyMissing = new(
         "BAPI3010", "Discriminator property missing", "Discriminator property '{0}' is not defined by {1}", DiagnosticSeverity.Warning, Validation);
 
-    /// <summary>Two paths differ only in template variable names.</summary>
+    /// <summary>Two paths differ only in template variable names and share an HTTP method (a request is ambiguous).</summary>
     public static readonly DiagnosticDescriptor EquivalentPaths = new(
-        "BAPI3011", "Equivalent paths", "Path '{0}' is equivalent to '{1}' (only template variable names differ)", DiagnosticSeverity.Error, Validation);
+        "BAPI3011", "Equivalent paths", "Path '{0}' is equivalent to '{1}' (only template variable names differ) and both declare {2}", DiagnosticSeverity.Error, Validation);
+
+    /// <summary>
+    /// Two paths differ only in template variable names but declare different HTTP methods. The OpenAPI specification
+    /// forbids it, yet every request still matches one operation, and large published contracts (GitHub, Jira) do it.
+    /// </summary>
+    public static readonly DiagnosticDescriptor EquivalentPathsDistinctMethods = new(
+        "BAPI3019", "Equivalent paths with distinct methods", "Path '{0}' is equivalent to '{1}' (only template variable names differ); the OpenAPI specification forbids it, but their methods differ, so requests are not ambiguous", DiagnosticSeverity.Warning, Validation);
 
     /// <summary>A parameter style is not allowed for its location or type.</summary>
     public static readonly DiagnosticDescriptor InvalidParameterStyle = new(

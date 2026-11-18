@@ -242,6 +242,37 @@ public class ClientFeatureTests
         Assert.Equal(Stage.Unrecognized, lines.Single().Stage);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Unions_without_a_declared_discriminator_are_told_apart_by_constant_properties(bool metadataOnly)
+    {
+        var json = metadataOnly
+            ? new JsonSerializerOptions(ApiJson.CreateOptions()) { TypeInfoResolver = JsonTypeInfoResolver.Combine(Features31JsonContext.Default) }
+            : ApiJson.CreateOptions();
+        var handler = new RecordingHandler()
+            .Respond(HttpStatusCode.OK, """{"id":"ch_1","payer":"cus_1","method":{"type":"card","last4":"4242"}}""")
+            .Respond(HttpStatusCode.OK, """{"id":"ch_2","payer":{"object":"bot","id":"b1","model":"x9"},"method":{"type":"bank_transfer","iban":"DE00"}}""")
+            .Respond(HttpStatusCode.OK, """{"id":"ch_3","payer":{"object":"alien","id":"a1"},"method":{"type":"cash"}}""");
+        var client = new Features31Client(new HttpClient(handler), new ApiClientOptions { JsonSerializerOptions = json });
+
+        var byId = await client.GetChargeAsync("1");
+        var expanded = await client.GetChargeAsync("2");
+        var unknown = await client.GetChargeAsync("3");
+
+        Assert.Equal("cus_1", byId.Payer.AsString());
+        Assert.Equal("4242", Assert.IsType<ChargeMethodCard>(byId.Method).Last4);
+        Assert.Equal("x9", expanded.Payer.AsBot().Model);
+        Assert.Equal("DE00", Assert.IsType<ChargeMethodBankTransfer>(expanded.Method).Iban);
+        Assert.Equal(0, unknown.Payer.Variant); // an object of no known kind is kept as raw JSON
+        Assert.Equal("alien", unknown.Payer.Json!.Value.GetProperty("object").GetString());
+        Assert.IsType<UnrecognizedChargeMethod>(unknown.Method);
+
+        // Written back unchanged.
+        Assert.Equal("""{"id":"ch_2","payer":{"object":"bot","id":"b1","model":"x9"},"method":{"type":"bank_transfer","iban":"DE00"}}""",
+            JsonSerializer.Serialize(expanded, json));
+    }
+
     [Fact]
     public void Generated_metadata_matches_reflection_for_options_and_property_order()
     {

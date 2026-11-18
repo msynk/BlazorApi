@@ -133,6 +133,24 @@ public partial interface IFeatures31Client
     /// <returns>The result: the value on success, or the error.</returns>
     global::System.Threading.Tasks.Task<global::BlazorApi.Runtime.ApiResult<global::System.Collections.Generic.IReadOnlyList<Shape>>> ListShapesResultAsync(global::System.Threading.CancellationToken cancellationToken = default);
 
+    /// <summary>GET /charges/{id}</summary>
+    /// <remarks>GET /charges/{id} (getCharge)</remarks>
+    /// <param name="id">The 'id' path parameter.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>A charge</returns>
+    /// <exception cref="global::BlazorApi.Runtime.ApiException">The call failed; the exception's Error describes the status code, typed error body, network error, timeout or unreadable body.</exception>
+    global::System.Threading.Tasks.Task<Charge> GetChargeAsync(string id, global::System.Threading.CancellationToken cancellationToken = default);
+
+    /// <summary>GET /charges/{id}</summary>
+    /// <remarks>
+    /// GET /charges/{id} (getCharge)
+    /// Failures (error status codes, network errors, timeouts, unreadable bodies) are returned in the result instead of thrown; only cancellation throws.
+    /// </remarks>
+    /// <param name="id">The 'id' path parameter.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>The result: the value on success, or the error.</returns>
+    global::System.Threading.Tasks.Task<global::BlazorApi.Runtime.ApiResult<Charge>> GetChargeResultAsync(string id, global::System.Threading.CancellationToken cancellationToken = default);
+
     /// <summary>COPY /documents/{id}</summary>
     /// <remarks>COPY /documents/{id} (copyDocument)</remarks>
     /// <param name="id">The 'id' path parameter.</param>
@@ -353,6 +371,26 @@ public partial class Features31Client : IFeatures31Client
     }
 
     /// <inheritdoc />
+    public async global::System.Threading.Tasks.Task<Charge> GetChargeAsync(string id, global::System.Threading.CancellationToken cancellationToken = default)
+    {
+        var result = await GetChargeResultAsync(id, cancellationToken).ConfigureAwait(false);
+        return result.GetValueOrThrow();
+    }
+
+    /// <inheritdoc />
+    public global::System.Threading.Tasks.Task<global::BlazorApi.Runtime.ApiResult<Charge>> GetChargeResultAsync(string id, global::System.Threading.CancellationToken cancellationToken = default)
+    {
+        global::System.ArgumentNullException.ThrowIfNull(id);
+        var builder = new global::BlazorApi.Runtime.Http.ApiRequestBuilder(global::System.Net.Http.HttpMethod.Get, "/charges/{id}", "getCharge")
+        {
+            Security = GetChargeSecurity,
+        };
+        builder.Path("id", global::BlazorApi.Runtime.Http.ParameterValue.Scalar(id), global::BlazorApi.Runtime.Http.ParameterStyle.Simple, explode: false);
+        builder.Accept("application/json");
+        return _connection.SendAsync(builder, GetChargeResponses, cancellationToken);
+    }
+
+    /// <inheritdoc />
     public async global::System.Threading.Tasks.Task CopyDocumentAsync(string id, string destination, global::System.Threading.CancellationToken cancellationToken = default)
     {
         var result = await CopyDocumentResultAsync(id, destination, cancellationToken).ConfigureAwait(false);
@@ -427,6 +465,11 @@ public partial class Features31Client : IFeatures31Client
         .Success("200", global::BlazorApi.Runtime.Http.ApiBody.ReadJson<global::System.Collections.Generic.IReadOnlyList<Shape>>);
 
     private static readonly global::System.Collections.Generic.IReadOnlyList<global::BlazorApi.Runtime.Http.ApiSecurityRequirement> ListShapesSecurity = global::System.Array.Empty<global::BlazorApi.Runtime.Http.ApiSecurityRequirement>();
+
+    private static readonly global::BlazorApi.Runtime.Http.ApiResponseHandler<Charge> GetChargeResponses = new global::BlazorApi.Runtime.Http.ApiResponseHandler<Charge>()
+        .Success("200", global::BlazorApi.Runtime.Http.ApiBody.ReadJson<Charge>);
+
+    private static readonly global::System.Collections.Generic.IReadOnlyList<global::BlazorApi.Runtime.Http.ApiSecurityRequirement> GetChargeSecurity = global::System.Array.Empty<global::BlazorApi.Runtime.Http.ApiSecurityRequirement>();
 
     private static readonly global::BlazorApi.Runtime.Http.ApiResponseHandler<global::BlazorApi.Runtime.Http.ApiNoContent> CopyDocumentResponses = new global::BlazorApi.Runtime.Http.ApiResponseHandler<global::BlazorApi.Runtime.Http.ApiNoContent>()
         .Success("204");

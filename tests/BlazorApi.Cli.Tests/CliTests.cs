@@ -307,7 +307,7 @@ public sealed class CliTests : IDisposable
         };
         var run = Task.Run(() => app.Run(["mock", "petstore.yaml", "--port", "0"]));
         var endpoint = await started.Task.WaitAsync(cancellation.Token);
-        using var http = new HttpClient { BaseAddress = new Uri($"http://localhost:{endpoint.Port}/") };
+        using var http = new HttpClient { BaseAddress = new Uri($"http://localhost:{endpoint.Port}/"), DefaultRequestHeaders = { Authorization = new("Bearer", "test") } };
 
         using var rebound = new HttpRequestMessage(HttpMethod.Get, "pets/1") { Headers = { Host = "attacker.example" } };
         var foreign = await http.SendAsync(rebound, cancellation.Token);
@@ -431,9 +431,21 @@ public sealed class CliTests : IDisposable
 
     private static async Task WaitUntil(Func<bool> condition, CancellationToken cancellationToken)
     {
-        while (!condition())
+        while (!Check())
         {
             await Task.Delay(50, cancellationToken);
+        }
+
+        bool Check()
+        {
+            try
+            {
+                return condition();
+            }
+            catch (IOException)
+            {
+                return false; // The file is being rewritten (Windows does not share it): try again.
+            }
         }
     }
 
@@ -450,7 +462,7 @@ public sealed class CliTests : IDisposable
         };
         var run = Task.Run(() => app.Run(["mock", "petstore.yaml", "--port", "0"]));
         var endpoint = await started.Task.WaitAsync(cancellation.Token);
-        using var http = new HttpClient { BaseAddress = new Uri($"http://localhost:{endpoint.Port}/") };
+        using var http = new HttpClient { BaseAddress = new Uri($"http://localhost:{endpoint.Port}/"), DefaultRequestHeaders = { Authorization = new("Bearer", "test") } };
 
         var pet = await http.GetAsync("v1/pets/42", cancellation.Token);
         var petJson = System.Text.Json.JsonDocument.Parse(await pet.Content.ReadAsStringAsync(cancellation.Token)).RootElement;
@@ -481,5 +493,89 @@ public sealed class CliTests : IDisposable
         Assert.Equal("image/png", photo.Content.Headers.ContentType!.MediaType);
         Assert.Equal(0, await run);
         Assert.Contains("GET /v1/pets/42 -> 200 (getPet)", output.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Mock_validates_requests_against_the_contract()
+    {
+        using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+        var started = new TaskCompletionSource<System.Net.IPEndPoint>();
+        var app = new CliApp(TextWriter.Synchronized(new StringWriter()), TextWriter.Synchronized(new StringWriter()), _directory)
+        {
+            Cancellation = cancellation.Token,
+            MockStarted = started.SetResult,
+        };
+        var run = Task.Run(() => app.Run(["mock", "petstore.yaml", "--port", "0"]));
+        var endpoint = await started.Task.WaitAsync(cancellation.Token);
+        using var anonymous = new HttpClient { BaseAddress = new Uri($"http://localhost:{endpoint.Port}/") };
+        using var http = new HttpClient { BaseAddress = anonymous.BaseAddress, DefaultRequestHeaders = { Authorization = new("Bearer", "test") } };
+
+        async Task<(System.Net.HttpStatusCode Status, System.Text.Json.JsonElement Problem)> Send(HttpClient client, HttpMethod method, string url, string? json = null, string type = "application/json")
+        {
+            using var request = new HttpRequestMessage(method, url);
+            if (json is not null)
+            {
+                request.Content = new StringContent(json, System.Text.Encoding.UTF8, type);
+            }
+
+            using var response = await client.SendAsync(request, cancellation.Token);
+            var text = await response.Content.ReadAsStringAsync(cancellation.Token);
+            return (response.StatusCode, text.Length > 0 && response.Content.Headers.ContentType?.MediaType == "application/problem+json"
+                ? System.Text.Json.JsonDocument.Parse(text).RootElement.Clone()
+                : default);
+        }
+
+        static string[] Pointers(System.Text.Json.JsonElement problem) =>
+            problem.GetProperty("errors").EnumerateArray().Select(e => e.GetProperty("pointer").GetString()!).ToArray();
+
+        var noCredentials = await Send(anonymous, HttpMethod.Get, "pets");
+        var badQuery = await Send(http, HttpMethod.Get, "pets?limit=500&status=lost&X=1");
+        var arrays = await Send(http, HttpMethod.Get, "pets?limit=2&tags=a&tags=b");
+        var badBody = await Send(http, HttpMethod.Post, "pets", """{"kind":3,"tag":null,"status":"lost"}""");
+        var notJson = await Send(http, HttpMethod.Post, "pets", "{", "application/json");
+        var wrongType = await Send(http, HttpMethod.Post, "pets", "name=Rex", "application/x-www-form-urlencoded");
+        var missingBody = await Send(http, HttpMethod.Post, "pets");
+        var chunked = await http.PostAsync("pets", new ChunkedJson("""{"name":"Rex","kind":"dog"}"""), cancellation.Token);
+        var publicHealth = await Send(anonymous, HttpMethod.Get, "health");
+        await cancellation.CancelAsync();
+
+        Assert.Equal(System.Net.HttpStatusCode.Unauthorized, noCredentials.Status);
+        Assert.Equal(System.Net.HttpStatusCode.BadRequest, badQuery.Status);
+        Assert.Equal(["/query/limit", "/query/status"], Pointers(badQuery.Problem));
+        Assert.Equal(System.Net.HttpStatusCode.OK, arrays.Status);
+        Assert.Equal(System.Net.HttpStatusCode.BadRequest, badBody.Status);
+        Assert.Equal(["/body/name", "/body/kind", "/body/status"], Pointers(badBody.Problem));
+        Assert.Equal(System.Net.HttpStatusCode.BadRequest, notJson.Status);
+        Assert.Equal(System.Net.HttpStatusCode.UnsupportedMediaType, wrongType.Status);
+        Assert.Equal(System.Net.HttpStatusCode.BadRequest, missingBody.Status);
+        Assert.Equal(System.Net.HttpStatusCode.Created, chunked.StatusCode);
+        Assert.Equal(System.Net.HttpStatusCode.OK, publicHealth.Status);
+        Assert.Equal(0, await run);
+    }
+
+    /// <summary>A JSON body sent with chunked transfer encoding (no Content-Length).</summary>
+    private sealed class ChunkedJson : HttpContent
+    {
+        private readonly string _json;
+
+        public ChunkedJson(string json)
+        {
+            _json = json;
+            Headers.ContentType = new("application/json");
+        }
+
+        protected override async Task SerializeToStreamAsync(Stream stream, System.Net.TransportContext? context)
+        {
+            var bytes = System.Text.Encoding.UTF8.GetBytes(_json);
+            await stream.WriteAsync(bytes.AsMemory(0, 5));
+            await stream.FlushAsync();
+            await stream.WriteAsync(bytes.AsMemory(5));
+        }
+
+        protected override bool TryComputeLength(out long length)
+        {
+            length = 0;
+            return false;
+        }
     }
 }

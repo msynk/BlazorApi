@@ -275,8 +275,9 @@ internal sealed class ModelEmitter
             }
         }
 
-        if (property.Deprecated)
+        if (property.Deprecated && !contract.Required)
         {
+            // C# does not allow [Obsolete] on required members (CS9042); those keep only their documentation.
             writer.Line("[global::System.Obsolete]");
         }
 
@@ -562,7 +563,7 @@ internal sealed class ModelEmitter
                             using (writer.Block("try"))
                             {
                                 writer.Line($"value = {ApiJson}.Deserialize<{type}>(_json, options)!;");
-                                writer.Line("return value is not null;");
+                                writer.Line("return (object?)value is not null; // Also compiles for value types.");
                             }
 
                             using (writer.Block($"catch ({Json}.JsonException)"))
@@ -626,11 +627,45 @@ internal sealed class ModelEmitter
                         }
 
                         break;
+                    case ApiUnionDispatch.ValueKind when plan.Variants.Count == 0:
+                        break; // No variants (an empty oneOf): every value is kept as raw JSON.
                     case ApiUnionDispatch.ValueKind:
+                        // Several object variants (next to variants of other JSON kinds) are told apart by the discriminator.
+                        var objectVariants = Enumerable.Range(0, plan.Variants.Count)
+                            .Where(i => plan.Variants[i].Variant.Type is ApiNamedTypeRef { Target: ApiObjectType })
+                            .ToList();
+                        var byDiscriminator = objectVariants.Count > 1 && union.DiscriminatorPropertyName is not null;
                         using (writer.Block("switch (reader.TokenType)"))
                         {
+                            if (byDiscriminator)
+                            {
+                                writer.Line($"case {Json}.JsonTokenType.StartObject:");
+                                using (writer.Indent())
+                                {
+                                    using (writer.Block($"switch ({ApiJson}.PeekDiscriminator(reader, {Literal.String(union.DiscriminatorPropertyName!)}))"))
+                                    {
+                                        foreach (var i in objectVariants)
+                                        {
+                                            var (variant, _) = plan.Variants[i];
+                                            writer.Line($"case {Literal.String(variant.DiscriminatorValue!)}:");
+                                            using (writer.Indent())
+                                            {
+                                                writer.Line($"return new {name}({ApiJson}.Read<{_plan.CSharpType(variant.Type, nullable: false)}>(ref reader, options), {i + 1}, default);");
+                                            }
+                                        }
+                                    }
+
+                                    writer.Line("break;");
+                                }
+                            }
+
                             for (var i = 0; i < plan.Variants.Count; i++)
                             {
+                                if (byDiscriminator && objectVariants.Contains(i))
+                                {
+                                    continue;
+                                }
+
                                 var (variant, _) = plan.Variants[i];
                                 var type = _plan.CSharpType(variant.Type, nullable: false);
                                 foreach (var token in TokenTypes(variant.Type))

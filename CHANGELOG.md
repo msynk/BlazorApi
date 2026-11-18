@@ -52,6 +52,11 @@ target .NET Standard 2.0.
   `blazorapi.client.operation.duration` histogram (`url.template`, operation id, status, `error.type`).
 - **Forward-compatible enums**: `unknownEnumValues=unrecognized` adds an `Unrecognized` member for values the
   contract does not list.
+- **Implicit discriminators**: object variants of a `oneOf`/`anyOf` without a `discriminator` are told apart by a
+  property with a different constant value in each (OpenAI's `type`, Stripe's `object`), also next to variants of
+  other JSON kinds (expandable fields); inline variants are named after their `title`.
+- **Mock validation**: `api-gen mock` checks credentials (401), content types (415), parameters and JSON bodies
+  against the contract (400 with an RFC 9457 `errors` list); `--no-validate` turns it off.
 - **Caching**: `ApiCacheOptions.UseFreshness` serves fresh responses (`max-age`, `Expires`) without a request; a
   successful unsafe request drops the cached responses of its URL.
 - **AOT**: `generateJsonContext=true` emits a `JsonSerializerContext` used by default, with metadata written
@@ -97,6 +102,11 @@ target .NET Standard 2.0.
 
 ### Fixed
 
+- Found by generating real-world contracts (GitHub, Stripe, OpenAI, Kubernetes, Twilio, Asana, Jira, Box): paths that
+  differ only in variable names but declare different methods (GitHub, Jira) are now a warning (BAPI3019) instead of
+  an error; `allOf: [$ref, {description}]` maps to the referenced type instead of an empty union or a subclass;
+  ambiguous unions with value-type variants compile; `[Obsolete]` is no longer put on required members (CS9042); fixtures compile when a
+  model is named like another model's fixture method (`CreateEvalItem`).
 - Server-sent events: `id:` and `retry:` fields in a block without data now apply (WHATWG), and an empty `id:`
   resets the last event id, so `ApiEventSource.Reconnecting` sends no `Last-Event-ID`.
 - Sending an `Unrecognized` enum member fails with a message that explains it (string enums gave no message).

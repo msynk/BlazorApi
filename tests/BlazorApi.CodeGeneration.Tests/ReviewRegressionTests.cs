@@ -284,4 +284,96 @@ public class ReviewRegressionTests
         Assert.Contains("typeof(FileResponseDto)", context, StringComparison.Ordinal);
         Assert.DoesNotContain("global::BlazorApi.Runtime.FileResponse)", context, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void Documented_references_and_ambiguous_value_unions_compile()
+    {
+        // Found by generating real-world contracts (Box): a reference documented through allOf, and unions whose
+        // variants are all numbers (raw JSON with typed accessors for value types).
+        const string contract = """
+            openapi: 3.0.3
+            info: { title: Docs, version: '1' }
+            paths:
+              /ask:
+                post:
+                  operationId: ask
+                  requestBody:
+                    required: true
+                    content:
+                      application/json: { schema: { $ref: '#/components/schemas/Ask' } }
+                  responses: { '204': { description: ok } }
+            components:
+              schemas:
+                Person:
+                  type: object
+                  required: [legacyId]
+                  properties:
+                    name: { type: string }
+                    legacyId: { type: string, deprecated: true }
+                Robot:
+                  type: object
+                  properties:
+                    model: { type: string }
+                Agent:
+                  type: object
+                  oneOf: [{ $ref: '#/components/schemas/Person' }, { $ref: '#/components/schemas/Robot' }]
+                Amount:
+                  oneOf: [{ type: integer, format: int64 }, { type: number, format: float }]
+                Ask:
+                  type: object
+                  properties:
+                    agent:
+                      allOf: [{ $ref: '#/components/schemas/Agent' }, { description: The agent that answers. }]
+                    owner:
+                      allOf: [{ $ref: '#/components/schemas/Person' }, { description: The owner., nullable: true }]
+                    amount: { $ref: '#/components/schemas/Amount' }
+            """;
+        var result = GeneratedCode.GenerateYaml(contract, new GeneratorOptions { Namespace = "Docs", GenerateJsonContext = true, GenerateMocks = true });
+
+        var ask = File(result, "Models/Ask.g.cs");
+        Assert.Contains("public Agent? Agent", ask, StringComparison.Ordinal);
+        Assert.Contains("public Person? Owner", ask, StringComparison.Ordinal);
+        Assert.DoesNotContain(result.Files, f => f.Path.Contains("AskAgent", StringComparison.Ordinal) || f.Path.Contains("AskOwner", StringComparison.Ordinal));
+        Assert.Contains("return (object?)value is not null;", File(result, "Models/Amount.g.cs"), StringComparison.Ordinal);
+        // [Obsolete] is not allowed on required members (CS9042).
+        Assert.DoesNotContain("Obsolete", File(result, "Models/Person.g.cs"), StringComparison.Ordinal);
+        GeneratedCode.Compile(result);
+    }
+
+    [Fact]
+    public void Fixtures_compile_when_a_type_is_named_like_another_types_fixture()
+    {
+        // Found in the OpenAI contract: the fixture of EvalItem is CreateEvalItem, which is also a model.
+        const string contract = """
+            openapi: 3.1.0
+            info: { title: Evals, version: '1' }
+            paths:
+              /evals:
+                post:
+                  operationId: createEval
+                  requestBody:
+                    required: true
+                    content:
+                      application/json: { schema: { $ref: '#/components/schemas/CreateEvalItem' } }
+                  responses:
+                    '200':
+                      description: ok
+                      content:
+                        application/json: { schema: { $ref: '#/components/schemas/EvalItem' } }
+            components:
+              schemas:
+                Color: { type: string, enum: [red, green] }
+                CreateColor: { type: string, enum: [blue] }
+                EvalItem:
+                  type: object
+                  properties:
+                    color: { $ref: '#/components/schemas/CreateColor' }
+                    tint: { $ref: '#/components/schemas/Color' }
+                CreateEvalItem:
+                  oneOf: [{ type: string }, { $ref: '#/components/schemas/EvalItem' }]
+            """;
+        var result = GeneratedCode.GenerateYaml(contract, new GeneratorOptions { Namespace = "Evals", GenerateMocks = true });
+
+        GeneratedCode.Compile(result);
+    }
 }

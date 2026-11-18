@@ -13,7 +13,9 @@ namespace BlazorApi.Cli;
 /// A mock HTTP server for a contract (<c>api-gen mock</c>): every operation answers with the example of its response,
 /// or a value synthesized from the schema. Clients choose the response with <c>Prefer: code=404</c> and
 /// <c>Prefer: example=name</c> (the Prism convention). CORS is open so Blazor WebAssembly apps can call it. It speaks
-/// HTTP/1.1 over a plain socket (one request per connection), so it needs no URL reservation or elevation.
+/// HTTP/1.1 over a plain socket (one request per connection), so it needs no URL reservation or elevation. Requests
+/// are validated against the contract first (<see cref="RequestValidator"/>): missing credentials answer 401, an
+/// unsupported content type 415, and invalid parameters or bodies 400 with the problems listed.
 /// </summary>
 internal sealed class MockServer
 {
@@ -25,7 +27,8 @@ internal sealed class MockServer
     private readonly ApiModel _model;
     private readonly OpenApiExamples _examples;
     private readonly TextWriter _log;
-    private readonly List<(ApiOperation Operation, Regex Pattern)> _routes;
+    private readonly List<(ApiOperation Operation, Regex Pattern, string[] Names)> _routes;
+    private readonly bool _validate;
     private readonly string _basePath;
 
     /// <param name="model">The API.</param>
@@ -34,13 +37,15 @@ internal sealed class MockServer
     /// Accepted <c>Host</c> header names (without port), or <see langword="null"/> to accept any: a loopback server
     /// rejects other names so web pages cannot reach it through DNS rebinding.
     /// </param>
-    public MockServer(ApiModel model, TextWriter log, IEnumerable<string>? allowedHosts = null)
+    /// <param name="validate">Whether requests are validated against the contract.</param>
+    public MockServer(ApiModel model, TextWriter log, IEnumerable<string>? allowedHosts = null, bool validate = true)
     {
+        _validate = validate;
         _allowedHosts = allowedHosts is null ? [] : new HashSet<string>(allowedHosts, StringComparer.OrdinalIgnoreCase);
         _model = model;
         _log = log;
         _examples = new OpenApiExamples(model.Document);
-        _routes = model.Operations.Select(o => (o, Route(o.Path))).ToList();
+        _routes = model.Operations.Select(o => (o, Route(o.Path, out var names), names)).ToList();
         var server = model.Servers.FirstOrDefault()?.DefaultUrl;
         _basePath = server is not null && Uri.TryCreate(server, UriKind.Absolute, out var uri) ? uri.AbsolutePath.TrimEnd('/')
             : server is not null && server.StartsWith("/", StringComparison.Ordinal) ? server.TrimEnd('/') : string.Empty;
@@ -119,7 +124,11 @@ internal sealed class MockServer
 
     // ------------------------------------------------------------------ routing and responses
 
-    internal sealed record Request(string Method, string Target, Dictionary<string, string> Headers);
+    internal sealed record Request(string Method, string Target, Dictionary<string, string> Headers)
+    {
+        /// <summary>The request body (decoded when it was chunked).</summary>
+        public byte[] Body { get; init; } = [];
+    }
 
     internal sealed record Response(int Status, string? ContentType, byte[] Body, Dictionary<string, string> Headers, string? OperationId);
 
@@ -150,15 +159,36 @@ internal sealed class MockServer
         }
 
         // Literal segments win over variables (/pets/mine before /pets/{id}).
-        var operation = matches
+        var route = matches
             .Where(r => string.Equals(r.Operation.Method, request.Method, StringComparison.Ordinal))
             .OrderBy(r => r.Operation.Path.Count(c => c == '{'))
-            .Select(r => r.Operation)
             .FirstOrDefault();
+        var operation = route.Operation;
         if (operation is null)
         {
             headers["Allow"] = string.Join(", ", matches.Select(r => r.Operation.Method).Distinct());
             return Problem(405, $"'{path}' does not support {request.Method}.", null) with { Headers = headers };
+        }
+
+        if (_validate)
+        {
+            var match = route.Pattern.Match(path);
+            var pathValues = new Dictionary<string, string>(StringComparer.Ordinal);
+            for (var i = 0; i < route.Names.Length; i++)
+            {
+                pathValues[route.Names[i]] = match.Groups["p" + i.ToString(CultureInfo.InvariantCulture)].Value;
+            }
+
+            if (RequestValidator.Validate(operation, request.Method, request.Target, request.Headers, request.Body, pathValues) is { } failure)
+            {
+                var problem = Problem(failure.Status, failure.Detail, operation, failure.Violations);
+                if (failure.Challenge is not null)
+                {
+                    problem.Headers["WWW-Authenticate"] = failure.Challenge;
+                }
+
+                return problem;
+            }
         }
 
         var prefer = request.Headers.TryGetValue("Prefer", out var preferHeader) ? ParsePrefer(preferHeader) : new Dictionary<string, string>();
@@ -236,12 +266,36 @@ internal sealed class MockServer
 
     private static string OperationName(ApiOperation operation) => operation.OperationId ?? operation.ToString();
 
-    private static Response Problem(int status, string detail, ApiOperation? operation)
+    private static Response Problem(int status, string detail, ApiOperation? operation, IReadOnlyList<RequestValidator.Violation>? errors = null)
     {
         var body = new StringBuilder("{\"title\":");
-        AppendJsonString(body, status switch { 404 => "Not Found", 405 => "Method Not Allowed", _ => "Mock error" });
+        AppendJsonString(body, status switch
+        {
+            400 => "Bad Request",
+            401 => "Unauthorized",
+            404 => "Not Found",
+            405 => "Method Not Allowed",
+            415 => "Unsupported Media Type",
+            _ => "Mock error",
+        });
         body.Append(",\"status\":").Append(status.ToString(CultureInfo.InvariantCulture)).Append(",\"detail\":");
         AppendJsonString(body, detail);
+        if (errors is { Count: > 0 })
+        {
+            // RFC 9457 section 3: problems listed with JSON pointers into the request.
+            body.Append(",\"errors\":[");
+            for (var i = 0; i < errors.Count; i++)
+            {
+                body.Append(i == 0 ? "{\"pointer\":" : ",{\"pointer\":");
+                AppendJsonString(body, errors[i].Pointer);
+                body.Append(",\"detail\":");
+                AppendJsonString(body, errors[i].Detail);
+                body.Append('}');
+            }
+
+            body.Append(']');
+        }
+
         body.Append('}');
         return new Response(status, "application/problem+json", Encoding.UTF8.GetBytes(body.ToString()),
             new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase), operation is null ? null : OperationName(operation));
@@ -292,13 +346,24 @@ internal sealed class MockServer
         return colon > 0 && host.IndexOf(']', StringComparison.Ordinal) < colon ? host.Substring(0, colon) : host;
     }
 
-    private static Regex Route(string template)
+    private static Regex Route(string template, out string[] names)
     {
         var pattern = new StringBuilder("^");
+        var found = new List<string>();
         foreach (Match part in Regex.Matches(template, @"\{[^}]+\}|[^{]+"))
         {
-            pattern.Append(part.Value.StartsWith("{", StringComparison.Ordinal) ? "[^/]+" : Regex.Escape(part.Value));
+            if (part.Value.StartsWith("{", StringComparison.Ordinal))
+            {
+                pattern.Append("(?<p").Append(found.Count.ToString(CultureInfo.InvariantCulture)).Append(">[^/]+)");
+                found.Add(part.Value.Substring(1, part.Value.Length - 2));
+            }
+            else
+            {
+                pattern.Append(Regex.Escape(part.Value));
+            }
         }
+
+        names = [.. found];
 
         return new Regex(pattern.Append("/?$").ToString(), RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1));
     }
@@ -339,9 +404,11 @@ internal sealed class MockServer
             }
         }
 
-        // Consume the body so the client sees a clean response (the mock does not read it).
+        // Read the body (validated against the contract) so the client also sees a clean response.
         var bodyStart = headerEnd + 4;
         var buffered = received.Length - bodyStart;
+        var body = new MemoryStream();
+        body.Write(received.GetBuffer(), bodyStart, (int)buffered);
         if (headers.TryGetValue("Content-Length", out var lengthText) && long.TryParse(lengthText, NumberStyles.None, CultureInfo.InvariantCulture, out var length))
         {
             if (length > MaxBodyBytes)
@@ -358,14 +425,15 @@ internal sealed class MockServer
                     break;
                 }
 
+                body.Write(buffer, 0, read);
                 remaining -= read;
             }
+
+            body.SetLength(Math.Min(body.Length, length));
         }
         else if (headers.TryGetValue("Transfer-Encoding", out var encoding) && encoding.Contains("chunked", StringComparison.OrdinalIgnoreCase))
         {
-            var tail = Encoding.ASCII.GetString(received.GetBuffer(), bodyStart, (int)buffered);
-            long consumed = buffered;
-            while (!tail.Contains("\r\n0\r\n\r\n", StringComparison.Ordinal) && !tail.StartsWith("0\r\n\r\n", StringComparison.Ordinal))
+            while (!EndsChunks(body))
             {
                 var read = await stream.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
                 if (read == 0)
@@ -373,17 +441,69 @@ internal sealed class MockServer
                     break;
                 }
 
-                consumed += read;
-                if (consumed > MaxBodyBytes)
+                body.Write(buffer, 0, read);
+                if (body.Length > MaxBodyBytes)
                 {
                     return null;
                 }
-
-                tail = tail.Substring(Math.Max(0, tail.Length - 16)) + Encoding.ASCII.GetString(buffer, 0, read);
             }
+
+            return new Request(requestLine[0], requestLine[1], headers) { Body = Dechunk(body.ToArray()) };
+        }
+        else
+        {
+            body.SetLength(0); // No length: the request has no body (HTTP/1.1).
         }
 
-        return new Request(requestLine[0], requestLine[1], headers);
+        return new Request(requestLine[0], requestLine[1], headers) { Body = body.ToArray() };
+    }
+
+    /// <summary>Whether a chunked body ends with its last chunk (<c>0</c>, optional trailers, an empty line).</summary>
+    private static bool EndsChunks(MemoryStream body)
+    {
+        var text = Encoding.ASCII.GetString(body.GetBuffer(), 0, (int)body.Length);
+        return text.StartsWith("0\r\n", StringComparison.Ordinal) && text.EndsWith("\r\n\r\n", StringComparison.Ordinal) ||
+            text.Contains("\r\n0\r\n", StringComparison.Ordinal) && text.EndsWith("\r\n\r\n", StringComparison.Ordinal);
+    }
+
+    /// <summary>Decodes a chunked body (RFC 9112 section 7.1); malformed framing ends it.</summary>
+    internal static byte[] Dechunk(byte[] data)
+    {
+        var result = new MemoryStream();
+        var position = 0;
+        while (position < data.Length)
+        {
+            var lineEnd = IndexOf(data, position);
+            if (lineEnd < 0)
+            {
+                break;
+            }
+
+            var sizeText = Encoding.ASCII.GetString(data, position, lineEnd - position).Split(';')[0].Trim();
+            if (!int.TryParse(sizeText, NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out var size) || size < 0 ||
+                size == 0 || lineEnd + 2 + size > data.Length)
+            {
+                break;
+            }
+
+            result.Write(data, lineEnd + 2, size);
+            position = lineEnd + 2 + size + 2;
+        }
+
+        return result.ToArray();
+
+        static int IndexOf(byte[] data, int start)
+        {
+            for (var i = start; i + 1 < data.Length; i++)
+            {
+                if (data[i] == '\r' && data[i + 1] == '\n')
+                {
+                    return i;
+                }
+            }
+
+            return -1;
+        }
     }
 
     private static int IndexOfHeaderEnd(MemoryStream received)

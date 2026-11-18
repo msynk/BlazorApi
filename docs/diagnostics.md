@@ -51,7 +51,7 @@ handled in a degraded way. Info never fails anything.
 | BAPI3008 | Error | A path template is malformed. |
 | BAPI3009 | Warning | A `required` entry names a property that is not defined. |
 | BAPI3010 | Warning | A discriminator property is not defined by the schema or its variants. |
-| BAPI3011 | Error | Two paths differ only in template variable names. |
+| BAPI3011 | Error | Two paths differ only in template variable names and declare the same method. |
 | BAPI3012 | Error | A parameter style is not valid for its location or type. |
 | BAPI3013 | Error | A parameter has both or neither of `schema` and `content`. |
 | BAPI3014 | Warning | A `default`, `enum` or example value does not match the schema type. |
@@ -59,6 +59,7 @@ handled in a degraded way. Info never fails anything.
 | BAPI3016 | Error | A server URL uses an undefined variable. |
 | BAPI3017 | Info | Not used for generation: callbacks, links, webhooks, ignored header parameters, 3.2-only fields. |
 | BAPI3018 | Warning | Invalid constraint combination (for example `minLength` greater than `maxLength`). |
+| BAPI3019 | Warning | Two paths differ only in template variable names but declare different methods (forbidden by the specification, not ambiguous). |
 | BAPI4001 | Warning | A schema keyword has no typed representation (info for `not`, `contains`, `propertyNames`, `unevaluatedItems`). |
 | BAPI4002 | Warning | Union variants cannot be told apart at runtime; the raw JSON is kept. |
 | BAPI4003 | Warning | `allOf` members define the same property differently; the first definition is used. |

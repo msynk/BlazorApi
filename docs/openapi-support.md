@@ -94,7 +94,8 @@ Required (in the parent's `required` list) and nullable (`nullable: true` or a `
   distinguishes "absent" (`Optional<T>.Absent`, the default) from "null". Assigning a value (including `null`)
   converts implicitly.
 - OpenAPI 3.0 `allOf: [$ref]` with `nullable: true`, and 3.1 `anyOf: [$ref, {type: "null"}]`, become a nullable
-  reference to the type.
+  reference to the type. `allOf` members with only annotations (`allOf: [$ref, {description: ...}]`, the 3.0 way to
+  document a reference) are ignored, so the result is the referenced type, not a subclass or a new union.
 
 ## Composition
 
@@ -121,6 +122,12 @@ Other unions become sealed wrapper classes with `Variant`, `Value`, `Json`, `Is{
 number, boolean, array, object). Unions whose variants cannot be told apart report BAPI4002 and keep the raw JSON;
 `TryGet{Variant}(JsonSerializerOptions, out value)` reads it as a variant on request. Properties declared next to
 `oneOf`/`anyOf` are not generated (BAPI4001).
+
+Without a declared `discriminator`, object variants that each give one property a different constant value (a
+single-value `enum` or `const`, such as OpenAI's `type` or Stripe's `object`) are told apart by that property as if it
+were declared. Unions that mix such objects with other JSON kinds (Stripe's expandable fields: an id string or the
+object) dispatch by JSON kind first, then by that property; an object with an unknown value keeps its raw JSON.
+Inline variants with a short `title` are named after it (`PaymentCard` instead of `PaymentVariant1`).
 
 ## Enums
 

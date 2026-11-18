@@ -660,7 +660,7 @@ internal sealed class CliApp
             _error.WriteLine($"warning: the mock server listens on {host}, reachable from other machines, with open CORS.");
         }
 
-        var server = new MockServer(model, _out, loopback ? ["localhost", "127.0.0.1", "[::1]"] : null);
+        var server = new MockServer(model, _out, loopback ? ["localhost", "127.0.0.1", "[::1]"] : null, validate: !line.Has("--no-validate"));
         Task.WhenAll(listeners.Select(l => server.RunAsync(l, Cancellation))).GetAwaiter().GetResult();
         return 0;
     }
@@ -874,7 +874,7 @@ internal sealed class CliApp
           api-gen diff <previous> <current> [--format text|markdown|json] [--fail-on breaking|potentially-breaking|non-breaking|none]
                        [--ignore <kind>[,<kind>...]] [--report <file>]
           api-gen inspect <contract> [--format text|json]
-          api-gen mock <contract> [--port 4010] [--host localhost] [--overlay <file>]...
+          api-gen mock <contract> [--port 4010] [--host localhost] [--overlay <file>]... [--no-validate]
 
         --overlay applies an OpenAPI Overlay (1.0-1.2) to the contract before it is read; repeatable, applied in order
                   after the configuration's "overlays".
@@ -886,7 +886,9 @@ internal sealed class CliApp
         diff      Reports changes between two versions of a contract and fails on breaking changes (by default).
         inspect   Summarizes operations, types, pagination and security.
         mock      Serves the contract's examples (or values synthesized from schemas) over HTTP with open CORS, for
-                  front-end development; 'Prefer: code=404' or 'Prefer: example=name' choose the response.
+                  front-end development; 'Prefer: code=404' or 'Prefer: example=name' choose the response. Requests
+                  are validated first (401 without credentials, 415 for other content types, 400 listing the problems);
+                  --no-validate turns that off.
 
         Exit codes: 0 success, 1 failure, 2 usage error.
         """;

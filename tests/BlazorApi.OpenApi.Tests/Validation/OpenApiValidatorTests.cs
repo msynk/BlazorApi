@@ -106,6 +106,24 @@ public class OpenApiValidatorTests
     }
 
     [Fact]
+    public void Equivalent_paths_with_different_methods_are_a_warning()
+    {
+        var ids = Validate("""
+            /a/{id}:
+              delete:
+                parameters: [{name: id, in: path, required: true, schema: {type: string}}]
+                responses: {'204': {description: ok}}
+            /a/{digest}:
+              get:
+                parameters: [{name: digest, in: path, required: true, schema: {type: string}}]
+                responses: {'200': {description: ok}}
+            """);
+
+        Assert.Contains("BAPI3019", ids);
+        Assert.DoesNotContain("BAPI3011", ids);
+    }
+
+    [Fact]
     public void Undefined_security_schemes()
     {
         Assert.Equal(["BAPI3007"], Validate("""
