@@ -17,5 +17,5 @@ public static class Features31ClientServiceCollectionExtensions
     /// <param name="configure">Configures the client options.</param>
     /// <returns>The HTTP client builder, for adding message handlers.</returns>
     public static global::Microsoft.Extensions.DependencyInjection.IHttpClientBuilder AddFeatures31Client(this global::Microsoft.Extensions.DependencyInjection.IServiceCollection services, global::System.Action<global::BlazorApi.Runtime.ApiClientOptions>? configure = null) =>
-        global::Microsoft.Extensions.DependencyInjection.ApiClientServiceCollectionExtensions.AddApiClient<IFeatures31Client>(services, "Features31Client", static (httpClient, options) => new Features31Client(httpClient, options), configure);
+        global::Microsoft.Extensions.DependencyInjection.ApiClientServiceCollectionExtensions.AddApiClient<IFeatures31Client>(services, "Features31Client", static (httpClient, options) => new Features31Client(httpClient, options), options => { options.JsonSerializerOptions = global::BlazorApi.Runtime.Json.ApiJson.CreateOptions(Features31JsonContext.Default); configure?.Invoke(options); });
 }

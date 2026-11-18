@@ -121,17 +121,17 @@ public class GeneratorTests
     }
 
     [Fact]
-    public void Json_context_option_is_reported_and_ignored()
+    public void Json_context_is_generated_by_the_source_generator()
     {
-        var compilation = Compilation("namespace Consumer; public static class Usage { }");
+        var compilation = Compilation("namespace Consumer; public static class Usage { public static System.Text.Json.Serialization.JsonSerializerContext C => Consumer.Petstore.PetstoreJsonContext.Default; }");
         var driver = Driver(ContractFile("petstore.yaml", new() { ["BlazorApiOptions"] = "GenerateJsonContext=true" }));
 
         driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out var output, out var generatorDiagnostics);
 
-        var diagnostic = Assert.Single(generatorDiagnostics, d => d.Id == "BAPI6005");
-        Assert.Equal(DiagnosticSeverity.Warning, diagnostic.Severity);
-        Assert.DoesNotContain(driver.GetRunResult().Results.Single().GeneratedSources, s => s.HintName.Contains("JsonContext", StringComparison.Ordinal));
-        Assert.Empty(output.GetDiagnostics().Where(d => d.Severity == DiagnosticSeverity.Error));
+        Assert.Empty(generatorDiagnostics.Where(d => d.Severity >= DiagnosticSeverity.Warning));
+        Assert.Contains(driver.GetRunResult().Results.Single().GeneratedSources, s => s.HintName.EndsWith("PetstoreJsonContext.g.cs", StringComparison.Ordinal));
+        var problems = output.GetDiagnostics().Where(d => d.Severity >= DiagnosticSeverity.Warning).ToList();
+        Assert.True(problems.Count == 0, string.Join(Environment.NewLine, problems.Take(10)));
     }
 
     [Fact]

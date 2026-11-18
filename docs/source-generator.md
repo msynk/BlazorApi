@@ -128,6 +128,6 @@ Without `CompilerGeneratedFilesOutputPath` the files go to
 | Contract changes | picked up on build | regenerate, `--check` in CI |
 | Several contracts | one `OpenApiContract` item each | `contracts` array in `blazorapi.json` |
 | Reference root | the contract's directory, or `references.root` of the `Config` file | configurable (`references.root`) |
-| JSON source generation for AOT | not possible in the same project (generators cannot see each other's output); `GenerateJsonContext=true` reports BAPI6005 and is ignored | `generateJsonContext=true` emits a `JsonSerializerContext` the clients use by default |
+| JSON metadata for AOT | `GenerateJsonContext=true` (item `Options`) emits a `JsonSerializerContext` the clients use by default | `generateJsonContext=true`, same output |
 
 Both use the same engine and options and produce the same code.

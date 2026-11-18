@@ -79,16 +79,16 @@ internal sealed class ModelEmitter
                 });
             }
 
-            foreach (var property in type.Properties)
+            foreach (var property in _plan.DeclaredProperties(type))
             {
                 members.Add(() => EmitProperty(writer, type, property));
             }
 
-            if (type.AdditionalProperties is not null && !HasExtensionDataInBase(type))
+            if (_plan.DeclaredAdditionalProperties(type) is { } additional && ReferenceEquals(_plan.ExtensionDataOwner(type), type))
             {
                 var propertyName = _plan.ExtensionDataName(type);
                 members.Add(() => EmitExtensionData(writer, propertyName, $"Properties not declared by {name}, keyed by name" +
-                    (type.AdditionalProperties is ApiPrimitiveType { Kind: ApiPrimitiveKind.Any } ? "." : $" (values are {Describe(type.AdditionalProperties)})."))
+                    (additional is ApiPrimitiveType { Kind: ApiPrimitiveKind.Any } ? "." : $" (values are {Describe(additional)})."))
                 );
             }
 
@@ -130,20 +130,9 @@ internal sealed class ModelEmitter
         }
 
         var name = _plan.TypeName(type);
-        return new Subtree(root, _plan.TypeScope.Allocate(name + "JsonConverter"), _plan.TypeScope.Allocate(name + "JsonPayload"), subtypes);
-    }
-
-    private ApiObjectType DeclaringType(ApiObjectType type, ApiProperty property)
-    {
-        for (var current = type; current is not null; current = _plan.CSharpBase(current) as ApiObjectType)
-        {
-            if (current.Properties.Any(p => ReferenceEquals(p, property)))
-            {
-                return current;
-            }
-        }
-
-        return type;
+        var subtree = new Subtree(root, _plan.TypeScope.Allocate(name + "JsonConverter"), _plan.TypeScope.Allocate(name + "JsonPayload"), subtypes);
+        _plan.Subtrees[type] = (subtree.Converter, subtree.Payload);
+        return subtree;
     }
 
     /// <summary>
@@ -155,15 +144,7 @@ internal sealed class ModelEmitter
     {
         var name = _plan.TypeName(type);
         var properties = type.AllProperties.Select(p => (Property: p, Name: _plan.PropertyName(type, p))).ToList();
-        ApiObjectType? extensionOwner = null;
-        for (var current = type; current is not null; current = _plan.CSharpBase(current) as ApiObjectType)
-        {
-            if (current.AdditionalProperties is not null)
-            {
-                extensionOwner = current;
-            }
-        }
-
+        var extensionOwner = _plan.ExtensionDataOwner(type);
         var extension = extensionOwner is null ? null : _plan.ExtensionDataName(extensionOwner);
         string Copy(string source) => string.Join(", ", properties.Select(p => $"{p.Name} = {source}.{p.Name}")
             .Concat(extension is null ? [] : [$"{extension} = {source}.{extension}"]));
@@ -227,7 +208,7 @@ internal sealed class ModelEmitter
         using (writer.Block($"{_plan.Accessibility} sealed class {plan.Payload}"))
         {
             // Each property keeps the shape of the class that declares it (the root's discriminator stays a discriminator).
-            var members = properties.Select(p => (Action)(() => EmitProperty(writer, DeclaringType(type, p.Property), p.Property))).ToList();
+            var members = properties.Select(p => (Action)(() => EmitProperty(writer, _plan.DeclaringType(type, p.Property), p.Property))).ToList();
             if (extension is not null)
             {
                 members.Add(() => EmitExtensionData(writer, extension, "Properties not declared by the type."));
@@ -240,9 +221,10 @@ internal sealed class ModelEmitter
     private void EmitProperty(CodeWriter writer, ApiObjectType owner, ApiProperty property)
     {
         var shape = _plan.PropertyShape(property, owner);
-        var name = _plan.PropertyName(owner, property);
-        var valueType = _plan.CSharpType(property.Type, TypeUse.Model, nullable: shape.CSharpNullable && !shape.IsOptionalWrapper ? true : property.Type.IsNullable);
-        var type = shape.IsOptionalWrapper ? $"global::BlazorApi.Runtime.Json.Optional<{valueType}>" : valueType;
+        var contract = _plan.Contract(owner, property);
+        var name = contract.Name;
+        var valueType = contract.ValueType;
+        var type = contract.Type;
 
         if (_plan.Options.GenerateDocumentation)
         {
@@ -275,18 +257,14 @@ internal sealed class ModelEmitter
         }
 
         writer.Line($"[{Serialization}.JsonPropertyName({Literal.String(property.JsonName)})]");
-        if (shape.IsOptionalWrapper)
+        if (contract.IgnoreCondition is { } ignore)
         {
-            writer.Line($"[{Serialization}.JsonIgnore(Condition = {Serialization}.JsonIgnoreCondition.WhenWritingDefault)]");
-            writer.Line($"[{Serialization}.JsonConverter(typeof(global::BlazorApi.Runtime.Json.OptionalJsonConverter<{valueType}>))]");
+            writer.Line($"[{Serialization}.JsonIgnore(Condition = {Serialization}.JsonIgnoreCondition.{ignore})]");
         }
-        else if (!shape.Required && !shape.IsConstant && !shape.IsDiscriminator && shape.CSharpNullable && !property.Required)
+
+        if (contract.Converter is { } converter)
         {
-            writer.Line($"[{Serialization}.JsonIgnore(Condition = {Serialization}.JsonIgnoreCondition.WhenWritingNull)]");
-        }
-        else if (!shape.Required && !shape.IsConstant && !shape.IsDiscriminator && (property.ReadOnly || property.WriteOnly))
-        {
-            writer.Line($"[{Serialization}.JsonIgnore(Condition = {Serialization}.JsonIgnoreCondition.WhenWritingNull)]");
+            writer.Line($"[{Serialization}.JsonConverter(typeof({converter}))]");
         }
 
         if (_plan.Options.GenerateDataAnnotations)
@@ -302,7 +280,7 @@ internal sealed class ModelEmitter
             writer.Line("[global::System.Obsolete]");
         }
 
-        var required = shape.Required && _plan.Options.UseRequiredMembers ? "required " : string.Empty;
+        var required = contract.Required ? "required " : string.Empty;
         var initializer = string.Empty;
         if (shape.IsConstant && property.Type is ApiPrimitiveType { ConstValue: { } constant })
         {
@@ -414,19 +392,6 @@ internal sealed class ModelEmitter
         writer.Line($"public global::System.Collections.Generic.IDictionary<string, {Json}.JsonElement>? {propertyName} {{ get; set; }}");
     }
 
-    private bool HasExtensionDataInBase(ApiObjectType type)
-    {
-        for (var current = _plan.CSharpBase(type) as ApiObjectType; current is not null; current = _plan.CSharpBase(current) as ApiObjectType)
-        {
-            if (current.AdditionalProperties is not null)
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
     // ------------------------------------------------------------------ polymorphism
 
     private void EmitUnrecognized(CodeWriter writer, ApiNamedType root, PolymorphicPlan plan)
@@ -435,7 +400,7 @@ internal sealed class ModelEmitter
         writer.Doc("summary", $"A {rootName} whose discriminator value ('{plan.DiscriminatorProperty}') this client does not recognize. Its undeclared properties are kept in AdditionalProperties.");
         using (writer.Block($"{_plan.Accessibility} sealed partial class {plan.UnrecognizedName} : {rootName}"))
         {
-            var hasExtension = root is ApiObjectType obj && (obj.AdditionalProperties is not null || HasExtensionDataInBase(obj));
+            var hasExtension = root is ApiObjectType obj && _plan.ExtensionDataOwner(obj) is not null;
             if (!hasExtension)
             {
                 var propertyName = root is ApiObjectType o && o.AllProperties.Any(p => _plan.PropertyName(o, p) == "AdditionalProperties") ? "UnrecognizedProperties" : "AdditionalProperties";

@@ -129,14 +129,74 @@ public class ReviewRegressionTests
         Assert.Contains("public required global::Shared.Finance.Money Balance", account, StringComparison.Ordinal);
         Assert.Contains("public decimal? Limit", account, StringComparison.Ordinal);
         Assert.DoesNotContain("StringLength", account, StringComparison.Ordinal);
-        Assert.Contains("typeof(global::Shared.Finance.Money)", File(result, "BankJsonContext.g.cs"), StringComparison.Ordinal);
-        // The System.Text.Json generator does not run in this test compilation, so compile without the context.
-        GeneratedCode.Compile(GeneratedCode.GenerateYaml(contract, new GeneratorOptions
+        // The metadata context describes the property but leaves the mapped type itself to another resolver.
+        var context = File(result, "BankJsonContext.g.cs");
+        Assert.Contains("CreatePropertyInfo<global::Shared.Finance.Money>", context, StringComparison.Ordinal);
+        Assert.DoesNotContain("if (type == typeof(global::Shared.Finance.Money))", context, StringComparison.Ordinal);
+        GeneratedCode.Compile(result, shared);
+    }
+
+    [Fact]
+    public void Mapped_bases_and_nullable_mapped_structs_work_with_the_json_context()
+    {
+        const string contract = """
+            openapi: 3.1.0
+            info: { title: Ledger, version: '1' }
+            paths:
+              /entries/{id}:
+                get:
+                  operationId: getEntry
+                  parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+                  responses:
+                    '200':
+                      description: ok
+                      content:
+                        application/json: { schema: { $ref: '#/components/schemas/Entry' } }
+            components:
+              schemas:
+                Audited:
+                  type: object
+                  required: [createdBy]
+                  properties:
+                    createdBy: { type: string }
+                  additionalProperties: true
+                Entry:
+                  allOf:
+                    - $ref: '#/components/schemas/Audited'
+                    - type: object
+                      required: [id]
+                      properties:
+                        id: { type: string }
+                        amount: { $ref: '#/components/schemas/Amount' }
+                        history: { type: array, items: { anyOf: [{ $ref: '#/components/schemas/Amount' }, { type: 'null' }] } }
+                Amount:
+                  type: object
+                  properties:
+                    value: { type: number }
+            """;
+        const string shared = """
+            namespace Shared;
+            public sealed class Audited { public string CreatedBy { get; set; } = ""; }
+            public readonly record struct Amount(decimal Value);
+            """;
+        var options = new GeneratorOptions
         {
-            Namespace = "Bank",
+            Namespace = "Ledger",
             GenerateMocks = true,
-            TypeMappings = new Dictionary<string, string> { ["Money"] = "Shared.Finance.Money", ["format:decimal-string"] = "decimal" },
-        }), shared);
+            GenerateJsonContext = true,
+            TypeMappings = new Dictionary<string, string> { ["Audited"] = "Shared.Audited", ["Amount"] = "Shared.Amount" },
+        };
+        var result = GeneratedCode.GenerateYaml(contract, options);
+
+        // A mapped allOf base is not inherited, so the class declares the inherited properties itself.
+        var entry = File(result, "Models/Entry.g.cs");
+        Assert.Contains("public partial class Entry\n", entry.Replace("\r\n", "\n", StringComparison.Ordinal), StringComparison.Ordinal);
+        Assert.Contains("public required string CreatedBy", entry, StringComparison.Ordinal);
+        Assert.Contains("JsonExtensionData", entry, StringComparison.Ordinal);
+        var context = File(result, "LedgerJsonContext.g.cs");
+        Assert.Contains("DeclaringType = typeof(Entry)", context, StringComparison.Ordinal);
+        Assert.DoesNotContain("typeof(global::Shared.Amount", context, StringComparison.Ordinal);
+        GeneratedCode.Compile(result, shared);
     }
 
     [Fact]

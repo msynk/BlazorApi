@@ -149,7 +149,144 @@ internal sealed class GenerationPlan
     public ApiNamedType? CSharpBase(ApiObjectType type) =>
         type.BaseType is { } baseType ? baseType : UnionBase.TryGetValue(type, out var union) ? union : null;
 
-    /// <summary>The polymorphic plan whose hierarchy contains the type, if any.</summary>
+    /// <summary>The serialization contract of a model property, shared by the model and the JSON metadata emitters.</summary>
+    internal readonly struct PropertyContract
+    {
+        public PropertyContract(string name, string valueType, string type, string? ignoreCondition, string? converter, bool required)
+        {
+            Name = name;
+            ValueType = valueType;
+            Type = type;
+            IgnoreCondition = ignoreCondition;
+            Converter = converter;
+            Required = required;
+        }
+
+        /// <summary>The C# property name.</summary>
+        public string Name { get; }
+
+        /// <summary>The value type (inside <c>Optional&lt;T&gt;</c> for wrapped properties).</summary>
+        public string ValueType { get; }
+
+        /// <summary>The declared property type.</summary>
+        public string Type { get; }
+
+        /// <summary><c>WhenWritingNull</c>, <c>WhenWritingDefault</c> or <see langword="null"/>.</summary>
+        public string? IgnoreCondition { get; }
+
+        /// <summary>The property converter type, when the property has one.</summary>
+        public string? Converter { get; }
+
+        /// <summary>Whether the property has the C# <c>required</c> modifier (and is required when reading).</summary>
+        public bool Required { get; }
+    }
+
+    /// <summary>The serialization contract of a property declared by (or inherited into) <paramref name="owner"/>.</summary>
+    public PropertyContract Contract(ApiObjectType owner, ApiProperty property)
+    {
+        var declaring = DeclaringType(owner, property);
+        var shape = PropertyShape(property, declaring);
+        var valueType = CSharpType(property.Type, TypeUse.Model, nullable: shape.CSharpNullable && !shape.IsOptionalWrapper ? true : property.Type.IsNullable);
+        var type = shape.IsOptionalWrapper ? $"global::BlazorApi.Runtime.Json.Optional<{valueType}>" : valueType;
+        string? ignore = null;
+        string? converter = null;
+        if (shape.IsOptionalWrapper)
+        {
+            ignore = "WhenWritingDefault";
+            converter = $"global::BlazorApi.Runtime.Json.OptionalJsonConverter<{valueType}>";
+        }
+        else if (!shape.Required && !shape.IsConstant && !shape.IsDiscriminator && shape.CSharpNullable && !property.Required)
+        {
+            ignore = "WhenWritingNull";
+        }
+        else if (!shape.Required && !shape.IsConstant && !shape.IsDiscriminator && (property.ReadOnly || property.WriteOnly))
+        {
+            ignore = "WhenWritingNull";
+        }
+
+        return new PropertyContract(PropertyName(declaring, property), valueType, type, ignore, converter, shape.Required && Options.UseRequiredMembers);
+    }
+
+    /// <summary>The class (the type itself or a base) that declares a property.</summary>
+    public ApiObjectType DeclaringType(ApiObjectType type, ApiProperty property)
+    {
+        foreach (var current in ClassChain(type))
+        {
+            if (DeclaredProperties(current).Any(p => ReferenceEquals(p, property)))
+            {
+                return current;
+            }
+        }
+
+        return type;
+    }
+
+    /// <summary>The C# base class of an object when it is generated (a mapped base is not inherited).</summary>
+    public ApiObjectType? GeneratedBase(ApiObjectType type) =>
+        CSharpBase(type) is ApiObjectType baseType && IsEmitted(baseType) ? baseType : null;
+
+    /// <summary>The generated classes of the chain of <paramref name="type"/>, most derived first.</summary>
+    public IEnumerable<ApiObjectType> ClassChain(ApiObjectType type)
+    {
+        for (ApiObjectType? current = type; current is not null; current = GeneratedBase(current))
+        {
+            yield return current;
+        }
+    }
+
+    /// <summary>
+    /// The properties the class of <paramref name="type"/> declares: its own, plus the inherited ones when its allOf
+    /// base is not generated (a type mapped with <see cref="GeneratorOptions.TypeMappings"/>), in declaration order.
+    /// </summary>
+    public IEnumerable<ApiProperty> DeclaredProperties(ApiObjectType type) =>
+        type.BaseType is { } baseType && !IsEmitted(baseType) ? type.AllProperties : type.Properties;
+
+    /// <summary>
+    /// The additional properties schema the class of <paramref name="type"/> declares: its own, or one of a base that
+    /// is not generated.
+    /// </summary>
+    public ApiTypeRef? DeclaredAdditionalProperties(ApiObjectType type)
+    {
+        if (type.AdditionalProperties is { } own)
+        {
+            return own;
+        }
+
+        if (type.BaseType is { } baseType && !IsEmitted(baseType))
+        {
+            for (ApiObjectType? current = baseType; current is not null; current = current.BaseType)
+            {
+                if (current.AdditionalProperties is { } inherited)
+                {
+                    return inherited;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Intermediate hierarchy classes with their own converter and payload class (recorded by the model emitter for
+    /// the JSON metadata).
+    /// </summary>
+    public Dictionary<ApiObjectType, (string Converter, string Payload)> Subtrees { get; } = new(IdentityComparer.Instance);
+
+    /// <summary>The class in the chain of <paramref name="type"/> whose extension data property it inherits or declares.</summary>
+    public ApiObjectType? ExtensionDataOwner(ApiObjectType type)
+    {
+        ApiObjectType? owner = null;
+        foreach (var current in ClassChain(type))
+        {
+            if (DeclaredAdditionalProperties(current) is not null)
+            {
+                owner = current;
+            }
+        }
+
+        return owner;
+    }
+
     private readonly Dictionary<ApiObjectType, string> _extensionDataNames = new(IdentityComparer.Instance);
 
     /// <summary>The name of the extension data property a type declares (allocated once per type).</summary>
@@ -178,6 +315,7 @@ internal sealed class GenerationPlan
         return false;
     }
 
+    /// <summary>The polymorphic plan whose hierarchy contains the type, if any.</summary>
     public PolymorphicPlan? PolymorphicRootOf(ApiObjectType type)
     {
         for (ApiNamedType? current = type; current is not null; current = current is ApiObjectType o ? CSharpBase(o) : null)
@@ -224,7 +362,7 @@ internal sealed class GenerationPlan
         type.Origin == ApiTypeOrigin.Component && Options.TypeMappings.TryGetValue(type.Name, out var mapped) ? Qualify(mapped) : null;
 
     /// <summary>Qualifies a dotted type name with <c>global::</c> so it never binds to a generated name.</summary>
-    private static string Qualify(string type) =>
+    public static string Qualify(string type) =>
         type.Contains('.') && !type.StartsWith("global::", StringComparison.Ordinal) && type.IndexOf('<') is < 0 or > 0 && char.IsLetter(type[0])
             ? "global::" + type
             : type;
@@ -464,15 +602,20 @@ internal sealed class GenerationPlan
         _memberScopes[type] = scope;
         var map = new Dictionary<ApiProperty, string>(IdentityComparer.Instance);
         _propertyNames[type] = map;
-        if (CSharpBase(type) is ApiObjectType baseType && IsEmitted(baseType))
+        if (GeneratedBase(type) is { } baseType)
         {
             foreach (var inherited in baseType.AllProperties)
             {
                 scope.Reserve(PropertyName(baseType, inherited));
             }
+
+            if (ExtensionDataOwner(baseType) is { } extensionOwner)
+            {
+                scope.Reserve(ExtensionDataName(extensionOwner));
+            }
         }
 
-        foreach (var property in type.Properties)
+        foreach (var property in DeclaredProperties(type))
         {
             map[property] = scope.Allocate(Identifier.Pascal(property.JsonName));
         }
@@ -483,7 +626,7 @@ internal sealed class GenerationPlan
     /// <summary>The C# name of a property, looked up on the type that declares it.</summary>
     public string PropertyName(ApiObjectType type, ApiProperty property)
     {
-        for (ApiObjectType? current = type; current is not null; current = current.BaseType)
+        foreach (var current in ClassChain(type))
         {
             MemberScope(current);
             if (_propertyNames[current].TryGetValue(property, out var name))

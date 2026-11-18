@@ -31,6 +31,7 @@ scoped to be reviewable on its own; the working tree has not been committed or s
 | M22 | Advanced generation features | Partly: operation/tag filters, unused-model pruning, multi-contract projects, `x-pagination`, `x-enum-varnames`; custom templates deferred |
 | M23 | Blazor integration (`BlazorApi.Blazor`: `ApiResultView`, `ApiErrorView`, `ApiValidationErrors`; auth registration helpers `AddBearerToken`/`AddApiKey`/`AddBasicAuthentication` in `BlazorApi.Runtime`) | Done |
 | M24 | Documentation, demo, benchmarks, CI workflow, packaging | Done (not published) |
+| M32 | Hand-written JSON metadata context (`JsonMetadataServices`), so `GenerateJsonContext` works in the source generator; AOT smoke test switched to the source generator | Done |
 | M31 | Native AOT verified: CLI-generated client with `generateJsonContext` published with `PublishAot` (no trim/AOT warnings) and reflection disabled, run against `api-gen mock`; CI job (`tests/BlazorApi.AotSmoke`) | Done |
 | M30 | Demo showcases (retries, caching, logging, typed ETag, live SSE feed); `{Operation}ResponseBodies` typed views; `typeMappings` | Done |
 | M29 | Independent reviews of M25-M28 (runtime, engine, code generation and CLI): 29 confirmed issues fixed with regression tests (2 findings rejected with reasons) | Done |
@@ -52,6 +53,8 @@ scoped to be reviewable on its own; the working tree has not been committed or s
 | 2026-11-09 | After documentation-review fixes: 440 tests (net8.0 + net10.0) + 5 demo tests | all passed |
 | 2026-11-09 | demo/BlazorApi.Demo.Tests (5); BlazorApi.Demo.BlazorApp run and checked over HTTP (pages, 401, 404, API key); BlazorApi.Demo.ConsoleClient run against it | passed |
 | 2026-11-17 | After removing the dotnet-query integration: full suite (net8.0 + net10.0) + 5 demo tests | all passed |
+| 2026-11-17 | M32 review fixes: Release build without warnings: OpenApi 213, CodeGeneration 21, Integration 99, SourceGenerator 17, Cli 26, Blazor 11, per framework; demo 5; AOT smoke (source generator) republished with 0 warnings and run against `api-gen mock` | all passed |
+| 2026-11-17 | M32: AOT smoke test built by the source generator with `GenerateJsonContext`: win-x64 `PublishAot` with `-warnaserror` (0 warnings), run against `api-gen mock` correct; Release build without warnings: OpenApi 213, CodeGeneration 20, Integration 98 (metadata-only resolver test), SourceGenerator 17, Cli 26, Blazor 11, per framework; demo 5 | all passed |
 | 2026-11-17 | Native AOT smoke test: win-x64 `PublishAot` with `-warnaserror` (0 warnings), 6.7 MB executable, reflection-based JSON disabled, all calls against `api-gen mock` correct (polymorphism, merge patch, maps, query arrays, typed 404) | passed |
 | 2026-11-17 | M30 second review round, Release build without warnings: OpenApi 213, CodeGeneration 20, Integration 97, SourceGenerator 17, Cli 26, Blazor 11, per framework; demo 5 | all passed |
 | 2026-11-17 | M30, Release build without warnings: OpenApi 207, CodeGeneration 19 (type mappings compiled with mocks), Integration 95 (response bodies), SourceGenerator 15, Cli 26, Blazor 11, per framework; demo 5; demo app checked over HTTP (ETag 304, SSE feed) and the console client run against it | all passed |
@@ -132,8 +135,11 @@ scoped to be reviewable on its own; the working tree has not been committed or s
     the extra member has no wire value.
 22. **The JSON context is generated from the generated code.** The emitter collects the generic arguments of the
     runtime JSON helpers in the emitted sources plus every parameter, part and property type, so a type serialized
-    anywhere cannot be missing; listing a superset is harmless. It is a CLI feature: source generators cannot feed the
-    System.Text.Json generator (BAPI6005).
+    anywhere cannot be missing; listing a superset is harmless. The metadata is written with `JsonMetadataServices`
+    from the same property contract the model emitter uses (names, ignore conditions, converters, `required`,
+    extension data) instead of `[JsonSerializable]` attributes, because a source generator cannot feed the
+    System.Text.Json generator; the CLI and the source generator therefore produce the same context. Mapped types get
+    no metadata (the user's resolver covers them).
 23. **Remote contracts are same-origin.** The CLI downloads URL contracts and their references only from the
     contract's origin, never local files, bounded by the parser's size limit and a timeout.
 24. **Overlays apply to the parsed tree before reading.** The root document is deep-copied (YAML aliases become
@@ -174,9 +180,8 @@ scoped to be reviewable on its own; the working tree has not been committed or s
 - `format: time` and `format: duration` map to `string` by default (lossless); `timeType=timeOnly` and
   `durationType=timeSpan` are opt-in.
 - Overlays change the root document only, not documents it references with `$ref`.
-- Generated JSON uses reflection-based System.Text.Json metadata by default. The CLI generates a
-  `JsonSerializerContext` with `generateJsonContext=true`; with the source generator, trimmed/native AOT apps must
-  supply one (generators cannot see each other's output).
+- Generated JSON uses reflection-based System.Text.Json metadata by default; `generateJsonContext=true` generates
+  the metadata (CLI and source generator). Types replaced with `typeMappings` need their own resolver.
 - The conditional-request cache is in memory only (no persistent or distributed cache) and ignores `max-age`
   freshness: every GET is revalidated with the server.
 - Generated mocks are emitted into the project that generates them (with `GenerateMocks=true`), which must then
@@ -201,6 +206,24 @@ scoped to be reviewable on its own; the working tree has not been committed or s
   list of its configuration file; the CLI ignored top-level defaults next to `contracts`, dropped `--option` errors in
   `validate` and accepted unknown `--fail-on` values. Each fix has a regression test.
 - Packaging: the source generator package carries only the analyzer and MSBuild files (`SuppressDependenciesWhenPacking`).
+
+## Review notes (M32, 2026-11-17)
+
+An independent review compared the generated JSON metadata with the reflection resolver on the same models. Fixed,
+with regression tests:
+
+- A model whose allOf base is mapped with `typeMappings` crashed the generator with the context on; without it, the
+  model silently lost the inherited properties (and generated mocks and form fields referenced them). Classes now
+  declare the properties and extension data of a base that is not generated (`GenerationPlan.DeclaredProperties`).
+- Optional properties of a mapped struct (`Money?`, which is `Nullable<Money>`) did not compile in the context: property
+  metadata now uses the declared type, and types with a mapped part get no metadata.
+- `JsonSerializerOptions.NumberHandling` was ignored for properties and collection elements (`JsonMetadataServices`
+  sets `Strict`); the context resets it as reflection does.
+- `RespectNullableAnnotations` (.NET 9+) was not enforced for non-nullable properties.
+- Inherited properties were written base first; the order is now reflection's (own properties first), so request
+  bodies do not depend on whether the context is used.
+- Also: enum detection in type names no longer matches a mapped class by its short name; a generated type has one
+  entry whether named with or without its namespace; a derived class no longer reuses its base's extension data name.
 
 ## Review notes (M29, 2026-11-17)
 
@@ -239,7 +262,7 @@ Overlay 1.1, RFC 9457, RFC 9110 `Retry-After`, the Idempotency-Key draft, OpenTe
 | No retries with `Retry-After`; no idempotency keys | ST, SE, FE, MER | `ApiRetryHandler`, `AddApiRetries` |
 | No OpenTelemetry instrumentation per operation | OGN, KI | `ApiTelemetry` spans and histogram |
 | Strict enums only (new server values break reading) | SE, ST, OG, OC | `unknownEnumValues=unrecognized` |
-| AOT required a hand-written `JsonSerializerContext` | RF, OG generichost | `generateJsonContext` (CLI), runtime context |
+| AOT required a hand-written `JsonSerializerContext` | RF, OG generichost | `generateJsonContext` (CLI and source generator), runtime context |
 | CLI could not read contracts from URLs | every CLI surveyed | Same-origin URL loading |
 | No overlays to fix third-party contracts | SE, Redocly, FE | Overlay 1.0-1.2 with RFC 9535 JSONPath (M26) |
 | OpenAPI 3.2 `additionalOperations` and `querystring` ignored or rejected | Microsoft.OpenApi v3 | Supported (M26) |

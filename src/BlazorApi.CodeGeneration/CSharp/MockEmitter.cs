@@ -251,7 +251,7 @@ internal sealed class MockEmitter
                     {
                         foreach (var property in obj.AllProperties)
                         {
-                            var shape = _plan.PropertyShape(property, OwnerOf(obj, property));
+                            var shape = _plan.PropertyShape(property, _plan.DeclaringType(obj, property));
                             if (shape.IsConstant || shape.IsDiscriminator)
                             {
                                 continue;
@@ -278,19 +278,6 @@ internal sealed class MockEmitter
                     break;
             }
         }
-    }
-
-    private static ApiObjectType OwnerOf(ApiObjectType type, ApiProperty property)
-    {
-        for (var current = type; current is not null; current = current.BaseType)
-        {
-            if (current.Properties.Contains(property))
-            {
-                return current;
-            }
-        }
-
-        return type;
     }
 
     /// <summary>A C# expression for a representative value of a type.</summary>

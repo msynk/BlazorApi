@@ -185,11 +185,10 @@ public sealed record GeneratorOptions
     public UnknownEnumValueHandling UnknownEnumValues { get; init; } = UnknownEnumValueHandling.Fail;
 
     /// <summary>
-    /// Whether to generate a <c>System.Text.Json</c> source-generated <c>JsonSerializerContext</c> covering every type
-    /// the clients serialize, for trimmed, native AOT and Blazor WebAssembly applications without reflection.
-    /// Generated registration methods and default client options use it. Only for generated files compiled by the
-    /// C# compiler (the CLI): the BlazorApi source generator cannot feed the System.Text.Json source generator, so
-    /// it reports BAPI6005 and ignores the option. Default: false.
+    /// Whether to generate a <c>JsonSerializerContext</c> with System.Text.Json metadata for every type the clients
+    /// serialize, for trimmed, native AOT and Blazor WebAssembly applications without reflection. The metadata is
+    /// written by BlazorApi itself (with the public <c>JsonMetadataServices</c> API), so it works with the source
+    /// generator and the CLI alike. Generated registration methods and default client options use it. Default: false.
     /// </summary>
     public bool GenerateJsonContext { get; init; }
 

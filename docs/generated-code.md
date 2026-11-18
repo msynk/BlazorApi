@@ -314,7 +314,10 @@ Contract text is escaped, so it cannot break out of the comment.
 ## Trimming and native AOT
 
 Generated code uses System.Text.Json with the reflection-based resolver by default. With `generateJsonContext=true`
-(CLI) a generated `{Api}JsonContext` covers every serialized type and is used by the generated constructors and
-registration methods, so trimmed, native AOT and WebAssembly apps need no reflection. Otherwise add a
+a generated `{Api}JsonContext` covers every serialized type and is used by the generated constructors and
+registration methods, so trimmed, native AOT and WebAssembly apps need no reflection. The context is a
+`JsonSerializerContext` whose metadata BlazorApi writes directly with `JsonMetadataServices` (the API the
+System.Text.Json generator targets), so it works in the CLI output and in the source generator, where the
+System.Text.Json generator could not see the generated types. Otherwise add a
 `JsonSerializerContext` through `ApiClientOptions.JsonSerializerOptions`; see
 [Troubleshooting](troubleshooting.md#trimming-and-native-aot).

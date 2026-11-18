@@ -75,7 +75,7 @@ handled in a degraded way. Info never fails anything.
 | BAPI6002 | Info | An operation accepts several request media types; one is used. |
 | BAPI6003 | Warning | An include/exclude filter matches no operation or tag. |
 | BAPI6004 | Warning | No operations were selected for generation. |
-| BAPI6005 | Warning | The source generator ignores an option it cannot honor (`generateJsonContext`; use the CLI). |
+| BAPI6005 | Warning | Reserved: the source generator ignores an option it cannot honor. No option triggers it at present (`generateJsonContext` is supported). |
 | BAPI7001-7005 | Error/Warning | [Overlay](overlays.md#diagnostics) problems. |
 | BAPI9001 | Error | The source generator failed unexpectedly (the message includes the exception). Please report it. |
 

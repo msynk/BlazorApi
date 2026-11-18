@@ -52,8 +52,9 @@ target .NET Standard 2.0.
   `blazorapi.client.operation.duration` histogram (`url.template`, operation id, status, `error.type`).
 - **Forward-compatible enums**: `unknownEnumValues=unrecognized` adds an `Unrecognized` member for values the
   contract does not list.
-- **AOT**: `generateJsonContext=true` (CLI) emits a `JsonSerializerContext` used by default; `ApiJson.CreateOptions`
-  accepts resolvers and the runtime ships metadata for its own types. The source generator reports BAPI6005 for it.
+- **AOT**: `generateJsonContext=true` emits a `JsonSerializerContext` used by default, with metadata written
+  directly through `JsonMetadataServices`, so it works with the source generator as well as the CLI;
+  `ApiJson.CreateOptions` accepts resolvers and the runtime ships metadata for its own types.
 - **CLI**: contracts can be http(s) URLs (same-origin references are downloaded); `validate` reads `blazorapi.json`
   and `--config`.
 
@@ -89,11 +90,15 @@ target .NET Standard 2.0.
 - **Demo**: the Blazor app uses retries, caching and logging, shows a pet's `ETag` and cache revalidation, and a live
   activity feed (server-sent events with `ApiStreamView`); the console client shows typed headers and streaming.
 
-- **CI**: a native AOT smoke test publishes a CLI-generated client (`generateJsonContext=true`) with `PublishAot` and
-  warnings as errors, and runs it against `api-gen mock` with reflection-based JSON disabled.
+- **CI**: a native AOT smoke test publishes a client built by the source generator (`GenerateJsonContext=true`) with
+  `PublishAot` and warnings as errors, and runs it against `api-gen mock` with reflection-based JSON disabled.
 
 ### Fixed
 
+- A model whose allOf base is mapped with `typeMappings` now declares the inherited properties (they were dropped,
+  and the JSON context crashed the generator).
+- The generated JSON context honors `NumberHandling` and `RespectNullableAnnotations` from the options and writes
+  properties in the same order as reflection.
 - Issues found by reviews of the new code: resilience values out of range (`retry-after-ms: Infinity`, huge SSE
   `retry`, ISO durations beyond `TimeSpan`) threw instead of being ignored or rejected; `MaxErrorBodyLength =
   int.MaxValue` overflowed; a UTF-8 BOM dropped the first server-sent event; streamed lines had no size limit;

@@ -252,7 +252,8 @@ public sealed class CliTests : IDisposable
 
         Assert.Equal(0, exit);
         var context = File.ReadAllText(Path.Combine(_directory, "out", "PetstoreJsonContext.g.cs"));
-        Assert.Contains("JsonSerializable(typeof(Pet))", context, StringComparison.Ordinal);
+        Assert.Contains("if (type == typeof(Pet))", context, StringComparison.Ordinal);
+        Assert.Contains("JsonMetadataServices.CreateObjectInfo<", context, StringComparison.Ordinal);
     }
 
     private sealed class FileServer(string root) : HttpMessageHandler

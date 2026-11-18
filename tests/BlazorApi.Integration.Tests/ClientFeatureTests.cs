@@ -206,6 +206,73 @@ public class ClientFeatureTests
     }
 
     [Fact]
+    public async Task Generated_metadata_covers_unions_hierarchies_streams_and_alternative_bodies_without_reflection()
+    {
+        // Only the generated context: a missing type would throw NotSupportedException.
+        var json = new JsonSerializerOptions(ApiJson.CreateOptions())
+        {
+            TypeInfoResolver = JsonTypeInfoResolver.Combine(Features31JsonContext.Default),
+        };
+        var handler = new RecordingHandler()
+            .Respond(HttpStatusCode.OK, """[{"shapeType":"Circle","radius":2},{"shapeType":"Square","side":3},{"shapeType":"Hexagon","n":6}]""")
+            .Respond(HttpStatusCode.OK, """{"vehicleType":"SportsCar","seats":2,"topSpeed":300}""")
+            .Respond(HttpStatusCode.OK, """{"vehicleType":"Car","seats":4,"color":"red"}""")
+            .Respond(HttpStatusCode.NoContent)
+            .Respond(HttpStatusCode.Accepted, """{"percent":5,"stage":"queued"}""")
+            .Respond(HttpStatusCode.OK, "data: {\"percent\":7,\"stage\":\"running\"}\n\n", "text/event-stream")
+            .Respond(HttpStatusCode.OK, "{\"percent\":9,\"stage\":\"later\"}\n", "application/jsonl");
+        var client = new Features31Client(new HttpClient(handler), new ApiClientOptions { JsonSerializerOptions = json });
+
+        var shapes = await client.ListShapesAsync();
+        var sports = await client.GetCarAsync("a");
+        var car = await client.GetCarAsync("b");
+        await client.PutCarAsync("b", car);
+        var pending = await client.GetDocumentResultAsync("d");
+        var events = await (await client.StreamEventsAsync()).ToListAsync();
+        var lines = await (await client.ExportShapesAsync()).ToListAsync();
+
+        Assert.IsType<Circle>(shapes[0]);
+        Assert.IsType<Square>(shapes[1]);
+        Assert.IsType<UnrecognizedShape>(shapes[2]);
+        Assert.Equal(300, Assert.IsType<SportsCar>(sports).TopSpeed);
+        Assert.Equal(typeof(Car), car.GetType());
+        Assert.Contains("\"seats\":4", handler.Requests[3].Body, StringComparison.Ordinal);
+        Assert.Equal(5, GetDocumentResponseBodies.From(pending).Accepted!.Percent);
+        Assert.Equal(Stage.Running, events.Single().GetValue().Stage);
+        Assert.Equal(Stage.Unrecognized, lines.Single().Stage);
+    }
+
+    [Fact]
+    public void Generated_metadata_matches_reflection_for_options_and_property_order()
+    {
+        static JsonSerializerOptions Options(IJsonTypeInfoResolver resolver, Action<JsonSerializerOptions>? configure = null)
+        {
+            var options = new JsonSerializerOptions(ApiJson.CreateOptions()) { TypeInfoResolver = resolver };
+            configure?.Invoke(options);
+            return options;
+        }
+
+        IJsonTypeInfoResolver[] resolvers = [new DefaultJsonTypeInfoResolver(), JsonTypeInfoResolver.Combine(Features31JsonContext.Default)];
+        foreach (var resolver in resolvers)
+        {
+            // Number handling from the options applies to properties, as with reflection.
+            var lenient = Options(resolver, o => o.NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowReadingFromString);
+            Assert.Equal(5, JsonSerializer.Deserialize<Progress>("""{"percent":"5","stage":"queued"}""", lenient)!.Percent);
+
+            // A class's own properties come before its base's.
+            var car = new SportsCar { Seats = 2, TopSpeed = 300 };
+            Assert.Equal("""{"topSpeed":300,"seats":2,"vehicleType":"SportsCar"}""", JsonSerializer.Serialize(car, Options(resolver)));
+
+#if NET9_0_OR_GREATER
+            // Non-nullable declarations are enforced when nullable annotations are respected.
+            var strict = Options(resolver, o => o.RespectNullableAnnotations = true);
+            Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<Document>("""{"id":null,"title":"t","summary":null}""", strict));
+            Assert.Null(JsonSerializer.Deserialize<Document>("""{"id":"a","title":"t","summary":null}""", strict)!.Summary);
+#endif
+        }
+    }
+
+    [Fact]
     public async Task Default_options_of_a_client_with_a_json_context_use_it()
     {
         var handler = new RecordingHandler().Respond(HttpStatusCode.OK, DogJson);

@@ -36,7 +36,7 @@ public static class CodeGenerationDiagnostics
     public static readonly DiagnosticDescriptor NothingGenerated = new(
         "BAPI6004", "Nothing generated", "No operations were selected for generation", DiagnosticSeverity.Warning, Generation);
 
-    /// <summary>An option cannot be honored by the source generator.</summary>
+    /// <summary>An option cannot be honored by the source generator (not reported since JSON contexts work there too).</summary>
     public static readonly DiagnosticDescriptor OptionNotSupportedBySourceGenerator = new(
         "BAPI6005", "Option not supported by the source generator", "Option '{0}' is ignored by the source generator: {1}", DiagnosticSeverity.Warning, Generation);
 }

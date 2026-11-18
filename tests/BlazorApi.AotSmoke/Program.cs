@@ -3,7 +3,7 @@ using AotSmoke.Petstore;
 using BlazorApi.Runtime;
 using BlazorApi.Runtime.Json;
 
-// Calls a mock of tests/Contracts/petstore.yaml through a client generated with generateJsonContext=true. Every
+// Calls a mock of tests/Contracts/petstore.yaml through a client the source generator built with GenerateJsonContext. Every
 // serialized type must come from the generated JsonSerializerContext: reflection-based JSON is disabled.
 if (JsonSerializer.IsReflectionEnabledByDefault)
 {

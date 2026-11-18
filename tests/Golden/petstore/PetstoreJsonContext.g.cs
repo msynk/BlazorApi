@@ -9,36 +9,1525 @@
 
 namespace Petstore.Client;
 
-/// <summary>System.Text.Json metadata for the types of the Petstore API, generated at compile time for trimmed, native AOT and Blazor WebAssembly applications.</summary>
+#nullable disable warnings
+
+/// <summary>System.Text.Json metadata for the types of the Petstore API, written at generation time so trimmed, native AOT and Blazor WebAssembly applications need no reflection.</summary>
 /// <remarks>Generated clients and their registration methods use it by default. To build options yourself, pass it to ApiJson.CreateOptions: ApiJson.CreateOptions(PetstoreJsonContext.Default).</remarks>
-[global::System.Text.Json.Serialization.JsonSerializable(typeof(Cat))]
-[global::System.Text.Json.Serialization.JsonSerializable(typeof(Dog))]
-[global::System.Text.Json.Serialization.JsonSerializable(typeof(Error))]
-[global::System.Text.Json.Serialization.JsonSerializable(typeof(NewPet))]
-[global::System.Text.Json.Serialization.JsonSerializable(typeof(Order))]
-[global::System.Text.Json.Serialization.JsonSerializable(typeof(Owner))]
-[global::System.Text.Json.Serialization.JsonSerializable(typeof(Pet))]
-[global::System.Text.Json.Serialization.JsonSerializable(typeof(PetPage))]
-[global::System.Text.Json.Serialization.JsonSerializable(typeof(PetPatch))]
-[global::System.Text.Json.Serialization.JsonSerializable(typeof(PetStatus))]
-[global::System.Text.Json.Serialization.JsonSerializable(typeof(PhotoInfo))]
-[global::System.Text.Json.Serialization.JsonSerializable(typeof(ProblemDetails))]
-[global::System.Text.Json.Serialization.JsonSerializable(typeof(UnrecognizedPet))]
-[global::System.Text.Json.Serialization.JsonSerializable(typeof(bool))]
-[global::System.Text.Json.Serialization.JsonSerializable(typeof(double))]
-[global::System.Text.Json.Serialization.JsonSerializable(typeof(global::System.Collections.Generic.IEnumerable<string>))]
-[global::System.Text.Json.Serialization.JsonSerializable(typeof(global::System.Collections.Generic.IReadOnlyDictionary<string, global::System.Collections.Generic.IReadOnlyList<string>>))]
-[global::System.Text.Json.Serialization.JsonSerializable(typeof(global::System.Collections.Generic.IReadOnlyDictionary<string, int>))]
-[global::System.Text.Json.Serialization.JsonSerializable(typeof(global::System.Collections.Generic.IReadOnlyDictionary<string, string>))]
-[global::System.Text.Json.Serialization.JsonSerializable(typeof(global::System.Collections.Generic.IReadOnlyList<Pet>))]
-[global::System.Text.Json.Serialization.JsonSerializable(typeof(global::System.DateOnly))]
-[global::System.Text.Json.Serialization.JsonSerializable(typeof(global::System.DateTimeOffset))]
-[global::System.Text.Json.Serialization.JsonSerializable(typeof(global::System.Guid))]
-[global::System.Text.Json.Serialization.JsonSerializable(typeof(global::System.Text.Json.JsonElement))]
-[global::System.Text.Json.Serialization.JsonSerializable(typeof(global::System.Uri))]
-[global::System.Text.Json.Serialization.JsonSerializable(typeof(int))]
-[global::System.Text.Json.Serialization.JsonSerializable(typeof(long))]
-[global::System.Text.Json.Serialization.JsonSerializable(typeof(string))]
-public partial class PetstoreJsonContext : global::System.Text.Json.Serialization.JsonSerializerContext
+public partial class PetstoreJsonContext : global::System.Text.Json.Serialization.JsonSerializerContext, global::System.Text.Json.Serialization.Metadata.IJsonTypeInfoResolver
 {
+    private static readonly global::System.Text.Json.JsonSerializerOptions DefaultOptions = new();
+
+    /// <summary>The context with default options.</summary>
+    public static PetstoreJsonContext Default { get; } = new(new global::System.Text.Json.JsonSerializerOptions(DefaultOptions));
+
+    /// <summary>Creates the context with default options.</summary>
+    public PetstoreJsonContext()
+        : base(null)
+    {
+    }
+
+    /// <summary>Creates the context for options.</summary>
+    public PetstoreJsonContext(global::System.Text.Json.JsonSerializerOptions options)
+        : base(options)
+    {
+    }
+
+    /// <inheritdoc />
+    protected override global::System.Text.Json.JsonSerializerOptions? GeneratedSerializerOptions { get; } = DefaultOptions;
+
+    /// <inheritdoc />
+    public override global::System.Text.Json.Serialization.Metadata.JsonTypeInfo? GetTypeInfo(global::System.Type type)
+    {
+        Options.TryGetTypeInfo(type, out global::System.Text.Json.Serialization.Metadata.JsonTypeInfo? typeInfo);
+        return typeInfo;
+    }
+
+    /// <inheritdoc />
+    global::System.Text.Json.Serialization.Metadata.JsonTypeInfo? global::System.Text.Json.Serialization.Metadata.IJsonTypeInfoResolver.GetTypeInfo(global::System.Type type, global::System.Text.Json.JsonSerializerOptions options)
+    {
+        if (type == typeof(Cat))
+        {
+            return Create0(options);
+        }
+        if (type == typeof(Dog))
+        {
+            return Create1(options);
+        }
+        if (type == typeof(Error))
+        {
+            return Create2(options);
+        }
+        if (type == typeof(NewPet))
+        {
+            return Create3(options);
+        }
+        if (type == typeof(Order))
+        {
+            return Create4(options);
+        }
+        if (type == typeof(Owner))
+        {
+            return Create5(options);
+        }
+        if (type == typeof(Pet))
+        {
+            return Create6(options);
+        }
+        if (type == typeof(PetPage))
+        {
+            return Create7(options);
+        }
+        if (type == typeof(PetPatch))
+        {
+            return Create8(options);
+        }
+        if (type == typeof(PetStatus))
+        {
+            return Create9(options);
+        }
+        if (type == typeof(PetStatus?))
+        {
+            return Create29(options);
+        }
+        if (type == typeof(PhotoInfo))
+        {
+            return Create10(options);
+        }
+        if (type == typeof(ProblemDetails))
+        {
+            return Create11(options);
+        }
+        if (type == typeof(UnrecognizedPet))
+        {
+            return Create12(options);
+        }
+        if (type == typeof(bool))
+        {
+            return Create13(options);
+        }
+        if (type == typeof(bool?))
+        {
+            return Create34(options);
+        }
+        if (type == typeof(double))
+        {
+            return Create14(options);
+        }
+        if (type == typeof(double?))
+        {
+            return Create32(options);
+        }
+        if (type == typeof(global::BlazorApi.Runtime.Json.Optional<string>))
+        {
+            return Create35(options);
+        }
+        if (type == typeof(global::System.Collections.Generic.IDictionary<string, global::System.Text.Json.JsonElement>))
+        {
+            return Create36(options);
+        }
+        if (type == typeof(global::System.Collections.Generic.IEnumerable<string>))
+        {
+            return Create15(options);
+        }
+        if (type == typeof(global::System.Collections.Generic.IReadOnlyDictionary<string, global::System.Collections.Generic.IReadOnlyList<string>>))
+        {
+            return Create16(options);
+        }
+        if (type == typeof(global::System.Collections.Generic.IReadOnlyDictionary<string, int>))
+        {
+            return Create17(options);
+        }
+        if (type == typeof(global::System.Collections.Generic.IReadOnlyDictionary<string, string>))
+        {
+            return Create18(options);
+        }
+        if (type == typeof(global::System.Collections.Generic.IReadOnlyList<Pet>))
+        {
+            return Create19(options);
+        }
+        if (type == typeof(global::System.Collections.Generic.IReadOnlyList<string>))
+        {
+            return Create37(options);
+        }
+        if (type == typeof(global::System.DateOnly))
+        {
+            return Create20(options);
+        }
+        if (type == typeof(global::System.DateOnly?))
+        {
+            return Create30(options);
+        }
+        if (type == typeof(global::System.DateTimeOffset))
+        {
+            return Create21(options);
+        }
+        if (type == typeof(global::System.DateTimeOffset?))
+        {
+            return Create31(options);
+        }
+        if (type == typeof(global::System.Guid))
+        {
+            return Create22(options);
+        }
+        if (type == typeof(global::System.Text.Json.JsonElement))
+        {
+            return Create23(options);
+        }
+        if (type == typeof(global::System.Uri))
+        {
+            return Create24(options);
+        }
+        if (type == typeof(int))
+        {
+            return Create25(options);
+        }
+        if (type == typeof(int?))
+        {
+            return Create33(options);
+        }
+        if (type == typeof(long))
+        {
+            return Create26(options);
+        }
+        if (type == typeof(long?))
+        {
+            return Create28(options);
+        }
+        if (type == typeof(string))
+        {
+            return Create27(options);
+        }
+        return null;
+    }
+
+    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<Cat> Create0(global::System.Text.Json.JsonSerializerOptions options)
+    {
+        if (!TryGetRuntimeConverter<Cat>(options, out var typeInfo))
+        {
+            var objectInfo = new global::System.Text.Json.Serialization.Metadata.JsonObjectInfoValues<Cat>
+            {
+                ObjectCreator = static () => new Cat { Indoor = default!, Name = default! },
+                PropertyMetadataInitializer = _ =>
+                {
+                    var properties = new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfo[10];
+                    properties[0] = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreatePropertyInfo<bool>(options, new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<bool>
+                    {
+                        IsProperty = true,
+                        IsPublic = true,
+                        DeclaringType = typeof(Cat),
+                        Converter = null,
+                        Getter = static obj => ((Cat)obj).Indoor,
+                        Setter = static (obj, value) => ((Cat)obj).Indoor = value!,
+                        IgnoreCondition = null,
+                        IsExtensionData = false,
+                        PropertyName = "Indoor",
+                        JsonPropertyName = "indoor",
+                    });
+                    properties[0].IsRequired = true;
+                    properties[1] = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreatePropertyInfo<long?>(options, new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<long?>
+                    {
+                        IsProperty = true,
+                        IsPublic = true,
+                        DeclaringType = typeof(Pet),
+                        Converter = null,
+                        Getter = static obj => ((Pet)obj).Id,
+                        Setter = static (obj, value) => ((Pet)obj).Id = value!,
+                        IgnoreCondition = global::System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+                        IsExtensionData = false,
+                        PropertyName = "Id",
+                        JsonPropertyName = "id",
+                    });
+                    properties[2] = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreatePropertyInfo<string>(options, new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<string>
+                    {
+                        IsProperty = true,
+                        IsPublic = true,
+                        DeclaringType = typeof(Pet),
+                        Converter = null,
+                        Getter = static obj => ((Pet)obj).Name,
+                        Setter = static (obj, value) => ((Pet)obj).Name = value!,
+                        IgnoreCondition = null,
+                        IsExtensionData = false,
+                        PropertyName = "Name",
+                        JsonPropertyName = "name",
+                    });
+                    properties[2].IsRequired = true;
+            #if NET9_0_OR_GREATER
+                    properties[2].IsGetNullable = false;
+                    properties[2].IsSetNullable = false;
+            #endif
+                    properties[3] = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreatePropertyInfo<string>(options, new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<string>
+                    {
+                        IsProperty = true,
+                        IsPublic = true,
+                        DeclaringType = typeof(Pet),
+                        Converter = null,
+                        Getter = static obj => ((Pet)obj).Kind,
+                        Setter = static (obj, value) => ((Pet)obj).Kind = value!,
+                        IgnoreCondition = null,
+                        IsExtensionData = false,
+                        PropertyName = "Kind",
+                        JsonPropertyName = "kind",
+                    });
+            #if NET9_0_OR_GREATER
+                    properties[3].IsGetNullable = false;
+                    properties[3].IsSetNullable = false;
+            #endif
+                    properties[4] = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreatePropertyInfo<PetStatus?>(options, new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<PetStatus?>
+                    {
+                        IsProperty = true,
+                        IsPublic = true,
+                        DeclaringType = typeof(Pet),
+                        Converter = null,
+                        Getter = static obj => ((Pet)obj).Status,
+                        Setter = static (obj, value) => ((Pet)obj).Status = value!,
+                        IgnoreCondition = global::System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+                        IsExtensionData = false,
+                        PropertyName = "Status",
+                        JsonPropertyName = "status",
+                    });
+                    properties[5] = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreatePropertyInfo<string?>(options, new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<string?>
+                    {
+                        IsProperty = true,
+                        IsPublic = true,
+                        DeclaringType = typeof(Pet),
+                        Converter = null,
+                        Getter = static obj => ((Pet)obj).Tag,
+                        Setter = static (obj, value) => ((Pet)obj).Tag = value!,
+                        IgnoreCondition = global::System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+                        IsExtensionData = false,
+                        PropertyName = "Tag",
+                        JsonPropertyName = "tag",
+                    });
+                    properties[6] = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreatePropertyInfo<global::System.DateOnly?>(options, new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<global::System.DateOnly?>
+                    {
+                        IsProperty = true,
+                        IsPublic = true,
+                        DeclaringType = typeof(Pet),
+                        Converter = null,
+                        Getter = static obj => ((Pet)obj).BirthDate,
+                        Setter = static (obj, value) => ((Pet)obj).BirthDate = value!,
+                        IgnoreCondition = global::System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+                        IsExtensionData = false,
+                        PropertyName = "BirthDate",
+                        JsonPropertyName = "birthDate",
+                    });
+                    properties[7] = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreatePropertyInfo<global::System.DateTimeOffset?>(options, new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<global::System.DateTimeOffset?>
+                    {
+                        IsProperty = true,
+                        IsPublic = true,
+                        DeclaringType = typeof(Pet),
+                        Converter = null,
+                        Getter = static obj => ((Pet)obj).CreatedAt,
+                        Setter = static (obj, value) => ((Pet)obj).CreatedAt = value!,
+                        IgnoreCondition = global::System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+                        IsExtensionData = false,
+                        PropertyName = "CreatedAt",
+                        JsonPropertyName = "createdAt",
+                    });
+                    properties[8] = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreatePropertyInfo<Owner?>(options, new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<Owner?>
+                    {
+                        IsProperty = true,
+                        IsPublic = true,
+                        DeclaringType = typeof(Pet),
+                        Converter = null,
+                        Getter = static obj => ((Pet)obj).Owner,
+                        Setter = static (obj, value) => ((Pet)obj).Owner = value!,
+                        IgnoreCondition = global::System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+                        IsExtensionData = false,
+                        PropertyName = "Owner",
+                        JsonPropertyName = "owner",
+                    });
+                    properties[9] = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreatePropertyInfo<global::System.Collections.Generic.IReadOnlyDictionary<string, string>?>(options, new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<global::System.Collections.Generic.IReadOnlyDictionary<string, string>?>
+                    {
+                        IsProperty = true,
+                        IsPublic = true,
+                        DeclaringType = typeof(Pet),
+                        Converter = null,
+                        Getter = static obj => ((Pet)obj).Attributes,
+                        Setter = static (obj, value) => ((Pet)obj).Attributes = value!,
+                        IgnoreCondition = global::System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+                        IsExtensionData = false,
+                        PropertyName = "Attributes",
+                        JsonPropertyName = "attributes",
+                    });
+                    return properties;
+                },
+            };
+            typeInfo = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreateObjectInfo<Cat>(options, objectInfo);
+            typeInfo.NumberHandling = null; // Use the options' number handling, as reflection does.
+        }
+        typeInfo.OriginatingResolver = this;
+        return typeInfo;
+    }
+
+    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<Dog> Create1(global::System.Text.Json.JsonSerializerOptions options)
+    {
+        if (!TryGetRuntimeConverter<Dog>(options, out var typeInfo))
+        {
+            var objectInfo = new global::System.Text.Json.Serialization.Metadata.JsonObjectInfoValues<Dog>
+            {
+                ObjectCreator = static () => new Dog { Name = default! },
+                PropertyMetadataInitializer = _ =>
+                {
+                    var properties = new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfo[10];
+                    properties[0] = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreatePropertyInfo<double?>(options, new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<double?>
+                    {
+                        IsProperty = true,
+                        IsPublic = true,
+                        DeclaringType = typeof(Dog),
+                        Converter = null,
+                        Getter = static obj => ((Dog)obj).BarkVolume,
+                        Setter = static (obj, value) => ((Dog)obj).BarkVolume = value!,
+                        IgnoreCondition = global::System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+                        IsExtensionData = false,
+                        PropertyName = "BarkVolume",
+                        JsonPropertyName = "barkVolume",
+                    });
+                    properties[1] = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreatePropertyInfo<long?>(options, new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<long?>
+                    {
+                        IsProperty = true,
+                        IsPublic = true,
+                        DeclaringType = typeof(Pet),
+                        Converter = null,
+                        Getter = static obj => ((Pet)obj).Id,
+                        Setter = static (obj, value) => ((Pet)obj).Id = value!,
+                        IgnoreCondition = global::System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+                        IsExtensionData = false,
+                        PropertyName = "Id",
+                        JsonPropertyName = "id",
+                    });
+                    properties[2] = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreatePropertyInfo<string>(options, new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<string>
+                    {
+                        IsProperty = true,
+                        IsPublic = true,
+                        DeclaringType = typeof(Pet),
+                        Converter = null,
+                        Getter = static obj => ((Pet)obj).Name,
+                        Setter = static (obj, value) => ((Pet)obj).Name = value!,
+                        IgnoreCondition = null,
+                        IsExtensionData = false,
+                        PropertyName = "Name",
+                        JsonPropertyName = "name",
+                    });
+                    properties[2].IsRequired = true;
+            #if NET9_0_OR_GREATER
+                    properties[2].IsGetNullable = false;
+                    properties[2].IsSetNullable = false;
+            #endif
+                    properties[3] = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreatePropertyInfo<string>(options, new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<string>
+                    {
+                        IsProperty = true,
+                        IsPublic = true,
+                        DeclaringType = typeof(Pet),
+                        Converter = null,
+                        Getter = static obj => ((Pet)obj).Kind,
+                        Setter = static (obj, value) => ((Pet)obj).Kind = value!,
+                        IgnoreCondition = null,
+                        IsExtensionData = false,
+                        PropertyName = "Kind",
+                        JsonPropertyName = "kind",
+                    });
+            #if NET9_0_OR_GREATER
+                    properties[3].IsGetNullable = false;
+                    properties[3].IsSetNullable = false;
+            #endif
+                    properties[4] = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreatePropertyInfo<PetStatus?>(options, new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<PetStatus?>
+                    {
+                        IsProperty = true,
+                        IsPublic = true,
+                        DeclaringType = typeof(Pet),
+                        Converter = null,
+                        Getter = static obj => ((Pet)obj).Status,
+                        Setter = static (obj, value) => ((Pet)obj).Status = value!,
+                        IgnoreCondition = global::System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+                        IsExtensionData = false,
+                        PropertyName = "Status",
+                        JsonPropertyName = "status",
+                    });
+                    properties[5] = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreatePropertyInfo<string?>(options, new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<string?>
+                    {
+                        IsProperty = true,
+                        IsPublic = true,
+                        DeclaringType = typeof(Pet),
+                        Converter = null,
+                        Getter = static obj => ((Pet)obj).Tag,
+                        Setter = static (obj, value) => ((Pet)obj).Tag = value!,
+                        IgnoreCondition = global::System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+                        IsExtensionData = false,
+                        PropertyName = "Tag",
+                        JsonPropertyName = "tag",
+                    });
+                    properties[6] = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreatePropertyInfo<global::System.DateOnly?>(options, new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<global::System.DateOnly?>
+                    {
+                        IsProperty = true,
+                        IsPublic = true,
+                        DeclaringType = typeof(Pet),
+                        Converter = null,
+                        Getter = static obj => ((Pet)obj).BirthDate,
+                        Setter = static (obj, value) => ((Pet)obj).BirthDate = value!,
+                        IgnoreCondition = global::System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+                        IsExtensionData = false,
+                        PropertyName = "BirthDate",
+                        JsonPropertyName = "birthDate",
+                    });
+                    properties[7] = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreatePropertyInfo<global::System.DateTimeOffset?>(options, new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<global::System.DateTimeOffset?>
+                    {
+                        IsProperty = true,
+                        IsPublic = true,
+                        DeclaringType = typeof(Pet),
+                        Converter = null,
+                        Getter = static obj => ((Pet)obj).CreatedAt,
+                        Setter = static (obj, value) => ((Pet)obj).CreatedAt = value!,
+                        IgnoreCondition = global::System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+                        IsExtensionData = false,
+                        PropertyName = "CreatedAt",
+                        JsonPropertyName = "createdAt",
+                    });
+                    properties[8] = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreatePropertyInfo<Owner?>(options, new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<Owner?>
+                    {
+                        IsProperty = true,
+                        IsPublic = true,
+                        DeclaringType = typeof(Pet),
+                        Converter = null,
+                        Getter = static obj => ((Pet)obj).Owner,
+                        Setter = static (obj, value) => ((Pet)obj).Owner = value!,
+                        IgnoreCondition = global::System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+                        IsExtensionData = false,
+                        PropertyName = "Owner",
+                        JsonPropertyName = "owner",
+                    });
+                    properties[9] = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreatePropertyInfo<global::System.Collections.Generic.IReadOnlyDictionary<string, string>?>(options, new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<global::System.Collections.Generic.IReadOnlyDictionary<string, string>?>
+                    {
+                        IsProperty = true,
+                        IsPublic = true,
+                        DeclaringType = typeof(Pet),
+                        Converter = null,
+                        Getter = static obj => ((Pet)obj).Attributes,
+                        Setter = static (obj, value) => ((Pet)obj).Attributes = value!,
+                        IgnoreCondition = global::System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+                        IsExtensionData = false,
+                        PropertyName = "Attributes",
+                        JsonPropertyName = "attributes",
+                    });
+                    return properties;
+                },
+            };
+            typeInfo = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreateObjectInfo<Dog>(options, objectInfo);
+            typeInfo.NumberHandling = null; // Use the options' number handling, as reflection does.
+        }
+        typeInfo.OriginatingResolver = this;
+        return typeInfo;
+    }
+
+    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<Error> Create2(global::System.Text.Json.JsonSerializerOptions options)
+    {
+        if (!TryGetRuntimeConverter<Error>(options, out var typeInfo))
+        {
+            var objectInfo = new global::System.Text.Json.Serialization.Metadata.JsonObjectInfoValues<Error>
+            {
+                ObjectCreator = static () => new Error { Code = default!, Message = default! },
+                PropertyMetadataInitializer = _ =>
+                {
+                    var properties = new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfo[2];
+                    properties[0] = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreatePropertyInfo<int>(options, new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<int>
+                    {
+                        IsProperty = true,
+                        IsPublic = true,
+                        DeclaringType = typeof(Error),
+                        Converter = null,
+                        Getter = static obj => ((Error)obj).Code,
+                        Setter = static (obj, value) => ((Error)obj).Code = value!,
+                        IgnoreCondition = null,
+                        IsExtensionData = false,
+                        PropertyName = "Code",
+                        JsonPropertyName = "code",
+                    });
+                    properties[0].IsRequired = true;
+                    properties[1] = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreatePropertyInfo<string>(options, new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<string>
+                    {
+                        IsProperty = true,
+                        IsPublic = true,
+                        DeclaringType = typeof(Error),
+                        Converter = null,
+                        Getter = static obj => ((Error)obj).Message,
+                        Setter = static (obj, value) => ((Error)obj).Message = value!,
+                        IgnoreCondition = null,
+                        IsExtensionData = false,
+                        PropertyName = "Message",
+                        JsonPropertyName = "message",
+                    });
+                    properties[1].IsRequired = true;
+            #if NET9_0_OR_GREATER
+                    properties[1].IsGetNullable = false;
+                    properties[1].IsSetNullable = false;
+            #endif
+                    return properties;
+                },
+            };
+            typeInfo = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreateObjectInfo<Error>(options, objectInfo);
+            typeInfo.NumberHandling = null; // Use the options' number handling, as reflection does.
+        }
+        typeInfo.OriginatingResolver = this;
+        return typeInfo;
+    }
+
+    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<NewPet> Create3(global::System.Text.Json.JsonSerializerOptions options)
+    {
+        if (!TryGetRuntimeConverter<NewPet>(options, out var typeInfo))
+        {
+            var objectInfo = new global::System.Text.Json.Serialization.Metadata.JsonObjectInfoValues<NewPet>
+            {
+                ObjectCreator = static () => new NewPet { Name = default!, Kind = default! },
+                PropertyMetadataInitializer = _ =>
+                {
+                    var properties = new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfo[4];
+                    properties[0] = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreatePropertyInfo<string>(options, new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<string>
+                    {
+                        IsProperty = true,
+                        IsPublic = true,
+                        DeclaringType = typeof(NewPet),
+                        Converter = null,
+                        Getter = static obj => ((NewPet)obj).Name,
+                        Setter = static (obj, value) => ((NewPet)obj).Name = value!,
+                        IgnoreCondition = null,
+                        IsExtensionData = false,
+                        PropertyName = "Name",
+                        JsonPropertyName = "name",
+                    });
+                    properties[0].IsRequired = true;
+            #if NET9_0_OR_GREATER
+                    properties[0].IsGetNullable = false;
+                    properties[0].IsSetNullable = false;
+            #endif
+                    properties[1] = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreatePropertyInfo<string>(options, new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<string>
+                    {
+                        IsProperty = true,
+                        IsPublic = true,
+                        DeclaringType = typeof(NewPet),
+                        Converter = null,
+                        Getter = static obj => ((NewPet)obj).Kind,
+                        Setter = static (obj, value) => ((NewPet)obj).Kind = value!,
+                        IgnoreCondition = null,
+                        IsExtensionData = false,
+                        PropertyName = "Kind",
+                        JsonPropertyName = "kind",
+                    });
+                    properties[1].IsRequired = true;
+            #if NET9_0_OR_GREATER
+                    properties[1].IsGetNullable = false;
+                    properties[1].IsSetNullable = false;
+            #endif
+                    properties[2] = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreatePropertyInfo<string?>(options, new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<string?>
+                    {
+                        IsProperty = true,
+                        IsPublic = true,
+                        DeclaringType = typeof(NewPet),
+                        Converter = null,
+                        Getter = static obj => ((NewPet)obj).Tag,
+                        Setter = static (obj, value) => ((NewPet)obj).Tag = value!,
+                        IgnoreCondition = global::System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+                        IsExtensionData = false,
+                        PropertyName = "Tag",
+                        JsonPropertyName = "tag",
+                    });
+                    properties[3] = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreatePropertyInfo<PetStatus?>(options, new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<PetStatus?>
+                    {
+                        IsProperty = true,
+                        IsPublic = true,
+                        DeclaringType = typeof(NewPet),
+                        Converter = null,
+                        Getter = static obj => ((NewPet)obj).Status,
+                        Setter = static (obj, value) => ((NewPet)obj).Status = value!,
+                        IgnoreCondition = global::System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+                        IsExtensionData = false,
+                        PropertyName = "Status",
+                        JsonPropertyName = "status",
+                    });
+                    return properties;
+                },
+            };
+            typeInfo = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreateObjectInfo<NewPet>(options, objectInfo);
+            typeInfo.NumberHandling = null; // Use the options' number handling, as reflection does.
+        }
+        typeInfo.OriginatingResolver = this;
+        return typeInfo;
+    }
+
+    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<Order> Create4(global::System.Text.Json.JsonSerializerOptions options)
+    {
+        if (!TryGetRuntimeConverter<Order>(options, out var typeInfo))
+        {
+            var objectInfo = new global::System.Text.Json.Serialization.Metadata.JsonObjectInfoValues<Order>
+            {
+                ObjectCreator = static () => new Order {  },
+                PropertyMetadataInitializer = _ =>
+                {
+                    var properties = new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfo[4];
+                    properties[0] = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreatePropertyInfo<long?>(options, new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<long?>
+                    {
+                        IsProperty = true,
+                        IsPublic = true,
+                        DeclaringType = typeof(Order),
+                        Converter = null,
+                        Getter = static obj => ((Order)obj).PetId,
+                        Setter = static (obj, value) => ((Order)obj).PetId = value!,
+                        IgnoreCondition = global::System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+                        IsExtensionData = false,
+                        PropertyName = "PetId",
+                        JsonPropertyName = "petId",
+                    });
+                    properties[1] = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreatePropertyInfo<int?>(options, new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<int?>
+                    {
+                        IsProperty = true,
+                        IsPublic = true,
+                        DeclaringType = typeof(Order),
+                        Converter = null,
+                        Getter = static obj => ((Order)obj).Quantity,
+                        Setter = static (obj, value) => ((Order)obj).Quantity = value!,
+                        IgnoreCondition = global::System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+                        IsExtensionData = false,
+                        PropertyName = "Quantity",
+                        JsonPropertyName = "quantity",
+                    });
+                    properties[2] = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreatePropertyInfo<global::System.DateTimeOffset?>(options, new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<global::System.DateTimeOffset?>
+                    {
+                        IsProperty = true,
+                        IsPublic = true,
+                        DeclaringType = typeof(Order),
+                        Converter = null,
+                        Getter = static obj => ((Order)obj).ShipDate,
+                        Setter = static (obj, value) => ((Order)obj).ShipDate = value!,
+                        IgnoreCondition = global::System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+                        IsExtensionData = false,
+                        PropertyName = "ShipDate",
+                        JsonPropertyName = "shipDate",
+                    });
+                    properties[3] = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreatePropertyInfo<bool?>(options, new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<bool?>
+                    {
+                        IsProperty = true,
+                        IsPublic = true,
+                        DeclaringType = typeof(Order),
+                        Converter = null,
+                        Getter = static obj => ((Order)obj).Complete,
+                        Setter = static (obj, value) => ((Order)obj).Complete = value!,
+                        IgnoreCondition = global::System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+                        IsExtensionData = false,
+                        PropertyName = "Complete",
+                        JsonPropertyName = "complete",
+                    });
+                    return properties;
+                },
+            };
+            typeInfo = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreateObjectInfo<Order>(options, objectInfo);
+            typeInfo.NumberHandling = null; // Use the options' number handling, as reflection does.
+        }
+        typeInfo.OriginatingResolver = this;
+        return typeInfo;
+    }
+
+    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<Owner> Create5(global::System.Text.Json.JsonSerializerOptions options)
+    {
+        if (!TryGetRuntimeConverter<Owner>(options, out var typeInfo))
+        {
+            var objectInfo = new global::System.Text.Json.Serialization.Metadata.JsonObjectInfoValues<Owner>
+            {
+                ObjectCreator = static () => new Owner { Id = default! },
+                PropertyMetadataInitializer = _ =>
+                {
+                    var properties = new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfo[4];
+                    properties[0] = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreatePropertyInfo<global::System.Guid>(options, new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<global::System.Guid>
+                    {
+                        IsProperty = true,
+                        IsPublic = true,
+                        DeclaringType = typeof(Owner),
+                        Converter = null,
+                        Getter = static obj => ((Owner)obj).Id,
+                        Setter = static (obj, value) => ((Owner)obj).Id = value!,
+                        IgnoreCondition = null,
+                        IsExtensionData = false,
+                        PropertyName = "Id",
+                        JsonPropertyName = "id",
+                    });
+                    properties[0].IsRequired = true;
+                    properties[1] = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreatePropertyInfo<string?>(options, new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<string?>
+                    {
+                        IsProperty = true,
+                        IsPublic = true,
+                        DeclaringType = typeof(Owner),
+                        Converter = null,
+                        Getter = static obj => ((Owner)obj).Name,
+                        Setter = static (obj, value) => ((Owner)obj).Name = value!,
+                        IgnoreCondition = global::System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+                        IsExtensionData = false,
+                        PropertyName = "Name",
+                        JsonPropertyName = "name",
+                    });
+                    properties[2] = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreatePropertyInfo<string?>(options, new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<string?>
+                    {
+                        IsProperty = true,
+                        IsPublic = true,
+                        DeclaringType = typeof(Owner),
+                        Converter = null,
+                        Getter = static obj => ((Owner)obj).Email,
+                        Setter = static (obj, value) => ((Owner)obj).Email = value!,
+                        IgnoreCondition = global::System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+                        IsExtensionData = false,
+                        PropertyName = "Email",
+                        JsonPropertyName = "email",
+                    });
+                    properties[3] = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreatePropertyInfo<Owner?>(options, new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<Owner?>
+                    {
+                        IsProperty = true,
+                        IsPublic = true,
+                        DeclaringType = typeof(Owner),
+                        Converter = null,
+                        Getter = static obj => ((Owner)obj).Manager,
+                        Setter = static (obj, value) => ((Owner)obj).Manager = value!,
+                        IgnoreCondition = global::System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+                        IsExtensionData = false,
+                        PropertyName = "Manager",
+                        JsonPropertyName = "manager",
+                    });
+                    return properties;
+                },
+            };
+            typeInfo = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreateObjectInfo<Owner>(options, objectInfo);
+            typeInfo.NumberHandling = null; // Use the options' number handling, as reflection does.
+        }
+        typeInfo.OriginatingResolver = this;
+        return typeInfo;
+    }
+
+    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<Pet> Create6(global::System.Text.Json.JsonSerializerOptions options)
+    {
+        if (!TryGetRuntimeConverter<Pet>(options, out var typeInfo))
+        {
+            typeInfo = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreateValueInfo<Pet>(options, Expand(typeof(Pet), new PetJsonConverter(), options));
+        }
+        typeInfo.OriginatingResolver = this;
+        return typeInfo;
+    }
+
+    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<PetPage> Create7(global::System.Text.Json.JsonSerializerOptions options)
+    {
+        if (!TryGetRuntimeConverter<PetPage>(options, out var typeInfo))
+        {
+            var objectInfo = new global::System.Text.Json.Serialization.Metadata.JsonObjectInfoValues<PetPage>
+            {
+                ObjectCreator = static () => new PetPage { Items = default! },
+                PropertyMetadataInitializer = _ =>
+                {
+                    var properties = new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfo[2];
+                    properties[0] = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreatePropertyInfo<global::System.Collections.Generic.IReadOnlyList<Pet>>(options, new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<global::System.Collections.Generic.IReadOnlyList<Pet>>
+                    {
+                        IsProperty = true,
+                        IsPublic = true,
+                        DeclaringType = typeof(PetPage),
+                        Converter = null,
+                        Getter = static obj => ((PetPage)obj).Items,
+                        Setter = static (obj, value) => ((PetPage)obj).Items = value!,
+                        IgnoreCondition = null,
+                        IsExtensionData = false,
+                        PropertyName = "Items",
+                        JsonPropertyName = "items",
+                    });
+                    properties[0].IsRequired = true;
+            #if NET9_0_OR_GREATER
+                    properties[0].IsGetNullable = false;
+                    properties[0].IsSetNullable = false;
+            #endif
+                    properties[1] = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreatePropertyInfo<string?>(options, new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<string?>
+                    {
+                        IsProperty = true,
+                        IsPublic = true,
+                        DeclaringType = typeof(PetPage),
+                        Converter = null,
+                        Getter = static obj => ((PetPage)obj).NextCursor,
+                        Setter = static (obj, value) => ((PetPage)obj).NextCursor = value!,
+                        IgnoreCondition = global::System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+                        IsExtensionData = false,
+                        PropertyName = "NextCursor",
+                        JsonPropertyName = "nextCursor",
+                    });
+                    return properties;
+                },
+            };
+            typeInfo = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreateObjectInfo<PetPage>(options, objectInfo);
+            typeInfo.NumberHandling = null; // Use the options' number handling, as reflection does.
+        }
+        typeInfo.OriginatingResolver = this;
+        return typeInfo;
+    }
+
+    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<PetPatch> Create8(global::System.Text.Json.JsonSerializerOptions options)
+    {
+        if (!TryGetRuntimeConverter<PetPatch>(options, out var typeInfo))
+        {
+            var objectInfo = new global::System.Text.Json.Serialization.Metadata.JsonObjectInfoValues<PetPatch>
+            {
+                ObjectCreator = static () => new PetPatch {  },
+                PropertyMetadataInitializer = _ =>
+                {
+                    var properties = new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfo[2];
+                    properties[0] = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreatePropertyInfo<string?>(options, new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<string?>
+                    {
+                        IsProperty = true,
+                        IsPublic = true,
+                        DeclaringType = typeof(PetPatch),
+                        Converter = null,
+                        Getter = static obj => ((PetPatch)obj).Name,
+                        Setter = static (obj, value) => ((PetPatch)obj).Name = value!,
+                        IgnoreCondition = global::System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+                        IsExtensionData = false,
+                        PropertyName = "Name",
+                        JsonPropertyName = "name",
+                    });
+                    properties[1] = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreatePropertyInfo<global::BlazorApi.Runtime.Json.Optional<string?>>(options, new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<global::BlazorApi.Runtime.Json.Optional<string?>>
+                    {
+                        IsProperty = true,
+                        IsPublic = true,
+                        DeclaringType = typeof(PetPatch),
+                        Converter = (global::System.Text.Json.Serialization.JsonConverter<global::BlazorApi.Runtime.Json.Optional<string?>>)Expand(typeof(global::BlazorApi.Runtime.Json.Optional<string>), new global::BlazorApi.Runtime.Json.OptionalJsonConverter<string?>(), options),
+                        Getter = static obj => ((PetPatch)obj).Tag,
+                        Setter = static (obj, value) => ((PetPatch)obj).Tag = value!,
+                        IgnoreCondition = global::System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault,
+                        IsExtensionData = false,
+                        PropertyName = "Tag",
+                        JsonPropertyName = "tag",
+                    });
+                    return properties;
+                },
+            };
+            typeInfo = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreateObjectInfo<PetPatch>(options, objectInfo);
+            typeInfo.NumberHandling = null; // Use the options' number handling, as reflection does.
+        }
+        typeInfo.OriginatingResolver = this;
+        return typeInfo;
+    }
+
+    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<PetStatus> Create9(global::System.Text.Json.JsonSerializerOptions options)
+    {
+        if (!TryGetRuntimeConverter<PetStatus>(options, out var typeInfo))
+        {
+            typeInfo = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreateValueInfo<PetStatus>(options, Expand(typeof(PetStatus), new PetStatusJsonConverter(), options));
+        }
+        typeInfo.OriginatingResolver = this;
+        return typeInfo;
+    }
+
+    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<PhotoInfo> Create10(global::System.Text.Json.JsonSerializerOptions options)
+    {
+        if (!TryGetRuntimeConverter<PhotoInfo>(options, out var typeInfo))
+        {
+            var objectInfo = new global::System.Text.Json.Serialization.Metadata.JsonObjectInfoValues<PhotoInfo>
+            {
+                ObjectCreator = static () => new PhotoInfo { Url = default!, Size = default! },
+                PropertyMetadataInitializer = _ =>
+                {
+                    var properties = new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfo[2];
+                    properties[0] = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreatePropertyInfo<global::System.Uri>(options, new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<global::System.Uri>
+                    {
+                        IsProperty = true,
+                        IsPublic = true,
+                        DeclaringType = typeof(PhotoInfo),
+                        Converter = null,
+                        Getter = static obj => ((PhotoInfo)obj).Url,
+                        Setter = static (obj, value) => ((PhotoInfo)obj).Url = value!,
+                        IgnoreCondition = null,
+                        IsExtensionData = false,
+                        PropertyName = "Url",
+                        JsonPropertyName = "url",
+                    });
+                    properties[0].IsRequired = true;
+            #if NET9_0_OR_GREATER
+                    properties[0].IsGetNullable = false;
+                    properties[0].IsSetNullable = false;
+            #endif
+                    properties[1] = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreatePropertyInfo<long>(options, new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<long>
+                    {
+                        IsProperty = true,
+                        IsPublic = true,
+                        DeclaringType = typeof(PhotoInfo),
+                        Converter = null,
+                        Getter = static obj => ((PhotoInfo)obj).Size,
+                        Setter = static (obj, value) => ((PhotoInfo)obj).Size = value!,
+                        IgnoreCondition = null,
+                        IsExtensionData = false,
+                        PropertyName = "Size",
+                        JsonPropertyName = "size",
+                    });
+                    properties[1].IsRequired = true;
+                    return properties;
+                },
+            };
+            typeInfo = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreateObjectInfo<PhotoInfo>(options, objectInfo);
+            typeInfo.NumberHandling = null; // Use the options' number handling, as reflection does.
+        }
+        typeInfo.OriginatingResolver = this;
+        return typeInfo;
+    }
+
+    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<ProblemDetails> Create11(global::System.Text.Json.JsonSerializerOptions options)
+    {
+        if (!TryGetRuntimeConverter<ProblemDetails>(options, out var typeInfo))
+        {
+            var objectInfo = new global::System.Text.Json.Serialization.Metadata.JsonObjectInfoValues<ProblemDetails>
+            {
+                ObjectCreator = static () => new ProblemDetails {  },
+                PropertyMetadataInitializer = _ =>
+                {
+                    var properties = new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfo[6];
+                    properties[0] = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreatePropertyInfo<string?>(options, new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<string?>
+                    {
+                        IsProperty = true,
+                        IsPublic = true,
+                        DeclaringType = typeof(ProblemDetails),
+                        Converter = null,
+                        Getter = static obj => ((ProblemDetails)obj).Type,
+                        Setter = static (obj, value) => ((ProblemDetails)obj).Type = value!,
+                        IgnoreCondition = global::System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+                        IsExtensionData = false,
+                        PropertyName = "Type",
+                        JsonPropertyName = "type",
+                    });
+                    properties[1] = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreatePropertyInfo<string?>(options, new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<string?>
+                    {
+                        IsProperty = true,
+                        IsPublic = true,
+                        DeclaringType = typeof(ProblemDetails),
+                        Converter = null,
+                        Getter = static obj => ((ProblemDetails)obj).Title,
+                        Setter = static (obj, value) => ((ProblemDetails)obj).Title = value!,
+                        IgnoreCondition = global::System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+                        IsExtensionData = false,
+                        PropertyName = "Title",
+                        JsonPropertyName = "title",
+                    });
+                    properties[2] = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreatePropertyInfo<int?>(options, new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<int?>
+                    {
+                        IsProperty = true,
+                        IsPublic = true,
+                        DeclaringType = typeof(ProblemDetails),
+                        Converter = null,
+                        Getter = static obj => ((ProblemDetails)obj).Status,
+                        Setter = static (obj, value) => ((ProblemDetails)obj).Status = value!,
+                        IgnoreCondition = global::System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+                        IsExtensionData = false,
+                        PropertyName = "Status",
+                        JsonPropertyName = "status",
+                    });
+                    properties[3] = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreatePropertyInfo<string?>(options, new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<string?>
+                    {
+                        IsProperty = true,
+                        IsPublic = true,
+                        DeclaringType = typeof(ProblemDetails),
+                        Converter = null,
+                        Getter = static obj => ((ProblemDetails)obj).Detail,
+                        Setter = static (obj, value) => ((ProblemDetails)obj).Detail = value!,
+                        IgnoreCondition = global::System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+                        IsExtensionData = false,
+                        PropertyName = "Detail",
+                        JsonPropertyName = "detail",
+                    });
+                    properties[4] = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreatePropertyInfo<string?>(options, new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<string?>
+                    {
+                        IsProperty = true,
+                        IsPublic = true,
+                        DeclaringType = typeof(ProblemDetails),
+                        Converter = null,
+                        Getter = static obj => ((ProblemDetails)obj).Instance,
+                        Setter = static (obj, value) => ((ProblemDetails)obj).Instance = value!,
+                        IgnoreCondition = global::System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+                        IsExtensionData = false,
+                        PropertyName = "Instance",
+                        JsonPropertyName = "instance",
+                    });
+                    properties[5] = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreatePropertyInfo<global::System.Collections.Generic.IReadOnlyDictionary<string, global::System.Collections.Generic.IReadOnlyList<string>>?>(options, new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<global::System.Collections.Generic.IReadOnlyDictionary<string, global::System.Collections.Generic.IReadOnlyList<string>>?>
+                    {
+                        IsProperty = true,
+                        IsPublic = true,
+                        DeclaringType = typeof(ProblemDetails),
+                        Converter = null,
+                        Getter = static obj => ((ProblemDetails)obj).Errors,
+                        Setter = static (obj, value) => ((ProblemDetails)obj).Errors = value!,
+                        IgnoreCondition = global::System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+                        IsExtensionData = false,
+                        PropertyName = "Errors",
+                        JsonPropertyName = "errors",
+                    });
+                    return properties;
+                },
+            };
+            typeInfo = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreateObjectInfo<ProblemDetails>(options, objectInfo);
+            typeInfo.NumberHandling = null; // Use the options' number handling, as reflection does.
+        }
+        typeInfo.OriginatingResolver = this;
+        return typeInfo;
+    }
+
+    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<UnrecognizedPet> Create12(global::System.Text.Json.JsonSerializerOptions options)
+    {
+        if (!TryGetRuntimeConverter<UnrecognizedPet>(options, out var typeInfo))
+        {
+            var objectInfo = new global::System.Text.Json.Serialization.Metadata.JsonObjectInfoValues<UnrecognizedPet>
+            {
+                ObjectCreator = static () => new UnrecognizedPet { Name = default! },
+                PropertyMetadataInitializer = _ =>
+                {
+                    var properties = new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfo[10];
+                    properties[0] = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreatePropertyInfo<long?>(options, new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<long?>
+                    {
+                        IsProperty = true,
+                        IsPublic = true,
+                        DeclaringType = typeof(Pet),
+                        Converter = null,
+                        Getter = static obj => ((Pet)obj).Id,
+                        Setter = static (obj, value) => ((Pet)obj).Id = value!,
+                        IgnoreCondition = global::System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+                        IsExtensionData = false,
+                        PropertyName = "Id",
+                        JsonPropertyName = "id",
+                    });
+                    properties[1] = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreatePropertyInfo<string>(options, new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<string>
+                    {
+                        IsProperty = true,
+                        IsPublic = true,
+                        DeclaringType = typeof(Pet),
+                        Converter = null,
+                        Getter = static obj => ((Pet)obj).Name,
+                        Setter = static (obj, value) => ((Pet)obj).Name = value!,
+                        IgnoreCondition = null,
+                        IsExtensionData = false,
+                        PropertyName = "Name",
+                        JsonPropertyName = "name",
+                    });
+                    properties[1].IsRequired = true;
+            #if NET9_0_OR_GREATER
+                    properties[1].IsGetNullable = false;
+                    properties[1].IsSetNullable = false;
+            #endif
+                    properties[2] = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreatePropertyInfo<string>(options, new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<string>
+                    {
+                        IsProperty = true,
+                        IsPublic = true,
+                        DeclaringType = typeof(Pet),
+                        Converter = null,
+                        Getter = static obj => ((Pet)obj).Kind,
+                        Setter = static (obj, value) => ((Pet)obj).Kind = value!,
+                        IgnoreCondition = null,
+                        IsExtensionData = false,
+                        PropertyName = "Kind",
+                        JsonPropertyName = "kind",
+                    });
+            #if NET9_0_OR_GREATER
+                    properties[2].IsGetNullable = false;
+                    properties[2].IsSetNullable = false;
+            #endif
+                    properties[3] = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreatePropertyInfo<PetStatus?>(options, new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<PetStatus?>
+                    {
+                        IsProperty = true,
+                        IsPublic = true,
+                        DeclaringType = typeof(Pet),
+                        Converter = null,
+                        Getter = static obj => ((Pet)obj).Status,
+                        Setter = static (obj, value) => ((Pet)obj).Status = value!,
+                        IgnoreCondition = global::System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+                        IsExtensionData = false,
+                        PropertyName = "Status",
+                        JsonPropertyName = "status",
+                    });
+                    properties[4] = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreatePropertyInfo<string?>(options, new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<string?>
+                    {
+                        IsProperty = true,
+                        IsPublic = true,
+                        DeclaringType = typeof(Pet),
+                        Converter = null,
+                        Getter = static obj => ((Pet)obj).Tag,
+                        Setter = static (obj, value) => ((Pet)obj).Tag = value!,
+                        IgnoreCondition = global::System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+                        IsExtensionData = false,
+                        PropertyName = "Tag",
+                        JsonPropertyName = "tag",
+                    });
+                    properties[5] = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreatePropertyInfo<global::System.DateOnly?>(options, new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<global::System.DateOnly?>
+                    {
+                        IsProperty = true,
+                        IsPublic = true,
+                        DeclaringType = typeof(Pet),
+                        Converter = null,
+                        Getter = static obj => ((Pet)obj).BirthDate,
+                        Setter = static (obj, value) => ((Pet)obj).BirthDate = value!,
+                        IgnoreCondition = global::System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+                        IsExtensionData = false,
+                        PropertyName = "BirthDate",
+                        JsonPropertyName = "birthDate",
+                    });
+                    properties[6] = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreatePropertyInfo<global::System.DateTimeOffset?>(options, new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<global::System.DateTimeOffset?>
+                    {
+                        IsProperty = true,
+                        IsPublic = true,
+                        DeclaringType = typeof(Pet),
+                        Converter = null,
+                        Getter = static obj => ((Pet)obj).CreatedAt,
+                        Setter = static (obj, value) => ((Pet)obj).CreatedAt = value!,
+                        IgnoreCondition = global::System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+                        IsExtensionData = false,
+                        PropertyName = "CreatedAt",
+                        JsonPropertyName = "createdAt",
+                    });
+                    properties[7] = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreatePropertyInfo<Owner?>(options, new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<Owner?>
+                    {
+                        IsProperty = true,
+                        IsPublic = true,
+                        DeclaringType = typeof(Pet),
+                        Converter = null,
+                        Getter = static obj => ((Pet)obj).Owner,
+                        Setter = static (obj, value) => ((Pet)obj).Owner = value!,
+                        IgnoreCondition = global::System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+                        IsExtensionData = false,
+                        PropertyName = "Owner",
+                        JsonPropertyName = "owner",
+                    });
+                    properties[8] = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreatePropertyInfo<global::System.Collections.Generic.IReadOnlyDictionary<string, string>?>(options, new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<global::System.Collections.Generic.IReadOnlyDictionary<string, string>?>
+                    {
+                        IsProperty = true,
+                        IsPublic = true,
+                        DeclaringType = typeof(Pet),
+                        Converter = null,
+                        Getter = static obj => ((Pet)obj).Attributes,
+                        Setter = static (obj, value) => ((Pet)obj).Attributes = value!,
+                        IgnoreCondition = global::System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+                        IsExtensionData = false,
+                        PropertyName = "Attributes",
+                        JsonPropertyName = "attributes",
+                    });
+                    properties[9] = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreatePropertyInfo<global::System.Collections.Generic.IDictionary<string, global::System.Text.Json.JsonElement>>(options, new global::System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<global::System.Collections.Generic.IDictionary<string, global::System.Text.Json.JsonElement>>
+                    {
+                        IsProperty = true,
+                        IsPublic = true,
+                        DeclaringType = typeof(UnrecognizedPet),
+                        Converter = null,
+                        Getter = static obj => ((UnrecognizedPet)obj).AdditionalProperties,
+                        Setter = static (obj, value) => ((UnrecognizedPet)obj).AdditionalProperties = value!,
+                        IgnoreCondition = null,
+                        IsExtensionData = true,
+                        PropertyName = "AdditionalProperties",
+                        JsonPropertyName = null,
+                    });
+                    return properties;
+                },
+            };
+            typeInfo = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreateObjectInfo<UnrecognizedPet>(options, objectInfo);
+            typeInfo.NumberHandling = null; // Use the options' number handling, as reflection does.
+        }
+        typeInfo.OriginatingResolver = this;
+        return typeInfo;
+    }
+
+    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<bool> Create13(global::System.Text.Json.JsonSerializerOptions options)
+    {
+        if (!TryGetRuntimeConverter<bool>(options, out var typeInfo))
+        {
+            typeInfo = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreateValueInfo<bool>(options, global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.BooleanConverter);
+        }
+        typeInfo.OriginatingResolver = this;
+        return typeInfo;
+    }
+
+    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<double> Create14(global::System.Text.Json.JsonSerializerOptions options)
+    {
+        if (!TryGetRuntimeConverter<double>(options, out var typeInfo))
+        {
+            typeInfo = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreateValueInfo<double>(options, global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.DoubleConverter);
+        }
+        typeInfo.OriginatingResolver = this;
+        return typeInfo;
+    }
+
+    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<global::System.Collections.Generic.IEnumerable<string>> Create15(global::System.Text.Json.JsonSerializerOptions options)
+    {
+        if (!TryGetRuntimeConverter<global::System.Collections.Generic.IEnumerable<string>>(options, out var typeInfo))
+        {
+            var info = new global::System.Text.Json.Serialization.Metadata.JsonCollectionInfoValues<global::System.Collections.Generic.IEnumerable<string>>
+            {
+                ObjectCreator = null,
+            };
+            typeInfo = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreateIEnumerableInfo<global::System.Collections.Generic.IEnumerable<string>, string>(options, info);
+            typeInfo.NumberHandling = null; // Use the options' number handling, as reflection does.
+        }
+        typeInfo.OriginatingResolver = this;
+        return typeInfo;
+    }
+
+    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<global::System.Collections.Generic.IReadOnlyDictionary<string, global::System.Collections.Generic.IReadOnlyList<string>>> Create16(global::System.Text.Json.JsonSerializerOptions options)
+    {
+        if (!TryGetRuntimeConverter<global::System.Collections.Generic.IReadOnlyDictionary<string, global::System.Collections.Generic.IReadOnlyList<string>>>(options, out var typeInfo))
+        {
+            var info = new global::System.Text.Json.Serialization.Metadata.JsonCollectionInfoValues<global::System.Collections.Generic.IReadOnlyDictionary<string, global::System.Collections.Generic.IReadOnlyList<string>>>
+            {
+                ObjectCreator = () => new global::System.Collections.Generic.Dictionary<string, global::System.Collections.Generic.IReadOnlyList<string>>(),
+            };
+            typeInfo = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreateIReadOnlyDictionaryInfo<global::System.Collections.Generic.IReadOnlyDictionary<string, global::System.Collections.Generic.IReadOnlyList<string>>, string, global::System.Collections.Generic.IReadOnlyList<string>>(options, info);
+            typeInfo.NumberHandling = null; // Use the options' number handling, as reflection does.
+        }
+        typeInfo.OriginatingResolver = this;
+        return typeInfo;
+    }
+
+    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<global::System.Collections.Generic.IReadOnlyDictionary<string, int>> Create17(global::System.Text.Json.JsonSerializerOptions options)
+    {
+        if (!TryGetRuntimeConverter<global::System.Collections.Generic.IReadOnlyDictionary<string, int>>(options, out var typeInfo))
+        {
+            var info = new global::System.Text.Json.Serialization.Metadata.JsonCollectionInfoValues<global::System.Collections.Generic.IReadOnlyDictionary<string, int>>
+            {
+                ObjectCreator = () => new global::System.Collections.Generic.Dictionary<string, int>(),
+            };
+            typeInfo = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreateIReadOnlyDictionaryInfo<global::System.Collections.Generic.IReadOnlyDictionary<string, int>, string, int>(options, info);
+            typeInfo.NumberHandling = null; // Use the options' number handling, as reflection does.
+        }
+        typeInfo.OriginatingResolver = this;
+        return typeInfo;
+    }
+
+    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<global::System.Collections.Generic.IReadOnlyDictionary<string, string>> Create18(global::System.Text.Json.JsonSerializerOptions options)
+    {
+        if (!TryGetRuntimeConverter<global::System.Collections.Generic.IReadOnlyDictionary<string, string>>(options, out var typeInfo))
+        {
+            var info = new global::System.Text.Json.Serialization.Metadata.JsonCollectionInfoValues<global::System.Collections.Generic.IReadOnlyDictionary<string, string>>
+            {
+                ObjectCreator = () => new global::System.Collections.Generic.Dictionary<string, string>(),
+            };
+            typeInfo = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreateIReadOnlyDictionaryInfo<global::System.Collections.Generic.IReadOnlyDictionary<string, string>, string, string>(options, info);
+            typeInfo.NumberHandling = null; // Use the options' number handling, as reflection does.
+        }
+        typeInfo.OriginatingResolver = this;
+        return typeInfo;
+    }
+
+    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<global::System.Collections.Generic.IReadOnlyList<Pet>> Create19(global::System.Text.Json.JsonSerializerOptions options)
+    {
+        if (!TryGetRuntimeConverter<global::System.Collections.Generic.IReadOnlyList<Pet>>(options, out var typeInfo))
+        {
+            var info = new global::System.Text.Json.Serialization.Metadata.JsonCollectionInfoValues<global::System.Collections.Generic.IReadOnlyList<Pet>>
+            {
+                ObjectCreator = null,
+            };
+            typeInfo = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreateIEnumerableInfo<global::System.Collections.Generic.IReadOnlyList<Pet>, Pet>(options, info);
+            typeInfo.NumberHandling = null; // Use the options' number handling, as reflection does.
+        }
+        typeInfo.OriginatingResolver = this;
+        return typeInfo;
+    }
+
+    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<global::System.DateOnly> Create20(global::System.Text.Json.JsonSerializerOptions options)
+    {
+        if (!TryGetRuntimeConverter<global::System.DateOnly>(options, out var typeInfo))
+        {
+            typeInfo = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreateValueInfo<global::System.DateOnly>(options, global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.DateOnlyConverter);
+        }
+        typeInfo.OriginatingResolver = this;
+        return typeInfo;
+    }
+
+    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<global::System.DateTimeOffset> Create21(global::System.Text.Json.JsonSerializerOptions options)
+    {
+        if (!TryGetRuntimeConverter<global::System.DateTimeOffset>(options, out var typeInfo))
+        {
+            typeInfo = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreateValueInfo<global::System.DateTimeOffset>(options, global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.DateTimeOffsetConverter);
+        }
+        typeInfo.OriginatingResolver = this;
+        return typeInfo;
+    }
+
+    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<global::System.Guid> Create22(global::System.Text.Json.JsonSerializerOptions options)
+    {
+        if (!TryGetRuntimeConverter<global::System.Guid>(options, out var typeInfo))
+        {
+            typeInfo = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreateValueInfo<global::System.Guid>(options, global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.GuidConverter);
+        }
+        typeInfo.OriginatingResolver = this;
+        return typeInfo;
+    }
+
+    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<global::System.Text.Json.JsonElement> Create23(global::System.Text.Json.JsonSerializerOptions options)
+    {
+        if (!TryGetRuntimeConverter<global::System.Text.Json.JsonElement>(options, out var typeInfo))
+        {
+            typeInfo = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreateValueInfo<global::System.Text.Json.JsonElement>(options, global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.JsonElementConverter);
+        }
+        typeInfo.OriginatingResolver = this;
+        return typeInfo;
+    }
+
+    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<global::System.Uri> Create24(global::System.Text.Json.JsonSerializerOptions options)
+    {
+        if (!TryGetRuntimeConverter<global::System.Uri>(options, out var typeInfo))
+        {
+            typeInfo = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreateValueInfo<global::System.Uri>(options, global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.UriConverter);
+        }
+        typeInfo.OriginatingResolver = this;
+        return typeInfo;
+    }
+
+    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<int> Create25(global::System.Text.Json.JsonSerializerOptions options)
+    {
+        if (!TryGetRuntimeConverter<int>(options, out var typeInfo))
+        {
+            typeInfo = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreateValueInfo<int>(options, global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.Int32Converter);
+        }
+        typeInfo.OriginatingResolver = this;
+        return typeInfo;
+    }
+
+    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<long> Create26(global::System.Text.Json.JsonSerializerOptions options)
+    {
+        if (!TryGetRuntimeConverter<long>(options, out var typeInfo))
+        {
+            typeInfo = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreateValueInfo<long>(options, global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.Int64Converter);
+        }
+        typeInfo.OriginatingResolver = this;
+        return typeInfo;
+    }
+
+    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<string> Create27(global::System.Text.Json.JsonSerializerOptions options)
+    {
+        if (!TryGetRuntimeConverter<string>(options, out var typeInfo))
+        {
+            typeInfo = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreateValueInfo<string>(options, global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.StringConverter);
+        }
+        typeInfo.OriginatingResolver = this;
+        return typeInfo;
+    }
+
+    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<long?> Create28(global::System.Text.Json.JsonSerializerOptions options)
+    {
+        if (!TryGetRuntimeConverter<long?>(options, out var typeInfo))
+        {
+            typeInfo = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreateValueInfo<long?>(options, global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.GetNullableConverter<long>(options));
+        }
+        typeInfo.OriginatingResolver = this;
+        return typeInfo;
+    }
+
+    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<PetStatus?> Create29(global::System.Text.Json.JsonSerializerOptions options)
+    {
+        if (!TryGetRuntimeConverter<PetStatus?>(options, out var typeInfo))
+        {
+            typeInfo = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreateValueInfo<PetStatus?>(options, global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.GetNullableConverter<PetStatus>(options));
+        }
+        typeInfo.OriginatingResolver = this;
+        return typeInfo;
+    }
+
+    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<global::System.DateOnly?> Create30(global::System.Text.Json.JsonSerializerOptions options)
+    {
+        if (!TryGetRuntimeConverter<global::System.DateOnly?>(options, out var typeInfo))
+        {
+            typeInfo = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreateValueInfo<global::System.DateOnly?>(options, global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.GetNullableConverter<global::System.DateOnly>(options));
+        }
+        typeInfo.OriginatingResolver = this;
+        return typeInfo;
+    }
+
+    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<global::System.DateTimeOffset?> Create31(global::System.Text.Json.JsonSerializerOptions options)
+    {
+        if (!TryGetRuntimeConverter<global::System.DateTimeOffset?>(options, out var typeInfo))
+        {
+            typeInfo = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreateValueInfo<global::System.DateTimeOffset?>(options, global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.GetNullableConverter<global::System.DateTimeOffset>(options));
+        }
+        typeInfo.OriginatingResolver = this;
+        return typeInfo;
+    }
+
+    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<double?> Create32(global::System.Text.Json.JsonSerializerOptions options)
+    {
+        if (!TryGetRuntimeConverter<double?>(options, out var typeInfo))
+        {
+            typeInfo = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreateValueInfo<double?>(options, global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.GetNullableConverter<double>(options));
+        }
+        typeInfo.OriginatingResolver = this;
+        return typeInfo;
+    }
+
+    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<int?> Create33(global::System.Text.Json.JsonSerializerOptions options)
+    {
+        if (!TryGetRuntimeConverter<int?>(options, out var typeInfo))
+        {
+            typeInfo = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreateValueInfo<int?>(options, global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.GetNullableConverter<int>(options));
+        }
+        typeInfo.OriginatingResolver = this;
+        return typeInfo;
+    }
+
+    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<bool?> Create34(global::System.Text.Json.JsonSerializerOptions options)
+    {
+        if (!TryGetRuntimeConverter<bool?>(options, out var typeInfo))
+        {
+            typeInfo = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreateValueInfo<bool?>(options, global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.GetNullableConverter<bool>(options));
+        }
+        typeInfo.OriginatingResolver = this;
+        return typeInfo;
+    }
+
+    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<global::BlazorApi.Runtime.Json.Optional<string>> Create35(global::System.Text.Json.JsonSerializerOptions options)
+    {
+        if (!TryGetRuntimeConverter<global::BlazorApi.Runtime.Json.Optional<string>>(options, out var typeInfo))
+        {
+            typeInfo = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreateValueInfo<global::BlazorApi.Runtime.Json.Optional<string>>(options, Expand(typeof(global::BlazorApi.Runtime.Json.Optional<string>), new global::BlazorApi.Runtime.Json.OptionalJsonConverter<string>(), options));
+        }
+        typeInfo.OriginatingResolver = this;
+        return typeInfo;
+    }
+
+    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<global::System.Collections.Generic.IDictionary<string, global::System.Text.Json.JsonElement>> Create36(global::System.Text.Json.JsonSerializerOptions options)
+    {
+        if (!TryGetRuntimeConverter<global::System.Collections.Generic.IDictionary<string, global::System.Text.Json.JsonElement>>(options, out var typeInfo))
+        {
+            var info = new global::System.Text.Json.Serialization.Metadata.JsonCollectionInfoValues<global::System.Collections.Generic.IDictionary<string, global::System.Text.Json.JsonElement>>
+            {
+                ObjectCreator = () => new global::System.Collections.Generic.Dictionary<string, global::System.Text.Json.JsonElement>(),
+            };
+            typeInfo = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreateIDictionaryInfo<global::System.Collections.Generic.IDictionary<string, global::System.Text.Json.JsonElement>, string, global::System.Text.Json.JsonElement>(options, info);
+            typeInfo.NumberHandling = null; // Use the options' number handling, as reflection does.
+        }
+        typeInfo.OriginatingResolver = this;
+        return typeInfo;
+    }
+
+    private global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<global::System.Collections.Generic.IReadOnlyList<string>> Create37(global::System.Text.Json.JsonSerializerOptions options)
+    {
+        if (!TryGetRuntimeConverter<global::System.Collections.Generic.IReadOnlyList<string>>(options, out var typeInfo))
+        {
+            var info = new global::System.Text.Json.Serialization.Metadata.JsonCollectionInfoValues<global::System.Collections.Generic.IReadOnlyList<string>>
+            {
+                ObjectCreator = null,
+            };
+            typeInfo = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreateIEnumerableInfo<global::System.Collections.Generic.IReadOnlyList<string>, string>(options, info);
+            typeInfo.NumberHandling = null; // Use the options' number handling, as reflection does.
+        }
+        typeInfo.OriginatingResolver = this;
+        return typeInfo;
+    }
+
+    private static bool TryGetRuntimeConverter<T>(global::System.Text.Json.JsonSerializerOptions options, out global::System.Text.Json.Serialization.Metadata.JsonTypeInfo<T> typeInfo)
+    {
+        // A converter registered in the options (for example ApiJson's duration converter) wins, as in generated contexts.
+        foreach (var converter in options.Converters)
+        {
+            if (converter?.CanConvert(typeof(T)) == true)
+            {
+                typeInfo = global::System.Text.Json.Serialization.Metadata.JsonMetadataServices.CreateValueInfo<T>(options, Expand(typeof(T), converter, options));
+                return true;
+            }
+        }
+        typeInfo = null!;
+        return false;
+    }
+
+    private static global::System.Text.Json.Serialization.JsonConverter Expand(global::System.Type type, global::System.Text.Json.Serialization.JsonConverter converter, global::System.Text.Json.JsonSerializerOptions options)
+    {
+        return converter is global::System.Text.Json.Serialization.JsonConverterFactory factory
+            ? factory.CreateConverter(type, options) ?? throw new global::System.InvalidOperationException("The converter factory " + factory.GetType() + " returned null.")
+            : converter;
+    }
 }

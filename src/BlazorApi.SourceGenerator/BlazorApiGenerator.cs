@@ -100,15 +100,6 @@ public sealed class BlazorApiGenerator : IIncrementalGenerator
             }
 
             options = GeneratorOptionsReader.ApplyPairs(options, contract.Options, diagnostics);
-            if (options.GenerateJsonContext)
-            {
-                // Source generators cannot see each other's output, so the System.Text.Json generator would never
-                // implement the context; the CLI can generate it as files.
-                diagnostics.Report(CodeGenerationDiagnostics.OptionNotSupportedBySourceGenerator, new SourceLocation(contract.Path, 0, 0), null,
-                    "generateJsonContext", "the System.Text.Json source generator does not run on generated sources; generate the client with 'api-gen generate' instead");
-                options = options with { GenerateJsonContext = false };
-            }
-
             cancellationToken.ThrowIfCancellationRequested();
 
             var overlays = new List<OpenApi.Overlays.OpenApiOverlay>();

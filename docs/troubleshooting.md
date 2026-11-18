@@ -66,17 +66,21 @@ a reduced version) that triggers it. As a workaround, generate with the CLI.
 ## Trimming and native AOT
 
 Generated code uses System.Text.Json with reflection-based metadata by default, which trimmed and native AOT apps
-disable. The simplest fix is to generate the client with the CLI and `generateJsonContext=true`: it emits a
-`{Api}JsonContext` that lists every type the client reads or writes (models, enums, subtypes and `Unrecognized*`
-types, union variants, collections and dictionaries of bodies and parameters), and the generated constructors and
-`Add{Client}` methods use it by default. The runtime's own types (`ApiProblemDetails`) are covered by the runtime.
+disable. Turn on `generateJsonContext`: the generator emits a `{Api}JsonContext` with metadata for every type the
+client reads or writes (models, enums, subtypes and `Unrecognized*` types, union variants, collections and
+dictionaries of bodies and parameters), and the generated constructors and `Add{Client}` methods use it by default.
+The runtime's own types (`ApiProblemDetails`) are covered by the runtime.
+
+```xml
+<OpenApiContract Include="Contracts/petstore.yaml" Options="GenerateJsonContext=true" />
+```
 
 ```shell
 api-gen generate petstore.yaml --output Generated --option generateJsonContext=true
 ```
 
-This path is verified: CI publishes a client generated this way with `PublishAot=true` (trim and AOT warnings as
-errors) and `JsonSerializerIsReflectionEnabledByDefault=false`, and runs it against `api-gen mock`
+This path is verified: CI publishes a client built by the source generator this way with `PublishAot=true` (trim and
+AOT warnings as errors) and `JsonSerializerIsReflectionEnabledByDefault=false`, and runs it against `api-gen mock`
 (`tests/BlazorApi.AotSmoke`); polymorphic bodies, merge-patch `Optional<T>` properties, maps, query arrays and typed
 error bodies all work without reflection.
 
@@ -87,26 +91,17 @@ builder.Services.AddPetstoreClient(options =>
     options.JsonSerializerOptions = ApiJson.CreateOptions(PetstoreJsonContext.Default, MyOtherContext.Default));
 ```
 
-With the source generator, write the context yourself, covering the same types:
+Types replaced with `typeMappings` are your own, so the generated context has no metadata for them (it only
+describes the properties that use them). Add a resolver that covers them, for example a `[JsonSerializable]` context
+in your shared project:
 
 ```csharp
-[JsonSerializable(typeof(Pet))]
-[JsonSerializable(typeof(Dog))]
-[JsonSerializable(typeof(Cat))]
-[JsonSerializable(typeof(UnrecognizedPet))]
-[JsonSerializable(typeof(PetPage))]
-[JsonSerializable(typeof(NewPet))]
-[JsonSerializable(typeof(Error))]
-[JsonSerializable(typeof(IReadOnlyDictionary<string, int>))]
-// ... every other generated model
-internal partial class PetstoreJsonContext : JsonSerializerContext;
+[JsonSerializable(typeof(Money))]
+internal partial class SharedJsonContext : JsonSerializerContext;
 
-builder.Services.AddPetstoreClient(options => options.JsonSerializerOptions = ApiJson.CreateOptions(PetstoreJsonContext.Default));
+builder.Services.AddPetstoreClient(options =>
+    options.JsonSerializerOptions = ApiJson.CreateOptions(PetstoreJsonContext.Default, SharedJsonContext.Default));
 ```
-
-The System.Text.Json source generator cannot see types produced by another source generator. With the BlazorApi
-source generator, generate the client in a class library and declare the context in a project that references it,
-or generate the client with the CLI (its output is ordinary source code).
 
 ## Deserialization errors
 

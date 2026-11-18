@@ -194,7 +194,7 @@ public partial class Features31Client : IFeatures31Client
     /// <summary>Creates a client.</summary>
     public Features31Client(global::System.Net.Http.HttpClient httpClient, global::BlazorApi.Runtime.ApiClientOptions? options)
     {
-        _connection = new global::BlazorApi.Runtime.Http.ApiConnection(httpClient, options, DefaultBaseAddress);
+        _connection = new global::BlazorApi.Runtime.Http.ApiConnection(httpClient, options ?? new global::BlazorApi.Runtime.ApiClientOptions { JsonSerializerOptions = global::BlazorApi.Runtime.Json.ApiJson.CreateOptions(Features31JsonContext.Default) }, DefaultBaseAddress);
     }
 
     /// <summary>The connection that sends requests (HTTP client, options and JSON settings).</summary>
