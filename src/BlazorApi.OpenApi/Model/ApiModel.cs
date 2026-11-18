@@ -319,6 +319,15 @@ public sealed class ApiBodyPart
     /// <summary>The part content type from the encoding object, when declared.</summary>
     public string? ContentType { get; internal set; }
 
+    /// <summary>
+    /// The serialization style of a URL-encoded field from the encoding object (<see cref="ApiParameterStyle.Form"/>
+    /// when not declared; <see cref="ApiParameterStyle.DeepObject"/> gives <c>name[key]</c> fields).
+    /// </summary>
+    public ApiParameterStyle Style { get; internal set; } = ApiParameterStyle.Form;
+
+    /// <summary>Whether array items of a URL-encoded field are separate fields (the default for style form).</summary>
+    public bool Explode { get; internal set; } = true;
+
     /// <summary>The description.</summary>
     public string? Description { get; internal set; }
 

@@ -52,6 +52,10 @@ target .NET Standard 2.0.
   `blazorapi.client.operation.duration` histogram (`url.template`, operation id, status, `error.type`).
 - **Forward-compatible enums**: `unknownEnumValues=unrecognized` adds an `Unrecognized` member for values the
   contract does not list.
+- **Stripe-style form encoding**: `deepObject` query parameters and form fields (`encoding` style `deepObject`) use
+  the bracket convention for nested objects, arrays and unions (`shipping[address][city]`, `items[0][price]`,
+  `expand[0]`); arrays of scalars in form bodies are one field per item instead of JSON text.
+- Boolean enums (`enum: [true]`) are `bool` properties (constant for one value) instead of untyped JSON (BAPI4006).
 - **Implicit discriminators**: object variants of a `oneOf`/`anyOf` without a `discriminator` are told apart by a
   property with a different constant value in each (OpenAI's `type`, Stripe's `object`), also next to variants of
   other JSON kinds (expandable fields); inline variants are named after their `title`.

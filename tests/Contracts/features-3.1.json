@@ -118,6 +118,60 @@
         }
       }
     },
+    "/payments": {
+      "post": {
+        "operationId": "createPayment",
+        "description": "Stripe-style form encoding: deepObject query parameters and fields.",
+        "parameters": [
+          {
+            "name": "expand", "in": "query", "style": "deepObject", "explode": true,
+            "schema": { "type": "array", "items": { "type": "string" } }
+          },
+          {
+            "name": "created", "in": "query", "style": "deepObject", "explode": true,
+            "schema": {
+              "anyOf": [
+                { "title": "range", "type": "object", "properties": { "gte": { "type": "integer" }, "lt": { "type": "integer" } } },
+                { "type": "integer" }
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "required": ["amount"],
+                "properties": {
+                  "amount": { "type": "integer" },
+                  "tags": { "type": "array", "items": { "type": "string" } },
+                  "metadata": { "type": "object", "additionalProperties": { "type": "string" } },
+                  "shipping": {
+                    "type": "object",
+                    "properties": {
+                      "name": { "type": "string" },
+                      "address": { "type": "object", "properties": { "city": { "type": "string" }, "line1": { "type": "string" } } }
+                    }
+                  },
+                  "items": {
+                    "type": "array",
+                    "items": { "type": "object", "properties": { "price": { "type": "string" }, "quantity": { "type": "integer" } } }
+                  }
+                }
+              },
+              "encoding": {
+                "metadata": { "style": "deepObject", "explode": true },
+                "shipping": { "style": "deepObject", "explode": true },
+                "items": { "style": "deepObject", "explode": true }
+              }
+            }
+          }
+        },
+        "responses": { "204": { "description": "Created" } }
+      }
+    },
     "/documents/{id}": {
       "additionalOperations": {
         "COPY": {

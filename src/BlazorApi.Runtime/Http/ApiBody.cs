@@ -45,6 +45,93 @@ public static class ApiBody
             .ToList();
     }
 
+    /// <summary>One form field; none when <paramref name="value"/> is <see langword="null"/>.</summary>
+    public static IEnumerable<KeyValuePair<string, string?>> Field(string name, string? value) =>
+        value is null ? [] : [new KeyValuePair<string, string?>(name, value)];
+
+    /// <summary>
+    /// The fields of an array of scalars (style <c>form</c>): one <c>name=item</c> field per item when exploded (the
+    /// default), otherwise one field with the items joined by <paramref name="delimiter"/>.
+    /// </summary>
+    public static IEnumerable<KeyValuePair<string, string?>> ArrayFields(string name, IEnumerable<string>? items, bool explode = true, string delimiter = ",")
+    {
+        if (items is null)
+        {
+            return [];
+        }
+
+        return explode
+            ? items.Select(i => new KeyValuePair<string, string?>(name, i)).ToList()
+            : [new KeyValuePair<string, string?>(name, string.Join(delimiter, items))];
+    }
+
+    /// <summary>
+    /// The fields of a value with style <c>deepObject</c>: objects and arrays become nested <c>name[key][0]</c>
+    /// fields (the convention of Rails, PHP and qs, which Stripe uses), other values one <c>name</c> field, and
+    /// <see langword="null"/> no field.
+    /// </summary>
+    public static IEnumerable<KeyValuePair<string, string?>> DeepObjectFields<T>(string name, T value, JsonSerializerOptions options)
+    {
+        if (value is null)
+        {
+            return [];
+        }
+
+        var element = JsonSerializer.SerializeToElement(value, ApiJson.TypeInfo<T>(options));
+        return element.ValueKind switch
+        {
+            JsonValueKind.Object or JsonValueKind.Array => Flatten(element, null)
+                .Select(p => new KeyValuePair<string, string?>(name + "[" + p.Key + "]", p.Value))
+                .ToList(),
+            JsonValueKind.Null or JsonValueKind.Undefined => [],
+            _ => [new KeyValuePair<string, string?>(name, ScalarText(element))],
+        };
+    }
+
+    /// <summary>
+    /// The leaves of an object or array as <c>path</c>/value pairs, where nested keys are joined by <c>][</c>
+    /// (<c>address][city</c>), so that <c>name[path]</c> is the bracket notation. Null leaves are skipped.
+    /// </summary>
+    internal static IEnumerable<KeyValuePair<string, string>> Flatten(JsonElement element, string? prefix)
+    {
+        switch (element.ValueKind)
+        {
+            case JsonValueKind.Object:
+                foreach (var property in element.EnumerateObject())
+                {
+                    foreach (var pair in Flatten(property.Value, prefix is null ? property.Name : prefix + "][" + property.Name))
+                    {
+                        yield return pair;
+                    }
+                }
+
+                break;
+            case JsonValueKind.Array:
+                var index = 0;
+                foreach (var item in element.EnumerateArray())
+                {
+                    var key = index.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                    foreach (var pair in Flatten(item, prefix is null ? key : prefix + "][" + key))
+                    {
+                        yield return pair;
+                    }
+
+                    index++;
+                }
+
+                break;
+            case JsonValueKind.Null or JsonValueKind.Undefined:
+                break;
+            default:
+                yield return new KeyValuePair<string, string>(prefix ?? string.Empty, ScalarText(element));
+                break;
+        }
+    }
+
+    /// <summary>The text of a JSON scalar: strings as written, numbers and booleans as in JSON.</summary>
+    internal static string ScalarText(JsonElement element) =>
+        element.ValueKind == JsonValueKind.String ? element.GetString()! : element.GetRawText();
+
     // ------------------------------------------------------------------ response bodies
 
     /// <summary>Reads a JSON body.</summary>

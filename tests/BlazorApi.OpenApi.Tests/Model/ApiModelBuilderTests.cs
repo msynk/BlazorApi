@@ -276,6 +276,33 @@ public class ApiModelBuilderTests
     }
 
     [Fact]
+    public void Annotated_references_and_boolean_enums_need_no_new_types()
+    {
+        var (model, diagnostics) = BuildYaml("{}", """
+            schemas:
+              Owner: {type: object, properties: {id: {type: string}}}
+              Holder:
+                type: object
+                properties:
+                  owner:
+                    allOf: [{$ref: '#/components/schemas/Owner'}, {description: The owner.}]
+                  deleted: {type: boolean, enum: [true]}
+                  flag: {enum: [true, false], nullable: true}
+            """);
+
+        var holder = Type<ApiObjectType>(model, "Holder");
+        Assert.Same(Type<ApiObjectType>(model, "Owner"), Assert.IsType<ApiNamedTypeRef>(Property(holder, "owner").Type).Target);
+        var deleted = Assert.IsType<ApiPrimitiveType>(Property(holder, "deleted").Type);
+        Assert.Equal(ApiPrimitiveKind.Boolean, deleted.Kind);
+        Assert.Equal("true", deleted.ConstValue!.ToJson());
+        var flag = Assert.IsType<ApiPrimitiveType>(Property(holder, "flag").Type);
+        Assert.True(flag.IsNullable);
+        Assert.Null(flag.ConstValue);
+        Assert.Equal(2, model.Types.Count);
+        Assert.Empty(diagnostics);
+    }
+
+    [Fact]
     public void Single_allOf_with_nullable_is_a_nullable_reference()
     {
         var (model, _) = BuildYaml("{}", """
@@ -424,6 +451,7 @@ public class ApiModelBuilderTests
                 parameters:
                   - {name: filter, in: query, style: deepObject, schema: {type: string}}
                   - {name: ids, in: query, style: pipeDelimited, schema: {type: array, items: {type: integer}}}
+                  - {name: when, in: query, style: pipeDelimited, schema: {type: string}}
                   - name: json
                     in: query
                     content:
@@ -433,10 +461,12 @@ public class ApiModelBuilderTests
             """);
 
         var parameters = model.Operations[0].Parameters;
-        Assert.Equal(ApiParameterStyle.Form, parameters[0].Style);
+        // deepObject is kept for any shape (a scalar is sent as name=value; Stripe-style arrays and unions too).
+        Assert.Equal(ApiParameterStyle.DeepObject, parameters[0].Style);
         Assert.Equal(ApiParameterStyle.PipeDelimited, parameters[1].Style);
         Assert.False(parameters[1].Explode);
-        Assert.Equal("application/json", parameters[2].ContentMediaType);
+        Assert.Equal(ApiParameterStyle.Form, parameters[2].Style);
+        Assert.Equal("application/json", parameters[3].ContentMediaType);
         Assert.Equal("BAPI4008", Assert.Single(diagnostics).Id);
     }
 

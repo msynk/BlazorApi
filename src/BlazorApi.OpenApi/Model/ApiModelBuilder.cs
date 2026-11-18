@@ -294,10 +294,10 @@ public static class ApiModelBuilder
             var isObject = type is ApiMapType || (type is ApiNamedTypeRef { Target: ApiObjectType });
             var isArray = type is ApiArrayType;
             string? problem = null;
-            if (parameter.Style == ApiParameterStyle.DeepObject && !isObject)
+            if (parameter.Style == ApiParameterStyle.DeepObject)
             {
-                problem = "style 'deepObject' applies to objects only; the value is sent with style 'form'";
-                parameter.Style = ApiParameterStyle.Form;
+                // Objects, nested objects, arrays and unions: the bracket convention (name[key][0]=value) of Rails,
+                // PHP and qs, which Stripe uses; scalars are sent as name=value.
             }
             else if (parameter.Style is ApiParameterStyle.SpaceDelimited or ApiParameterStyle.PipeDelimited && !isArray)
             {
@@ -451,6 +451,14 @@ public static class ApiModelBuilder
                     Required = p.Required,
                     Description = p.Description,
                     ContentType = media.Encoding.TryGetValue(p.JsonName, out var encoding) ? encoding.ContentType : null,
+                    Style = encoding?.Style switch
+                    {
+                        "deepObject" => ApiParameterStyle.DeepObject,
+                        "spaceDelimited" => ApiParameterStyle.SpaceDelimited,
+                        "pipeDelimited" => ApiParameterStyle.PipeDelimited,
+                        _ => ApiParameterStyle.Form,
+                    },
+                    Explode = encoding?.Explode ?? encoding?.Style is null or "form",
                 })
                 .ToArray();
         }
@@ -696,6 +704,11 @@ public static class ApiModelBuilder
 
         private Shape Classify(OpenApiSchema schema)
         {
+            if (schema.HasEnum && IsBooleanEnum(schema))
+            {
+                return Shape.Primitive; // A boolean (or constant, for one value): no enum type.
+            }
+
             if (schema.HasEnum)
             {
                 return Shape.Enum;
@@ -783,9 +796,21 @@ public static class ApiModelBuilder
             return types == JsonSchemaTypes.Object && !schema.AdditionalPropertiesAllowed;
         }
 
+        /// <summary>An enum of booleans (Stripe's <c>deleted: {enum: [true]}</c>), possibly with null.</summary>
+        private static bool IsBooleanEnum(OpenApiSchema schema) =>
+            schema.Enum.Any(v => v.Kind == NodeKind.Boolean) && schema.Enum.All(v => v.Kind is NodeKind.Boolean or NodeKind.Null);
+
         private ApiPrimitiveType MapPrimitive(OpenApiSchema schema)
         {
             var nullable = schema.IsNullable;
+            if (schema.HasEnum && IsBooleanEnum(schema))
+            {
+                var values = schema.Enum.Where(v => v.Kind == NodeKind.Boolean).ToList();
+                nullable |= schema.Enum.Any(v => v.Kind == NodeKind.Null);
+                return new ApiPrimitiveType(ApiPrimitiveKind.Boolean, null, nullable,
+                    values.Select(v => v.ToJson()).Distinct(StringComparer.Ordinal).Count() == 1 ? values[0] : null);
+            }
+
             if (schema.Const is { } constant)
             {
                 var kind = constant.Kind switch

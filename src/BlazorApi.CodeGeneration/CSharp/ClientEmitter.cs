@@ -578,7 +578,12 @@ internal sealed class ClientEmitter
     {
         var source = parameter.Source!;
         string value;
-        if (source.ContentMediaType is not null)
+        if (source.Style == ApiParameterStyle.DeepObject && source.Location == ParameterLocation.Query && source.ContentMediaType is null)
+        {
+            // Any shape: objects and arrays as name[key][0]=value through the value's JSON, scalars as name=value.
+            value = $"{Http}.ParameterValue.DeepObject({parameter.Name}, {JsonOptions})";
+        }
+        else if (source.ContentMediaType is not null)
         {
             value = parameter.Optional || parameter.ApiType.IsNullable
                 ? $"{parameter.Name} is {{ }} {parameter.Name}Value ? {Http}.ParameterValue.Scalar(global::BlazorApi.Runtime.Json.ApiJson.Serialize({parameter.Name}Value, {JsonOptions})) : {Http}.ParameterValue.None"
@@ -615,8 +620,10 @@ internal sealed class ClientEmitter
 
     private readonly struct Field
     {
-        public Field(string name, ApiTypeRef type, string? contentType, string access, bool nullable, bool optionalWrapper)
+        public Field(string name, ApiTypeRef type, string? contentType, string access, bool nullable, bool optionalWrapper, ApiBodyPart? part = null)
         {
+            Style = part?.Style ?? ApiParameterStyle.Form;
+            Explode = part?.Explode ?? true;
             Name = name;
             Type = type;
             ContentType = contentType;
@@ -637,6 +644,11 @@ internal sealed class ClientEmitter
 
         public bool OptionalWrapper { get; }
 
+        /// <summary>The URL-encoded serialization style (encoding object).</summary>
+        public ApiParameterStyle Style { get; }
+
+        public bool Explode { get; }
+
         public bool IsFile => Type is ApiPrimitiveType { Kind: ApiPrimitiveKind.Binary } ||
             Type is ApiArrayType { Items: ApiPrimitiveType { Kind: ApiPrimitiveKind.Binary } };
     }
@@ -652,7 +664,7 @@ internal sealed class ClientEmitter
         if (method.RequestAsParts)
         {
             var fields = method.Parameters.Where(p => p.Part is not null)
-                .Select(p => new Field(p.Part!.Name, p.Part.Type, p.Part.ContentType, p.Name, p.Optional || p.ApiType.IsNullable, optionalWrapper: false))
+                .Select(p => new Field(p.Part!.Name, p.Part.Type, p.Part.ContentType, p.Name, p.Optional || p.ApiType.IsNullable, optionalWrapper: false, p.Part))
                 .ToList();
             EmitFields(writer, request, fields);
             return;
@@ -706,8 +718,8 @@ internal sealed class ClientEmitter
             var fields = obj.AllProperties.Where(p => !p.ReadOnly).Select(p =>
             {
                 var shape = _plan.PropertyShape(p, obj);
-                var encoding = request.Parts.FirstOrDefault(part => part.Name == p.JsonName)?.ContentType;
-                return new Field(p.JsonName, p.Type, encoding, $"{access}.{_plan.PropertyName(obj, p)}", shape.CSharpNullable, shape.IsOptionalWrapper);
+                var part = request.Parts.FirstOrDefault(part => part.Name == p.JsonName);
+                return new Field(p.JsonName, p.Type, part?.ContentType, $"{access}.{_plan.PropertyName(obj, p)}", shape.CSharpNullable, shape.IsOptionalWrapper, part);
             }).ToList();
 
             if (nullable)
@@ -740,6 +752,23 @@ internal sealed class ClientEmitter
 
     private void EmitFields(CodeWriter writer, ApiContent request, List<Field> fields)
     {
+        if (request.Kind == ApiBodyKind.FormUrlEncoded && fields.Any(f => f.Style == ApiParameterStyle.DeepObject || IsScalarArray(f.Type)))
+        {
+            // deepObject fields (name[key][0]=value) and arrays of scalars (one field per item) add several fields.
+            writer.Line($"builder.Content = {Http}.ApiBody.Form(global::System.Linq.Enumerable.SelectMany(new global::System.Collections.Generic.IEnumerable<global::System.Collections.Generic.KeyValuePair<string, string?>>[]");
+            writer.Line("{");
+            using (writer.Indent())
+            {
+                for (var i = 0; i < fields.Count; i++)
+                {
+                    writer.Line(FormFieldGroup(fields[i], "field" + i) + ",");
+                }
+            }
+
+            writer.Line("}, fields => fields));");
+            return;
+        }
+
         if (request.Kind == ApiBodyKind.FormUrlEncoded)
         {
             writer.Line($"builder.Content = {Http}.ApiBody.Form(new global::System.Collections.Generic.KeyValuePair<string, string?>[]");
@@ -793,6 +822,39 @@ internal sealed class ClientEmitter
 
             writer.Line(".Build();");
         }
+    }
+
+    private static bool IsScalarArray(ApiTypeRef type) =>
+        type.WithNullable(false) is ApiArrayType { Items: ApiPrimitiveType { Kind: not ApiPrimitiveKind.Binary } or ApiNamedTypeRef { Target: ApiEnumType } };
+
+    /// <summary>The URL-encoded fields of one property, as an enumerable of name/value pairs.</summary>
+    private string FormFieldGroup(Field field, string variable)
+    {
+        var name = Literal.String(field.Name);
+        var source = field.OptionalWrapper ? field.Access + ".GetValueOrDefault(default!)" : field.Access;
+        if (field.Style == ApiParameterStyle.DeepObject)
+        {
+            return $"{Http}.ApiBody.DeepObjectFields({name}, {source}, {JsonOptions})";
+        }
+
+        if (IsScalarArray(field.Type) && field.Type.WithNullable(false) is ApiArrayType array)
+        {
+            var nullable = field.Nullable || field.OptionalWrapper;
+            var item = array.Items.IsNullable && _plan.IsValueType(array.Items) ? "item.GetValueOrDefault()" : "item!";
+            var items = $"global::System.Linq.Enumerable.Select({source}{(nullable ? "!" : string.Empty)}, item => {_plan.FormatScalar(array.Items.WithNullable(false), item, JsonOptions)})";
+            var delimiter = field.Style switch
+            {
+                ApiParameterStyle.SpaceDelimited => " ",
+                ApiParameterStyle.PipeDelimited => "|",
+                _ => ",",
+            };
+            var explode = field.Explode && field.Style == ApiParameterStyle.Form ? "true" : "false";
+            return nullable
+                ? $"{Http}.ApiBody.ArrayFields({name}, {source} is null ? null : {items}, {explode}, {Literal.String(delimiter)})"
+                : $"{Http}.ApiBody.ArrayFields({name}, {items}, {explode}, {Literal.String(delimiter)})";
+        }
+
+        return $"{Http}.ApiBody.Field({name}, {FieldText(field.Type, field.Access, field.Nullable, field.OptionalWrapper, variable)})";
     }
 
     private string FieldText(ApiTypeRef type, string access, bool nullable, bool optionalWrapper, string variable)

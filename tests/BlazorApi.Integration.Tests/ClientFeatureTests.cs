@@ -245,6 +245,38 @@ public class ClientFeatureTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
+    public async Task Deep_object_parameters_and_form_fields_use_the_bracket_convention(bool metadataOnly)
+    {
+        var json = metadataOnly
+            ? new JsonSerializerOptions(ApiJson.CreateOptions()) { TypeInfoResolver = JsonTypeInfoResolver.Combine(Features31JsonContext.Default) }
+            : ApiJson.CreateOptions();
+        var handler = new RecordingHandler().Respond(HttpStatusCode.NoContent).Respond(HttpStatusCode.NoContent);
+        var client = new Features31Client(new HttpClient(handler), new ApiClientOptions { BaseAddress = new Uri("https://api.example.com/"), JsonSerializerOptions = json });
+
+        await client.CreatePaymentAsync(
+            amount: 2000,
+            tags: ["a", "b"],
+            metadata: new Dictionary<string, string> { ["order"] = "6735" },
+            shipping: new CreatePaymentRequestShipping { Name = "Jo", Address = new CreatePaymentRequestShippingAddress { City = "Köln" } },
+            items: [new CreatePaymentRequestItemsItem { Price = "price_1", Quantity = 2 }],
+            expand: ["customer", "invoice.subscription"],
+            created: new CreatePaymentCreatedRange { Gte = 10, Lt = 20 });
+        await client.CreatePaymentAsync(amount: 1, created: 1700000000);
+
+        Assert.Equal(
+            "expand%5B0%5D=customer&expand%5B1%5D=invoice.subscription&created%5Bgte%5D=10&created%5Blt%5D=20",
+            handler.Requests[0].Uri.Query.TrimStart('?'));
+        Assert.Equal(
+            "amount=2000&tags=a&tags=b&metadata%5Border%5D=6735&shipping%5Bname%5D=Jo&shipping%5Baddress%5D%5Bcity%5D=K%C3%B6ln" +
+            "&items%5B0%5D%5Bprice%5D=price_1&items%5B0%5D%5Bquantity%5D=2",
+            handler.Requests[0].Body);
+        Assert.Equal("created=1700000000", handler.Requests[1].Uri.Query.TrimStart('?'));
+        Assert.Equal("amount=1", handler.Requests[1].Body);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
     public async Task Unions_without_a_declared_discriminator_are_told_apart_by_constant_properties(bool metadataOnly)
     {
         var json = metadataOnly

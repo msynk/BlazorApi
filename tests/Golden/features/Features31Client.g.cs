@@ -151,6 +151,35 @@ public partial interface IFeatures31Client
     /// <returns>The result: the value on success, or the error.</returns>
     global::System.Threading.Tasks.Task<global::BlazorApi.Runtime.ApiResult<Charge>> GetChargeResultAsync(string id, global::System.Threading.CancellationToken cancellationToken = default);
 
+    /// <summary>Stripe-style form encoding: deepObject query parameters and fields.</summary>
+    /// <remarks>POST /payments (createPayment)</remarks>
+    /// <param name="amount">The 'amount' field.</param>
+    /// <param name="tags">The 'tags' field.</param>
+    /// <param name="metadata">The 'metadata' field.</param>
+    /// <param name="shipping">The 'shipping' field.</param>
+    /// <param name="items">The 'items' field.</param>
+    /// <param name="expand">The 'expand' query parameter.</param>
+    /// <param name="created">The 'created' query parameter.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <exception cref="global::BlazorApi.Runtime.ApiException">The call failed; the exception's Error describes the status code, typed error body, network error, timeout or unreadable body.</exception>
+    global::System.Threading.Tasks.Task CreatePaymentAsync(long amount, global::System.Collections.Generic.IEnumerable<string>? tags = null, global::System.Collections.Generic.IReadOnlyDictionary<string, string>? metadata = null, CreatePaymentRequestShipping? shipping = null, global::System.Collections.Generic.IEnumerable<CreatePaymentRequestItemsItem>? items = null, global::System.Collections.Generic.IEnumerable<string>? expand = null, CreatePaymentCreated? created = null, global::System.Threading.CancellationToken cancellationToken = default);
+
+    /// <summary>Stripe-style form encoding: deepObject query parameters and fields.</summary>
+    /// <remarks>
+    /// POST /payments (createPayment)
+    /// Failures (error status codes, network errors, timeouts, unreadable bodies) are returned in the result instead of thrown; only cancellation throws.
+    /// </remarks>
+    /// <param name="amount">The 'amount' field.</param>
+    /// <param name="tags">The 'tags' field.</param>
+    /// <param name="metadata">The 'metadata' field.</param>
+    /// <param name="shipping">The 'shipping' field.</param>
+    /// <param name="items">The 'items' field.</param>
+    /// <param name="expand">The 'expand' query parameter.</param>
+    /// <param name="created">The 'created' query parameter.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>The result: the value on success, or the error.</returns>
+    global::System.Threading.Tasks.Task<global::BlazorApi.Runtime.ApiResult> CreatePaymentResultAsync(long amount, global::System.Collections.Generic.IEnumerable<string>? tags = null, global::System.Collections.Generic.IReadOnlyDictionary<string, string>? metadata = null, CreatePaymentRequestShipping? shipping = null, global::System.Collections.Generic.IEnumerable<CreatePaymentRequestItemsItem>? items = null, global::System.Collections.Generic.IEnumerable<string>? expand = null, CreatePaymentCreated? created = null, global::System.Threading.CancellationToken cancellationToken = default);
+
     /// <summary>COPY /documents/{id}</summary>
     /// <remarks>COPY /documents/{id} (copyDocument)</remarks>
     /// <param name="id">The 'id' path parameter.</param>
@@ -391,6 +420,33 @@ public partial class Features31Client : IFeatures31Client
     }
 
     /// <inheritdoc />
+    public async global::System.Threading.Tasks.Task CreatePaymentAsync(long amount, global::System.Collections.Generic.IEnumerable<string>? tags = null, global::System.Collections.Generic.IReadOnlyDictionary<string, string>? metadata = null, CreatePaymentRequestShipping? shipping = null, global::System.Collections.Generic.IEnumerable<CreatePaymentRequestItemsItem>? items = null, global::System.Collections.Generic.IEnumerable<string>? expand = null, CreatePaymentCreated? created = null, global::System.Threading.CancellationToken cancellationToken = default)
+    {
+        var result = await CreatePaymentResultAsync(amount, tags, metadata, shipping, items, expand, created, cancellationToken).ConfigureAwait(false);
+        result.EnsureSuccess();
+    }
+
+    /// <inheritdoc />
+    public async global::System.Threading.Tasks.Task<global::BlazorApi.Runtime.ApiResult> CreatePaymentResultAsync(long amount, global::System.Collections.Generic.IEnumerable<string>? tags = null, global::System.Collections.Generic.IReadOnlyDictionary<string, string>? metadata = null, CreatePaymentRequestShipping? shipping = null, global::System.Collections.Generic.IEnumerable<CreatePaymentRequestItemsItem>? items = null, global::System.Collections.Generic.IEnumerable<string>? expand = null, CreatePaymentCreated? created = null, global::System.Threading.CancellationToken cancellationToken = default)
+    {
+        var builder = new global::BlazorApi.Runtime.Http.ApiRequestBuilder(global::System.Net.Http.HttpMethod.Post, "/payments", "createPayment")
+        {
+            Security = CreatePaymentSecurity,
+        };
+        builder.Query("expand", global::BlazorApi.Runtime.Http.ParameterValue.DeepObject(expand, _connection.JsonOptions), global::BlazorApi.Runtime.Http.ParameterStyle.DeepObject, explode: true);
+        builder.Query("created", global::BlazorApi.Runtime.Http.ParameterValue.DeepObject(created, _connection.JsonOptions), global::BlazorApi.Runtime.Http.ParameterStyle.DeepObject, explode: true);
+        builder.Content = global::BlazorApi.Runtime.Http.ApiBody.Form(global::System.Linq.Enumerable.SelectMany(new global::System.Collections.Generic.IEnumerable<global::System.Collections.Generic.KeyValuePair<string, string?>>[]
+        {
+            global::BlazorApi.Runtime.Http.ApiBody.Field("amount", global::BlazorApi.Runtime.Http.ApiFormat.Value(amount)),
+            global::BlazorApi.Runtime.Http.ApiBody.ArrayFields("tags", tags is null ? null : global::System.Linq.Enumerable.Select(tags!, item => item!), true, ","),
+            global::BlazorApi.Runtime.Http.ApiBody.DeepObjectFields("metadata", metadata, _connection.JsonOptions),
+            global::BlazorApi.Runtime.Http.ApiBody.DeepObjectFields("shipping", shipping, _connection.JsonOptions),
+            global::BlazorApi.Runtime.Http.ApiBody.DeepObjectFields("items", items, _connection.JsonOptions),
+        }, fields => fields));
+        return await _connection.SendAsync(builder, CreatePaymentResponses, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
     public async global::System.Threading.Tasks.Task CopyDocumentAsync(string id, string destination, global::System.Threading.CancellationToken cancellationToken = default)
     {
         var result = await CopyDocumentResultAsync(id, destination, cancellationToken).ConfigureAwait(false);
@@ -470,6 +526,11 @@ public partial class Features31Client : IFeatures31Client
         .Success("200", global::BlazorApi.Runtime.Http.ApiBody.ReadJson<Charge>);
 
     private static readonly global::System.Collections.Generic.IReadOnlyList<global::BlazorApi.Runtime.Http.ApiSecurityRequirement> GetChargeSecurity = global::System.Array.Empty<global::BlazorApi.Runtime.Http.ApiSecurityRequirement>();
+
+    private static readonly global::BlazorApi.Runtime.Http.ApiResponseHandler<global::BlazorApi.Runtime.Http.ApiNoContent> CreatePaymentResponses = new global::BlazorApi.Runtime.Http.ApiResponseHandler<global::BlazorApi.Runtime.Http.ApiNoContent>()
+        .Success("204");
+
+    private static readonly global::System.Collections.Generic.IReadOnlyList<global::BlazorApi.Runtime.Http.ApiSecurityRequirement> CreatePaymentSecurity = global::System.Array.Empty<global::BlazorApi.Runtime.Http.ApiSecurityRequirement>();
 
     private static readonly global::BlazorApi.Runtime.Http.ApiResponseHandler<global::BlazorApi.Runtime.Http.ApiNoContent> CopyDocumentResponses = new global::BlazorApi.Runtime.Http.ApiResponseHandler<global::BlazorApi.Runtime.Http.ApiNoContent>()
         .Success("204");

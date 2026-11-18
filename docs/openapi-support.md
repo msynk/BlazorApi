@@ -131,7 +131,8 @@ Inline variants with a short `title` are named after it (`PaymentCard` instead o
 
 ## Enums
 
-String enums and integer enums become C# enums with a generated converter (`PetStatusJsonConverter`):
+String enums and integer enums become C# enums with a generated converter (`PetStatusJsonConverter`). Boolean enums
+are `bool` (a single value, such as Stripe's `deleted: {enum: [true]}`, is a constant property):
 
 - Converters are strict by default: an unknown value fails with a `JsonException` naming the value, which a client
   reports as an `ApiDeserializationException`. New response enum values are therefore potentially breaking
@@ -150,7 +151,12 @@ String enums and integer enums become C# enums with a generated converter (`PetS
 
 - Parameter styles: path `simple`/`label`/`matrix`, query `form`/`spaceDelimited`/`pipeDelimited`/`deepObject`,
   `header`, `cookie`, with `explode`, and `content`-described parameters (sent as JSON). Combinations without a
-  standard serialization report BAPI4008. `Accept`, `Content-Type` and `Authorization` header parameters are ignored
+  standard serialization report BAPI4008. `deepObject` follows the bracket convention of Rails, PHP and qs (which
+  Stripe uses) for every shape: nested objects and arrays as `filter[address][city]=x` and `expand[0]=a`, unions by
+  their current value, scalars as `name=value`.
+- URL-encoded form fields follow the `encoding` object: `style: deepObject` sends `metadata[key]=value` and
+  `items[0][price]=p`; arrays of scalars are one field per item (`tags=a&tags=b`, style `form`), or joined with
+  `explode: false` or `spaceDelimited`/`pipeDelimited`; other objects and arrays are sent as JSON text. `Accept`, `Content-Type` and `Authorization` header parameters are ignored
   (BAPI3017), as the specification requires.
 - Request bodies, in order of preference when several media types are declared (BAPI6002): JSON (`application/json`,
   `*+json`), `multipart/*`, `application/x-www-form-urlencoded`, `text/*`, binary. Inline multipart and form schemas

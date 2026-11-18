@@ -52,6 +52,28 @@ public readonly struct ParameterValue
     public static ParameterValue Array(IEnumerable<string>? items) =>
         items is null ? default : new ParameterValue(ParameterValueKind.Array, null, items.ToArray(), null);
 
+    /// <summary>
+    /// A value of any shape for style <c>deepObject</c>, through its JSON: objects and arrays become nested
+    /// <c>name[key][0]=value</c> pairs (the convention of Rails, PHP and qs, which Stripe uses), other values a scalar
+    /// (<c>name=value</c>); <see langword="null"/> means no value.
+    /// </summary>
+    public static ParameterValue DeepObject<T>(T value, System.Text.Json.JsonSerializerOptions options)
+    {
+        if (value is null)
+        {
+            return default;
+        }
+
+        var element = System.Text.Json.JsonSerializer.SerializeToElement(value, Json.ApiJson.TypeInfo<T>(options));
+        return element.ValueKind switch
+        {
+            System.Text.Json.JsonValueKind.Object or System.Text.Json.JsonValueKind.Array =>
+                new ParameterValue(ParameterValueKind.Object, null, null, ApiBody.Flatten(element, null).ToArray()),
+            System.Text.Json.JsonValueKind.Null or System.Text.Json.JsonValueKind.Undefined => default,
+            _ => Scalar(ApiBody.ScalarText(element)),
+        };
+    }
+
     /// <summary>An object; <see langword="null"/> means no value. Pairs with a null value are skipped.</summary>
     public static ParameterValue Object(IEnumerable<KeyValuePair<string, string?>>? properties) =>
         properties is null
