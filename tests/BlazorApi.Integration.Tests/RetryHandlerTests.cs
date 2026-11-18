@@ -243,6 +243,70 @@ public class RetryHandlerTests
         Assert.Equal(2, cache.Cache.Count);
     }
 
+    [Fact]
+    public async Task Cache_serves_fresh_responses_and_drops_them_after_changes()
+    {
+        var clock = new ManualClock(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
+        HttpResponseMessage Ok(string body, Action<HttpResponseMessage>? headers = null)
+        {
+            var response = new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(body) };
+            headers?.Invoke(response);
+            return response;
+        }
+
+        var maxAge = new System.Net.Http.Headers.CacheControlHeaderValue { MaxAge = TimeSpan.FromSeconds(60) };
+        var handler = new RecordingHandler()
+            .Respond(_ => Task.FromResult(Ok("v1", r => { r.Headers.CacheControl = maxAge; r.Headers.ETag = new("\"1\""); })))
+            .Respond(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotModified) { Headers = { CacheControl = maxAge } }))
+            .Respond(_ => Task.FromResult(Ok("v1", r => r.Headers.CacheControl = maxAge)))
+            .Respond(HttpStatusCode.NoContent)
+            .Respond(_ => Task.FromResult(Ok("v2", r => r.Headers.CacheControl = maxAge)))
+            .Respond(_ => Task.FromResult(Ok("expires", r => r.Content.Headers.TryAddWithoutValidation("Expires", "0"))));
+        var cache = new ApiCacheHandler(new ApiCacheOptions { UseFreshness = true, TimeProvider = clock }) { InnerHandler = handler };
+        var http = new HttpClient(cache);
+        const string url = "https://api.example.com/items/1";
+
+        async Task<(string Body, string? Source)> Get(string target = url, bool noCache = false)
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get, target);
+            if (noCache)
+            {
+                request.Headers.CacheControl = new System.Net.Http.Headers.CacheControlHeaderValue { NoCache = true };
+            }
+
+            using var response = await http.SendAsync(request);
+            return (await response.Content.ReadAsStringAsync(), response.Headers.TryGetValues(ApiCacheHandler.CacheHeader, out var v) ? v.Single() : null);
+        }
+
+        Assert.Equal(("v1", null), await Get());
+        clock.Advance(TimeSpan.FromSeconds(30));
+        Assert.Equal(("v1", "fresh"), await Get());                 // no request
+        Assert.Single(handler.Requests);
+        clock.Advance(TimeSpan.FromSeconds(31));
+        Assert.Equal(("v1", "revalidated"), await Get());           // stale: 304, which renews the lifetime
+        Assert.Equal("\"1\"", handler.Requests[1].Headers["If-None-Match"]);
+        Assert.Equal(("v1", "fresh"), await Get());
+        Assert.Equal(("v1", null), await Get(noCache: true));       // the caller asked for a validated response
+        Assert.Equal(3, handler.Requests.Count);
+
+        await http.DeleteAsync(url);                                // a change drops the URL's responses
+        Assert.Equal(0, cache.Cache.Count);
+        Assert.Equal(("v2", null), await Get());
+        Assert.Equal(("v2", "fresh"), await Get());
+        Assert.Equal(("expires", null), await Get("https://api.example.com/items/2"));
+        Assert.Equal(1, cache.Cache.Count);                         // already expired and no validator: not kept
+        Assert.Equal(6, handler.Requests.Count);
+    }
+
+    private sealed class ManualClock(DateTimeOffset now) : TimeProvider
+    {
+        private DateTimeOffset _now = now;
+
+        public override DateTimeOffset GetUtcNow() => _now;
+
+        public void Advance(TimeSpan by) => _now += by;
+    }
+
     private sealed class UnknownLengthContent(string text) : HttpContent
     {
         protected override Task SerializeToStreamAsync(Stream stream, System.Net.TransportContext? context) =>

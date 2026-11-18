@@ -32,6 +32,7 @@ public sealed class StageJsonConverter : global::System.Text.Json.Serialization.
         Stage.Queued => "queued",
         Stage.Running => "running",
         Stage.Done => "done",
+        Stage.Unrecognized => throw new global::System.ArgumentOutOfRangeException(nameof(value), value, "Stage.Unrecognized stands for a value this client does not know (read from a newer server), so it cannot be sent. Set a known Stage value first."),
         _ => throw new global::System.ArgumentOutOfRangeException(nameof(value), value, null),
     };
 

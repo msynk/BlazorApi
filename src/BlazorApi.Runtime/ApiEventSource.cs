@@ -55,7 +55,8 @@ public static class ApiEventSource
         var failures = 0;
         while (true)
         {
-            var result = await open(lastEventId, cancellationToken).ConfigureAwait(false);
+            // An empty id resets the last event id: no Last-Event-ID is sent (WHATWG).
+            var result = await open(string.IsNullOrEmpty(lastEventId) ? null : lastEventId, cancellationToken).ConfigureAwait(false);
             if (!result.IsSuccess)
             {
                 if (result.Error.Kind is ApiErrorKind.Network or ApiErrorKind.Timeout && failures < options.MaxReconnects)
@@ -100,6 +101,13 @@ public static class ApiEventSource
                         retry = current.Retry ?? retry;
                         yield return current;
                     }
+                }
+
+                // Fields of blocks that dispatched no event ('id:' or 'retry:' alone) still apply (WHATWG).
+                if (stream.EventParser is { } parser)
+                {
+                    lastEventId = parser.LastEventId ?? lastEventId;
+                    retry = parser.ReconnectionTime ?? retry;
                 }
             }
 

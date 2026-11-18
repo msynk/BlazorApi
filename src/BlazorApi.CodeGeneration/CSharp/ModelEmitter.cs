@@ -767,6 +767,11 @@ internal sealed class ModelEmitter
                     writer.Line($"{name}.{memberName} => {Literal.String(isString ? member.ValueText : IntegerValue(member))},");
                 }
 
+                if (unrecognized is not null)
+                {
+                    writer.Line($"{name}.{unrecognized} => throw new global::System.ArgumentOutOfRangeException(nameof(value), value, {Literal.String(UnrecognizedMessage(name, unrecognized))}),");
+                }
+
                 writer.Line("_ => throw new global::System.ArgumentOutOfRangeException(nameof(value), value, null),");
             }
 
@@ -824,7 +829,7 @@ internal sealed class ModelEmitter
                 else if (unrecognized is not null)
                 {
                     // The unrecognized member stands for a value it does not keep: never send its sentinel number.
-                    writer.Line($"writer.WriteNumberValue(value == {name}.{unrecognized} ? throw new global::System.ArgumentOutOfRangeException(nameof(value), value, \"{name}.{unrecognized} has no wire value.\") : (long)value);");
+                    writer.Line($"writer.WriteNumberValue(value == {name}.{unrecognized} ? throw new global::System.ArgumentOutOfRangeException(nameof(value), value, {Literal.String(UnrecognizedMessage(name, unrecognized))}) : (long)value);");
                 }
                 else
                 {
@@ -916,6 +921,10 @@ internal sealed class ModelEmitter
         },
         _ => "default!",
     };
+
+    /// <summary>The error for sending the member that stands for values the contract does not list.</summary>
+    private static string UnrecognizedMessage(string name, string member) =>
+        $"{name}.{member} stands for a value this client does not know (read from a newer server), so it cannot be sent. Set a known {name} value first.";
 }
 
 /// <summary>Access to API-model helpers shared with code generation.</summary>

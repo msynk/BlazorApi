@@ -16,6 +16,17 @@ public sealed class ApiCacheOptions
 
     /// <summary>The total size of the cached bodies (least recently used ones are dropped). Default: 32 MiB.</summary>
     public long MaxTotalBytes { get; set; } = 32L * 1024 * 1024;
+
+    /// <summary>
+    /// Whether a cached response is served without contacting the server while it is fresh (RFC 9111: the response's
+    /// <c>Cache-Control: max-age</c>, or <c>Expires</c>), as a browser does. Responses with a freshness lifetime are
+    /// then cached even without a validator. Default: <see langword="false"/>, every GET is revalidated, so changes
+    /// made by other clients are always seen.
+    /// </summary>
+    public bool UseFreshness { get; set; }
+
+    /// <summary>The clock that decides freshness. Default: <see cref="TimeProvider.System"/>.</summary>
+    public TimeProvider TimeProvider { get; set; } = TimeProvider.System;
 }
 
 /// <summary>
@@ -29,7 +40,9 @@ public sealed class ApiCacheOptions
 /// plus the headers a response names in <c>Vary</c>. Cookies that a <c>CookieContainer</c> of the primary handler adds
 /// after this handler are not visible to it: do not share such a client between users. Responses marked
 /// <c>Cache-Control: no-store</c>, <c>Vary: *</c>, event streams and bodies over the size limits are not cached.
-/// Requests that carry their own conditional headers pass through. Add it with <c>AddApiCaching()</c>.
+/// Requests that carry their own conditional headers pass through. A successful request with another method (POST,
+/// PUT, PATCH, DELETE) drops the cached responses of its URL. With <see cref="ApiCacheOptions.UseFreshness"/>, fresh
+/// responses are served without a request (marked <c>fresh</c>). Add it with <c>AddApiCaching()</c>.
 /// </remarks>
 public sealed class ApiCacheHandler : DelegatingHandler
 {
@@ -79,6 +92,18 @@ public sealed class ApiCacheHandler : DelegatingHandler
             request.Options.Set(AddedConditionKey, false);
         }
 
+        if (request.RequestUri is not null && !IsSafe(request.Method))
+        {
+            // RFC 9111 section 4.4: a successful unsafe request invalidates the cached responses of its URL.
+            var result = await base.SendAsync(request, cancellationToken).ConfigureAwait(false);
+            if ((int)result.StatusCode < 400)
+            {
+                _cache.Invalidate(request.RequestUri);
+            }
+
+            return result;
+        }
+
         if (request.Method != HttpMethod.Get || request.RequestUri is null ||
             request.Headers.IfNoneMatch.Count > 0 || request.Headers.IfModifiedSince is not null)
         {
@@ -90,25 +115,37 @@ public sealed class ApiCacheHandler : DelegatingHandler
         var baseKey = BaseKey(request.RequestUri, headers);
         var generation = _cache.Generation;
         var cached = _cache.Find(baseKey, headers);
+        var options = _cache.Options;
+        if (cached is not null && options.UseFreshness && cached.IsFresh(options.TimeProvider.GetUtcNow()) && !RequiresValidation(request))
+        {
+            return cached.ToResponse(request, "fresh");
+        }
+
         if (cached is not null)
         {
             if (cached.ETag is { } etag)
             {
                 request.Headers.IfNoneMatch.Add(etag);
+                request.Options.Set(AddedConditionKey, true);
+            }
+            else if (cached.LastModified is { } lastModified)
+            {
+                request.Headers.IfModifiedSince = lastModified;
+                request.Options.Set(AddedConditionKey, true);
             }
             else
             {
-                request.Headers.IfModifiedSince = cached.LastModified;
+                cached = null; // Cached for its freshness only, and stale: fetched again.
             }
-
-            request.Options.Set(AddedConditionKey, true);
         }
 
         var response = await base.SendAsync(request, cancellationToken).ConfigureAwait(false);
         if (response.StatusCode == HttpStatusCode.NotModified && cached is not null)
         {
+            // The 304 carries the response's new freshness (RFC 9111 section 4.3.4).
+            cached.SetFreshUntil(FreshUntil(response, options.TimeProvider.GetUtcNow()));
             response.Dispose();
-            return cached.ToResponse(request);
+            return cached.ToResponse(request, "revalidated");
         }
 
         if (response.StatusCode == HttpStatusCode.OK)
@@ -135,7 +172,10 @@ public sealed class ApiCacheHandler : DelegatingHandler
         var vary = response.Headers.Vary.ToArray();
         var mediaType = response.Content.Headers.ContentType?.MediaType ?? string.Empty;
         var length = response.Content.Headers.ContentLength;
-        if ((etag is null && lastModified is null) || response.Headers.CacheControl?.NoStore == true || vary.Contains("*") ||
+        var now = options.TimeProvider.GetUtcNow();
+        var freshUntil = FreshUntil(response, now);
+        var fresh = options.UseFreshness && freshUntil > now;
+        if ((etag is null && lastModified is null && !fresh) || response.Headers.CacheControl?.NoStore == true || vary.Contains("*") ||
             length > options.MaxBodyLength || mediaType.Equals("text/event-stream", StringComparison.OrdinalIgnoreCase))
         {
             return;
@@ -181,8 +221,48 @@ public sealed class ApiCacheHandler : DelegatingHandler
         var entry = new Entry(baseKey, etag, lastModified, body,
             response.Headers.Select(h => new KeyValuePair<string, string[]>(h.Key, h.Value.ToArray())).ToArray(),
             response.Content.Headers.Select(h => new KeyValuePair<string, string[]>(h.Key, h.Value.ToArray())).ToArray(),
-            response.Version);
+            response.Version, freshUntil);
         _cache.Store(baseKey, FullKey(baseKey, requestHeaders, vary), vary, entry, generation);
+    }
+
+    private static bool IsSafe(HttpMethod method) =>
+        method == HttpMethod.Get || method == HttpMethod.Head || method == HttpMethod.Options || method == HttpMethod.Trace;
+
+    /// <summary>Whether the caller asked for a response validated with the server (<c>no-cache</c>, <c>max-age=0</c>).</summary>
+    private static bool RequiresValidation(HttpRequestMessage request) =>
+        request.Headers.CacheControl is { } control && (control.NoCache || control.MaxAge == TimeSpan.Zero) ||
+        request.Headers.Pragma.Any(p => string.Equals(p.Name, "no-cache", StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>
+    /// When a response stops being fresh (RFC 9111 section 4.2): its <c>max-age</c>, or <c>Expires</c> minus
+    /// <c>Date</c>, less its <c>Age</c>; <see langword="null"/> when it has no explicit lifetime (no heuristic freshness).
+    /// </summary>
+    internal static DateTimeOffset? FreshUntil(HttpResponseMessage response, DateTimeOffset now)
+    {
+        var control = response.Headers.CacheControl;
+        TimeSpan lifetime;
+        if (control is not null && (control.NoCache || control.NoStore))
+        {
+            return null;
+        }
+
+        if (control?.MaxAge is { } maxAge)
+        {
+            lifetime = maxAge;
+        }
+        else if (response.Content.Headers.Contains("Expires"))
+        {
+            // An invalid Expires value (such as "0") means already expired.
+            var expires = response.Content.Headers.Expires;
+            lifetime = expires is null ? TimeSpan.Zero : expires.Value - (response.Headers.Date ?? now);
+        }
+        else
+        {
+            return null;
+        }
+
+        lifetime -= response.Headers.Age ?? TimeSpan.Zero;
+        return lifetime <= TimeSpan.Zero ? null : lifetime >= DateTimeOffset.MaxValue - now ? DateTimeOffset.MaxValue : now + lifetime;
     }
 
     private static StreamContent Replace(HttpContent original, Stream body)
@@ -232,8 +312,9 @@ public sealed class ApiCacheHandler : DelegatingHandler
     internal sealed class Entry
     {
         public Entry(string baseKey, EntityTagHeaderValue? etag, DateTimeOffset? lastModified, byte[] body,
-            KeyValuePair<string, string[]>[] headers, KeyValuePair<string, string[]>[] contentHeaders, Version version)
+            KeyValuePair<string, string[]>[] headers, KeyValuePair<string, string[]>[] contentHeaders, Version version, DateTimeOffset? freshUntil = null)
         {
+            SetFreshUntil(freshUntil);
             BaseKey = baseKey;
             ETag = etag;
             LastModified = lastModified;
@@ -257,7 +338,14 @@ public sealed class ApiCacheHandler : DelegatingHandler
 
         public Version Version { get; }
 
-        public HttpResponseMessage ToResponse(HttpRequestMessage request)
+        /// <summary>The end of the freshness lifetime in UTC ticks (0: never fresh); updated by revalidations.</summary>
+        private long _freshUntilTicks;
+
+        public bool IsFresh(DateTimeOffset now) => now.UtcTicks < Volatile.Read(ref _freshUntilTicks);
+
+        public void SetFreshUntil(DateTimeOffset? freshUntil) => Volatile.Write(ref _freshUntilTicks, freshUntil?.UtcTicks ?? 0);
+
+        public HttpResponseMessage ToResponse(HttpRequestMessage request, string source)
         {
             var response = new HttpResponseMessage(HttpStatusCode.OK) { RequestMessage = request, Version = Version, Content = new ByteArrayContent(Body) };
             foreach (var header in Headers)
@@ -271,7 +359,7 @@ public sealed class ApiCacheHandler : DelegatingHandler
                 response.Content.Headers.TryAddWithoutValidation(header.Key, header.Value);
             }
 
-            response.Headers.TryAddWithoutValidation(CacheHeader, "revalidated");
+            response.Headers.TryAddWithoutValidation(CacheHeader, source);
             return response;
         }
     }
@@ -374,6 +462,27 @@ public sealed class ApiResponseCache
             lock (_gate)
             {
                 return _bytes;
+            }
+        }
+    }
+
+    /// <summary>Drops the cached responses of a URL (after a request that changed it).</summary>
+    internal void Invalidate(Uri uri)
+    {
+        var prefix = uri.AbsoluteUri + "\n";
+        lock (_gate)
+        {
+            // Responses already on their way may predate the change: they are not stored.
+            Interlocked.Increment(ref _generation);
+            for (var node = _order.First; node is not null;)
+            {
+                var next = node.Next;
+                if (node.Value.Entry.BaseKey.StartsWith(prefix, StringComparison.Ordinal))
+                {
+                    Remove(node);
+                }
+
+                node = next;
             }
         }
     }

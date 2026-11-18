@@ -31,6 +31,7 @@ scoped to be reviewable on its own; the working tree has not been committed or s
 | M22 | Advanced generation features | Partly: operation/tag filters, unused-model pruning, multi-contract projects, `x-pagination`, `x-enum-varnames`; custom templates deferred |
 | M23 | Blazor integration (`BlazorApi.Blazor`: `ApiResultView`, `ApiErrorView`, `ApiValidationErrors`; auth registration helpers `AddBearerToken`/`AddApiKey`/`AddBasicAuthentication` in `BlazorApi.Runtime`) | Done |
 | M24 | Documentation, demo, benchmarks, CI workflow, packaging | Done (not published) |
+| M33 | Server-sent event `id:`/`retry:` fields apply without an event (WHATWG); cache freshness (`UseFreshness`, RFC 9111) and invalidation after unsafe requests; clearer error for sending an `Unrecognized` enum member | Done |
 | M32 | Hand-written JSON metadata context (`JsonMetadataServices`), so `GenerateJsonContext` works in the source generator; AOT smoke test switched to the source generator | Done |
 | M31 | Native AOT verified: CLI-generated client with `generateJsonContext` published with `PublishAot` (no trim/AOT warnings) and reflection disabled, run against `api-gen mock`; CI job (`tests/BlazorApi.AotSmoke`) | Done |
 | M30 | Demo showcases (retries, caching, logging, typed ETag, live SSE feed); `{Operation}ResponseBodies` typed views; `typeMappings` | Done |
@@ -53,6 +54,7 @@ scoped to be reviewable on its own; the working tree has not been committed or s
 | 2026-11-09 | After documentation-review fixes: 440 tests (net8.0 + net10.0) + 5 demo tests | all passed |
 | 2026-11-09 | demo/BlazorApi.Demo.Tests (5); BlazorApi.Demo.BlazorApp run and checked over HTTP (pages, 401, 404, API key); BlazorApi.Demo.ConsoleClient run against it | passed |
 | 2026-11-17 | After removing the dotnet-query integration: full suite (net8.0 + net10.0) + 5 demo tests | all passed |
+| 2026-11-18 | M33, Release build without warnings: OpenApi 213, CodeGeneration 21, Integration 101 (SSE fields without events, cache freshness and invalidation), SourceGenerator 17, Cli 26, Blazor 11, per framework; demo 5 | all passed |
 | 2026-11-17 | M32 review fixes: Release build without warnings: OpenApi 213, CodeGeneration 21, Integration 99, SourceGenerator 17, Cli 26, Blazor 11, per framework; demo 5; AOT smoke (source generator) republished with 0 warnings and run against `api-gen mock` | all passed |
 | 2026-11-17 | M32: AOT smoke test built by the source generator with `GenerateJsonContext`: win-x64 `PublishAot` with `-warnaserror` (0 warnings), run against `api-gen mock` correct; Release build without warnings: OpenApi 213, CodeGeneration 20, Integration 98 (metadata-only resolver test), SourceGenerator 17, Cli 26, Blazor 11, per framework; demo 5 | all passed |
 | 2026-11-17 | Native AOT smoke test: win-x64 `PublishAot` with `-warnaserror` (0 warnings), 6.7 MB executable, reflection-based JSON disabled, all calls against `api-gen mock` correct (polymorphism, merge patch, maps, query arrays, typed 404) | passed |
@@ -174,16 +176,14 @@ scoped to be reviewable on its own; the working tree has not been committed or s
 
 - Only the first success response body is the result's `Value`; other JSON/text success bodies are in
   `ApiResult.Content` and typed by `{Operation}ResponseBodies` (binary and streamed alternatives are not read).
-- Server-sent event `retry:` fields are applied with the next event (the parser ignores `retry` in blocks without
-  data); `ApiEventSource` falls back to `DefaultRetry`.
 - `api-gen mock` does not validate requests and serves one example per response (no stateful behavior).
 - `format: time` and `format: duration` map to `string` by default (lossless); `timeType=timeOnly` and
   `durationType=timeSpan` are opt-in.
 - Overlays change the root document only, not documents it references with `$ref`.
 - Generated JSON uses reflection-based System.Text.Json metadata by default; `generateJsonContext=true` generates
   the metadata (CLI and source generator). Types replaced with `typeMappings` need their own resolver.
-- The conditional-request cache is in memory only (no persistent or distributed cache) and ignores `max-age`
-  freshness: every GET is revalidated with the server.
+- The response cache is in memory only (no persistent or distributed cache). It revalidates every GET by default;
+  `UseFreshness` serves fresh responses (`max-age`, `Expires`) without a request, with no heuristic freshness.
 - Generated mocks are emitted into the project that generates them (with `GenerateMocks=true`), which must then
   reference `BlazorApi.Testing`; generate mocks in the test project.
 
@@ -292,8 +292,6 @@ as Microsoft.Identity.Web, MSAL or Blazor's `IAccessTokenProvider`), MCP server 
   run `api-gen diff` against the published contract.
 - A regression suite of large real-world contracts (GitHub, Stripe, Kubernetes): the repository has representative
   contracts (`tests/Contracts`) and a synthetic 500-schema contract in the benchmarks only.
-- Generating a `JsonSerializerContext` for trimmed/AOT applications (possible from the CLI output; not from the
-  source generator).
 - Publishing: no packages are pushed; versions are `0.1.0-preview`.
 - A result type per operation that is a union of its success bodies (an alternative to `{Operation}ResponseBodies`);
   not planned, since it would change every result signature and mock.

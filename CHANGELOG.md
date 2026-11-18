@@ -52,6 +52,8 @@ target .NET Standard 2.0.
   `blazorapi.client.operation.duration` histogram (`url.template`, operation id, status, `error.type`).
 - **Forward-compatible enums**: `unknownEnumValues=unrecognized` adds an `Unrecognized` member for values the
   contract does not list.
+- **Caching**: `ApiCacheOptions.UseFreshness` serves fresh responses (`max-age`, `Expires`) without a request; a
+  successful unsafe request drops the cached responses of its URL.
 - **AOT**: `generateJsonContext=true` emits a `JsonSerializerContext` used by default, with metadata written
   directly through `JsonMetadataServices`, so it works with the source generator as well as the CLI;
   `ApiJson.CreateOptions` accepts resolvers and the runtime ships metadata for its own types.
@@ -95,6 +97,9 @@ target .NET Standard 2.0.
 
 ### Fixed
 
+- Server-sent events: `id:` and `retry:` fields in a block without data now apply (WHATWG), and an empty `id:`
+  resets the last event id, so `ApiEventSource.Reconnecting` sends no `Last-Event-ID`.
+- Sending an `Unrecognized` enum member fails with a message that explains it (string enums gave no message).
 - A model whose allOf base is mapped with `typeMappings` now declares the inherited properties (they were dropped,
   and the JSON context crashed the generator).
 - The generated JSON context honors `NumberHandling` and `RespectNullableAnnotations` from the options and writes

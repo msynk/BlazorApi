@@ -33,6 +33,12 @@ public sealed class ApiStream<T> : IAsyncEnumerable<T>, IAsyncDisposable, IDispo
         _operationId = operationId;
     }
 
+    /// <summary>
+    /// The parser of a server-sent event stream, whose last event ID and reconnection time change even with lines
+    /// that dispatch no event (read by <see cref="ApiEventSource"/>).
+    /// </summary>
+    internal ServerSentEventParser? EventParser { get; init; }
+
     internal ApiStream(Func<CancellationToken, ValueTask<(bool HasItem, T Item)>> next, Func<ValueTask> asyncOwner, string? operationId)
     {
         _next = next;
@@ -195,7 +201,10 @@ public static class ApiStream
                 reader.Dispose();
                 response.Dispose();
             }),
-            OperationId(response));
+            OperationId(response))
+        {
+            EventParser = parser,
+        };
     }
 
     internal static ApiStream<T> JsonSequence<T>(HttpResponseMessage response, Stream stream, JsonSerializerOptions options)
@@ -364,6 +373,12 @@ internal sealed class ServerSentEventParser
 
     public ServerSentEventParser(LineReader reader) => _reader = reader;
 
+    /// <summary>The last event ID: set by every <c>id:</c> field, even in a block that dispatches no event (WHATWG).</summary>
+    public string? LastEventId => _lastEventId;
+
+    /// <summary>The reconnection time: set by every valid <c>retry:</c> field as soon as it is read (WHATWG).</summary>
+    public TimeSpan? ReconnectionTime { get; private set; }
+
     public readonly record struct Event(string Data, string? EventType, string? Id, TimeSpan? Retry);
 
     /// <summary>Reads the next event; <see langword="null"/> at the end of the stream (an incomplete event is discarded).</summary>
@@ -439,6 +454,7 @@ internal sealed class ServerSentEventParser
                         milliseconds <= (long)TimeSpan.MaxValue.TotalMilliseconds)
                     {
                         retry = TimeSpan.FromMilliseconds(milliseconds);
+                        ReconnectionTime = retry;
                     }
 
                     break;

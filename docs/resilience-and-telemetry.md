@@ -64,6 +64,12 @@ builder.Services.AddPetstoreClient()
   again.
 - The cache (`ApiResponseCache`) is shared by the handler instances `IHttpClientFactory` recreates; `Clear()` empties
   it (for example on sign-out). Requests that set their own conditional headers pass through.
+- A successful request with another method (POST, PUT, PATCH, DELETE) drops the cached responses of its URL
+  (RFC 9111 section 4.4).
+- `UseFreshness = true` serves a cached response without a request while it is fresh (`Cache-Control: max-age`, or
+  `Expires`, less `Age`; no heuristic freshness), marked `X-BlazorApi-Cache: fresh`. Such responses are cached even
+  without a validator; a `304` renews the lifetime; a request with `Cache-Control: no-cache` or `max-age=0` is
+  revalidated. Off by default, so changes made by other clients are always seen. `TimeProvider` sets the clock.
 - Browsers already cache for Blazor WebAssembly; the handler matters most for server and desktop apps.
 
 ## Logging

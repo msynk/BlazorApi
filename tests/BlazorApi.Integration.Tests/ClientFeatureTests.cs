@@ -593,6 +593,39 @@ public class ClientFeatureTests
     }
 
     [Fact]
+    public async Task Event_stream_id_and_retry_fields_apply_without_an_event()
+    {
+        // 'id:' and 'retry:' in a block without data dispatch nothing but still apply (WHATWG); with the default
+        // one-hour delay this test would hang if retry were ignored.
+        var handler = new RecordingHandler()
+            .Respond(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StreamContent(new BreakingStream(Encoding.UTF8.GetBytes("id: 7\nretry: 0\n\n"))) { Headers = { { "Content-Type", "text/event-stream" } } },
+            }))
+            .Respond(HttpStatusCode.OK, "id:\ndata: {\"percent\":1,\"stage\":\"done\"}\n\n", "text/event-stream")
+            .Respond(HttpStatusCode.OK, "data: {\"percent\":2,\"stage\":\"done\"}\n\n", "text/event-stream");
+        var client = new Features31Client(new HttpClient(handler));
+
+        var events = new List<ServerSentEvent<Progress>>();
+        var reconnect = new ApiReconnectOptions { DefaultRetry = TimeSpan.FromHours(1), ReconnectWhenEnded = true };
+        await foreach (var e in ApiEventSource.Reconnecting<Progress>((lastEventId, ct) => client
+            .WithOptions(o => { if (lastEventId is not null) o.DefaultHeaders["Last-Event-ID"] = lastEventId; })
+            .StreamEventsResultAsync(ct), reconnect))
+        {
+            events.Add(e);
+            if (events.Count == 2)
+            {
+                break;
+            }
+        }
+
+        Assert.Equal("7", handler.Requests[1].Headers["Last-Event-ID"]);
+        // An empty id resets the last event id, so the next request sends none.
+        Assert.False(handler.Requests[2].Headers.ContainsKey("Last-Event-ID"));
+        Assert.Equal([1, 2], events.Select(e => e.GetValue().Percent));
+    }
+
+    [Fact]
     public async Task Event_streams_stop_reconnecting_after_the_limit_or_on_http_errors()
     {
         var handler = new RecordingHandler()
